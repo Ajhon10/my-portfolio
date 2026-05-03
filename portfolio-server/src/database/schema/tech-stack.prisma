@@ -1,0 +1,15 @@
+model TechStack {
+    id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt   DateTime      @default(now()) @map("created_at")
+    updatedAt   DateTime      @updatedAt @map("updated_at")
+    deletedAt   DateTime?     @map("deleted_at")
+    deleted     Boolean       @default(false)
+    name        String        @unique @db.VarChar(100)
+    category    String?       @db.VarChar(100)
+    iconUrl     String?       @map("icon_url")
+    proficiency Int           @default(50)
+    sortOrder   Int           @default(0) @map("sort_order")
+    projects    ProjectTech[]
+
+    @@map("tech_stack")
+}

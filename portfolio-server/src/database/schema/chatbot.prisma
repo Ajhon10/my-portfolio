@@ -1,0 +1,44 @@
+model ChatbotKnowledge {
+    id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime  @updatedAt @map("updated_at")
+    deletedAt DateTime? @map("deleted_at")
+    deleted   Boolean   @default(false)
+    topic     String    @db.VarChar(200)
+    question  String
+    answer    String
+    tags      String?   @db.VarChar(500)
+    enabled   Boolean   @default(true)
+
+    @@map("chatbot_knowledge")
+}
+
+model ChatbotConversation {
+    id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt  DateTime          @default(now()) @map("created_at")
+    updatedAt  DateTime          @updatedAt @map("updated_at")
+    deletedAt  DateTime?         @map("deleted_at")
+    deleted    Boolean           @default(false)
+    sessionId  String            @map("session_id") @db.VarChar(100)
+    visitor    String?           @db.VarChar(200)
+    messages   ChatbotMessage[]
+
+    @@map("chatbot_conversation")
+}
+
+model ChatbotMessage {
+    id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt       DateTime            @default(now()) @map("created_at")
+    role            ChatbotMessageRole
+    content         String
+    conversation    ChatbotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+    conversationId  String              @map("conversation_id") @db.Uuid
+
+    @@map("chatbot_message")
+}
+
+enum ChatbotMessageRole {
+    USER
+    ASSISTANT
+    SYSTEM
+}

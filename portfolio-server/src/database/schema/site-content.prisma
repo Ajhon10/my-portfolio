@@ -1,0 +1,12 @@
+model SiteContent {
+    id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime  @updatedAt @map("updated_at")
+    deletedAt DateTime? @map("deleted_at")
+    deleted   Boolean   @default(false)
+    key       String    @unique @db.VarChar(120)
+    label     String    @db.VarChar(200)
+    value     String
+
+    @@map("site_content")
+}

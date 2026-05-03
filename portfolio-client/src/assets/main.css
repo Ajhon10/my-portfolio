@@ -1,0 +1,210 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=JetBrains+Mono:wght@300..700&family=Space+Grotesk:wght@400..700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+	color-scheme: dark;
+}
+
+html.light {
+	color-scheme: light;
+}
+
+html,
+body {
+	background-color: #000000;
+	color: #ffffff;
+	font-family: 'Inter', sans-serif;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	scroll-behavior: smooth;
+}
+
+html.light body {
+	background-color: #f8fafc;
+	color: #0f172a;
+}
+
+body {
+	min-height: 100vh;
+	overflow-x: hidden;
+}
+
+::selection {
+	background-color: rgba(0, 102, 255, 0.4);
+	color: #ffffff;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+::-webkit-scrollbar-track {
+	background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+	background: #1e293b;
+	border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+	background: #334155;
+}
+
+html.light ::-webkit-scrollbar-track {
+	background: #e2e8f0;
+}
+html.light ::-webkit-scrollbar-thumb {
+	background: #94a3b8;
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+	background: #64748b;
+}
+
+/* Typing cursor */
+.typing-cursor {
+	display: inline-block;
+	width: 3px;
+	height: 1em;
+	background-color: #0066ff;
+	margin-left: 4px;
+	vertical-align: middle;
+	animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+	0%, 50% { opacity: 1; }
+	50.01%, 100% { opacity: 0; }
+}
+
+/* Animated gradient bg */
+.animated-gradient {
+	background: linear-gradient(120deg, #000000, #001a4d, #000000, #002b80);
+	background-size: 400% 400%;
+	animation: gradient-shift 14s ease infinite;
+}
+
+@keyframes gradient-shift {
+	0%, 100% { background-position: 0% 50%; }
+	50% { background-position: 100% 50%; }
+}
+
+/* Reusable button */
+.btn {
+	@apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 select-none;
+}
+.btn-primary {
+	@apply bg-brand-blue text-white hover:bg-brand-blueDark hover:shadow-glow-blue active:scale-95;
+}
+.btn-outline {
+	@apply border border-brand-blue/60 text-brand-blueLight hover:bg-brand-blue/10 hover:border-brand-blue hover:text-white active:scale-95;
+}
+.btn-ghost {
+	@apply text-brand-gray-300 hover:text-white hover:bg-white/5;
+}
+.btn-gold {
+	@apply bg-brand-gold text-black hover:shadow-glow-gold active:scale-95;
+}
+.btn-danger {
+	@apply bg-red-500/90 text-white hover:bg-red-600;
+}
+
+/* Cards */
+.card {
+	@apply rounded-xl border border-white/5 bg-white/[0.02] backdrop-blur-sm;
+}
+.card-hover {
+	@apply transition-all duration-300 hover:border-brand-blue/40 hover:shadow-glow-blue hover:-translate-y-1;
+}
+
+/* Form fields */
+.input {
+	@apply w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder:text-brand-gray-500 focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition;
+}
+.label {
+	@apply block text-sm font-medium text-brand-gray-300 mb-1.5;
+}
+
+/* Section spacing */
+.section {
+	@apply px-6 md:px-10 lg:px-16 py-20 md:py-28;
+}
+
+/* Headings */
+.heading-1 {
+	@apply font-display text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight;
+}
+.heading-2 {
+	@apply font-display text-3xl md:text-5xl font-bold tracking-tight;
+}
+.heading-3 {
+	@apply font-display text-2xl md:text-3xl font-semibold;
+}
+
+.text-gradient-blue {
+	background: linear-gradient(90deg, #3388ff, #0066ff, #00aaff);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+/* Grid background */
+.bg-grid {
+	background-image: linear-gradient(to right, rgba(0, 102, 255, 0.07) 1px, transparent 1px),
+		linear-gradient(to bottom, rgba(0, 102, 255, 0.07) 1px, transparent 1px);
+	background-size: 50px 50px;
+}
+
+/* Vue3 toastify dark adjustments */
+.Toastify__toast {
+	font-family: 'Inter', sans-serif;
+}
+
+/* ===== LIGHT MODE OVERRIDES ===== */
+html.light .card {
+	background-color: rgba(255, 255, 255, 0.9);
+	border-color: rgba(0, 0, 0, 0.08);
+}
+html.light .card-hover:hover {
+	border-color: rgba(0, 102, 255, 0.4);
+}
+html.light .input {
+	background-color: #ffffff;
+	border-color: #cbd5e1;
+	color: #0f172a;
+}
+html.light .input::placeholder {
+	color: #94a3b8;
+}
+html.light .input:focus {
+	border-color: #0066ff;
+}
+html.light .btn-ghost {
+	color: #475569;
+}
+html.light .btn-ghost:hover {
+	color: #0f172a;
+	background-color: rgba(0, 0, 0, 0.05);
+}
+html.light .btn-outline {
+	border-color: rgba(0, 102, 255, 0.5);
+	color: #0055dd;
+}
+html.light .btn-outline:hover {
+	background-color: rgba(0, 102, 255, 0.08);
+}
+html.light .label {
+	color: #334155;
+}
+html.light .animated-gradient {
+	background: linear-gradient(120deg, #f0f4ff, #e8f0ff, #f0f4ff, #dbeafe);
+}
+html.light .bg-grid {
+	background-image: linear-gradient(to right, rgba(0, 102, 255, 0.06) 1px, transparent 1px),
+		linear-gradient(to bottom, rgba(0, 102, 255, 0.06) 1px, transparent 1px);
+}
+html.light .light-mobile-menu {
+	background-color: rgba(248, 250, 252, 0.97) !important;
+}

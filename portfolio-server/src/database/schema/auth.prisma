@@ -1,0 +1,16 @@
+model Auth {
+    id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt       DateTime  @default(now()) @map("created_at")
+    updatedAt       DateTime  @updatedAt @map("updated_at")
+    deletedAt       DateTime? @map("deleted_at")
+    deleted         Boolean   @default(false)
+    email           String    @unique
+    password        String
+    verified        Boolean   @default(false)
+    lastLogin       DateTime? @map("last_login")
+    loginAttempts   Int       @default(0) @map("login_attempts")
+    lastFailedLogin DateTime? @map("last_failed_login")
+    user            User?
+
+    @@map("auth")
+}

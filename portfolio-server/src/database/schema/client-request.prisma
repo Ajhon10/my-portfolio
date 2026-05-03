@@ -1,0 +1,44 @@
+model ClientRequest {
+    id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt       DateTime             @default(now()) @map("created_at")
+    updatedAt       DateTime             @updatedAt @map("updated_at")
+    deletedAt       DateTime?            @map("deleted_at")
+    deleted         Boolean              @default(false)
+    fullName        String               @map("full_name") @db.VarChar(200)
+    email           String               @db.VarChar(200)
+    company         String?              @db.VarChar(200)
+    phone           String?              @db.VarChar(50)
+    projectType     String               @map("project_type") @db.VarChar(100)
+    budget          String?              @db.VarChar(100)
+    timeline        String?              @db.VarChar(100)
+    description     String
+    referenceLinks  String?              @map("reference_links")
+    status          ClientRequestStatus  @default(PENDING)
+    replies         ClientRequestReply[]
+
+    @@map("client_request")
+}
+
+enum ClientRequestStatus {
+    PENDING
+    REVIEWING
+    REPLIED
+    ACCEPTED
+    DECLINED
+    ARCHIVED
+}
+
+model ClientRequestReply {
+    id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt    DateTime      @default(now()) @map("created_at")
+    updatedAt    DateTime      @updatedAt @map("updated_at")
+    deletedAt    DateTime?     @map("deleted_at")
+    deleted      Boolean       @default(false)
+    message      String
+    request      ClientRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+    requestId    String        @map("request_id") @db.Uuid
+    repliedBy    User          @relation("AdminReplies", fields: [repliedById], references: [id], onDelete: Restrict)
+    repliedById  String        @map("replied_by_id") @db.Uuid
+
+    @@map("client_request_reply")
+}
