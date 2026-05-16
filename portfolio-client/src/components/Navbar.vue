@@ -3,11 +3,13 @@ import { useUserStore } from '@/stores/user'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTheme } from '@/composables/useTheme'
+import { useSiteBranding } from '@/composables/useSiteBranding'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const { isDark, toggle: toggleTheme } = useTheme()
+const { logoText, logoSubtitle, logoUrl, loadBranding } = useSiteBranding()
 
 const scrolled = ref(false)
 const mobileOpen = ref(false)
@@ -17,6 +19,7 @@ const sections = [
 	{ id: 'tech', label: 'Tech' },
 	{ id: 'projects', label: 'Projects' },
 	{ id: 'experience', label: 'Experience' },
+	{ id: 'certifications', label: 'Certs' },
 	{ id: 'contact', label: 'Contact' },
 ]
 
@@ -25,6 +28,7 @@ const onScroll = () => {
 }
 
 onMounted(() => {
+	loadBranding()
 	window.addEventListener('scroll', onScroll, { passive: true })
 	onScroll()
 })
@@ -50,8 +54,9 @@ const goToSection = (id: string) => {
 	>
 		<div class="max-w-7xl mx-auto px-6 md:px-10 lg:px-16 h-16 flex items-center justify-between">
 			<router-link to="/" class="flex items-center gap-2 group">
-				<span class="font-display text-xl font-bold text-gradient-blue">JLJ</span>
-				<span class="text-xs font-mono text-brand-gray-400 hidden sm:block">/dev</span>
+				<img v-if="logoUrl" :src="logoUrl" alt="Website logo" class="h-9 w-auto max-w-[9rem] object-contain" />
+				<span v-else class="font-display text-xl font-bold text-gradient-blue">{{ logoText }}</span>
+				<span v-if="!logoUrl && logoSubtitle" class="text-xs font-mono text-brand-gray-400 hidden sm:block">{{ logoSubtitle }}</span>
 			</router-link>
 
 			<nav class="hidden md:flex items-center gap-7">
@@ -91,10 +96,10 @@ const goToSection = (id: string) => {
 				</button>
 				<router-link
 					v-if="userStore.isAuthenticated"
-					to="/admin/dashboard"
+					:to="userStore.isClient ? '/client/portal' : '/admin/dashboard'"
 					class="btn btn-outline !py-2 !px-4 text-sm"
 				>
-					Dashboard
+					{{ userStore.isClient ? 'Client Portal' : 'Dashboard' }}
 				</router-link>
 				<router-link v-else to="/login" class="btn btn-ghost !py-2 !px-3 text-sm">Sign in</router-link>
 				<button class="btn btn-primary !py-2 !px-4 text-sm" @click="goToSection('contact')">Hire Me</button>
@@ -131,11 +136,11 @@ const goToSection = (id: string) => {
 			<router-link to="/projects" class="block py-2 text-brand-gray-200 hover:text-white" @click="mobileOpen = false">All Work</router-link>
 			<router-link
 				v-if="userStore.isAuthenticated"
-				to="/admin/dashboard"
+				:to="userStore.isClient ? '/client/portal' : '/admin/dashboard'"
 				class="block py-2 text-brand-blueLight"
 				@click="mobileOpen = false"
 			>
-				Dashboard
+				{{ userStore.isClient ? 'Client Portal' : 'Dashboard' }}
 			</router-link>
 			<router-link v-else to="/login" class="block py-2 text-brand-gray-300" @click="mobileOpen = false">
 				Sign in

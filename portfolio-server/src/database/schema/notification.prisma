@@ -1,0 +1,28 @@
+model Notification {
+    id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt   DateTime         @default(now()) @map("created_at")
+    updatedAt   DateTime         @updatedAt @map("updated_at")
+    deletedAt   DateTime?        @map("deleted_at")
+    deleted     Boolean          @default(false)
+
+    type        NotificationType
+    title       String           @db.VarChar(200)
+    message     String
+    link        String?          @db.VarChar(500)
+    metadata    Json?
+    read        Boolean          @default(false)
+    readAt      DateTime?        @map("read_at")
+
+    // null = broadcast to all admins; otherwise targeted at a specific user
+    userId      String?          @map("user_id") @db.Uuid
+
+    @@index([userId, read, createdAt])
+    @@map("notification")
+}
+
+enum NotificationType {
+    CLIENT_REQUEST
+    CLIENT_INQUIRY
+    CHAT_MESSAGE
+    SYSTEM
+}

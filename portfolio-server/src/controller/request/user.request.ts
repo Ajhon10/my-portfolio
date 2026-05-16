@@ -19,10 +19,10 @@ export class UserCreateRequest {
 	@IsString()
 	lastName: string
 
-	@ApiPropertyOptional({ enum: ['OWNER', 'ADMIN'] })
+	@ApiPropertyOptional({ enum: ['OWNER', 'ADMIN', 'CLIENT'] })
 	@IsOptional()
-	@IsIn(['OWNER', 'ADMIN'])
-	role?: 'OWNER' | 'ADMIN'
+	@IsIn(['OWNER', 'ADMIN', 'CLIENT'])
+	role?: 'OWNER' | 'ADMIN' | 'CLIENT'
 }
 
 export class UserUpdateRequest {
@@ -41,8 +41,8 @@ export class UserUpdateRequest {
 	@IsString()
 	avatarUrl?: string
 
-	@ApiPropertyOptional({ enum: ['OWNER', 'ADMIN'] })
+	@ApiPropertyOptional({ enum: ['OWNER', 'ADMIN', 'CLIENT'] })
 	@IsOptional()
-	@IsIn(['OWNER', 'ADMIN'])
-	role?: 'OWNER' | 'ADMIN'
+	@IsIn(['OWNER', 'ADMIN', 'CLIENT'])
+	role?: 'OWNER' | 'ADMIN' | 'CLIENT'
 }

@@ -23,7 +23,7 @@ export class UserProvider implements UserContract {
 		})
 	}
 
-	async create(data: { email: string; password: string; firstName: string; lastName: string; role?: 'OWNER' | 'ADMIN' }) {
+	async create(data: { email: string; password: string; firstName: string; lastName: string; role?: 'OWNER' | 'ADMIN' | 'CLIENT' }) {
 		const existing = await this.database.auth.findFirst({ where: { email: data.email, deleted: false } })
 		if (existing) throw new BadRequestException({ message: 'Email already in use.' })
 
@@ -38,6 +38,7 @@ export class UserProvider implements UserContract {
 						firstName: data.firstName,
 						lastName: data.lastName,
 						role: data.role || 'ADMIN',
+						twoFactorEnabled: data.role === 'CLIENT' ? false : true,
 					},
 				},
 			},
@@ -45,7 +46,7 @@ export class UserProvider implements UserContract {
 		})
 	}
 
-	async update(id: string, data: Partial<{ firstName: string; lastName: string; avatarUrl: string; role: 'OWNER' | 'ADMIN' }>) {
+	async update(id: string, data: Partial<{ firstName: string; lastName: string; avatarUrl: string; role: 'OWNER' | 'ADMIN' | 'CLIENT' }>) {
 		const user = await this.database.user.findFirst({ where: { id, deleted: false } })
 		if (!user) throw new NotFoundException({ message: 'User not found.' })
 		await this.database.user.update({ where: { id }, data })

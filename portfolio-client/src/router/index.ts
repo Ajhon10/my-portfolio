@@ -36,6 +36,17 @@ const router = createRouter({
 			meta: { requiresAuth: false },
 		},
 		{
+			path: '/client',
+			redirect: '/client/portal',
+			meta: { requiresAuth: true, requiresClient: true },
+		},
+		{
+			path: '/client/portal',
+			name: 'client-portal',
+			component: () => import('@/views/ClientPortalView.vue'),
+			meta: { requiresAuth: true, requiresClient: true },
+		},
+		{
 			path: '/admin',
 			redirect: '/admin/dashboard',
 			meta: { requiresAuth: true },
@@ -62,6 +73,12 @@ const router = createRouter({
 			path: '/admin/experience',
 			name: 'admin-experience',
 			component: () => import('@/views/admin/ExperienceCmsView.vue'),
+			meta: { requiresAuth: true },
+		},
+		{
+			path: '/admin/certifications',
+			name: 'admin-certifications',
+			component: () => import('@/views/admin/CertificationsCmsView.vue'),
 			meta: { requiresAuth: true },
 		},
 		{
@@ -119,6 +136,14 @@ router.beforeEach(async (to) => {
 
 	if (to.meta.requiresOwner && userStore.user?.role !== Role.OWNER) {
 		return { path: '/admin/dashboard' }
+	}
+
+	if (to.meta.requiresClient && userStore.user?.role !== Role.CLIENT) {
+		return { path: '/admin/dashboard' }
+	}
+
+	if (to.path.startsWith('/admin') && userStore.user?.role === Role.CLIENT) {
+		return { path: '/client/portal' }
 	}
 
 	return true

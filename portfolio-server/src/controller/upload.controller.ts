@@ -23,7 +23,10 @@ import { extname } from 'path'
 import { v4 as uuidv4 } from 'uuid'
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const ALLOWED_CERTIFICATION_MIME = [...ALLOWED_MIME, 'application/pdf']
+const ALLOWED_SITE_ASSET_MIME = [...ALLOWED_MIME, 'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon']
 const MAX_SIZE_BYTES = 8 * 1024 * 1024 // 8 MB
+const MAX_CERTIFICATION_SIZE_BYTES = 12 * 1024 * 1024 // 12 MB
 
 @ApiTags('Upload')
 @Controller('/upload')
@@ -57,6 +60,66 @@ export class UploadController {
 		return {
 			success: true,
 			message: 'Image uploaded',
+			data: { url: `/uploads/${file.filename}` },
+		}
+	}
+
+	@Post('site-asset')
+	@UseGuards(AccessTokenGuard, RoleGuard)
+	@Roles('OWNER', 'ADMIN')
+	@UseInterceptors(
+		FileInterceptor('file', {
+			storage: diskStorage({
+				destination: './uploads',
+				filename: (_req, file, cb) => {
+					cb(null, `${uuidv4()}${extname(file.originalname).toLowerCase()}`)
+				},
+			}),
+			limits: { fileSize: MAX_SIZE_BYTES },
+			fileFilter: (_req, file, cb) => {
+				if (ALLOWED_SITE_ASSET_MIME.includes(file.mimetype)) {
+					cb(null, true)
+				} else {
+					cb(new HttpException('Only JPG, PNG, WebP, GIF, SVG, or ICO files are allowed', HttpStatus.BAD_REQUEST), false)
+				}
+			},
+		}),
+	)
+	async uploadSiteAsset(@UploadedFile() file: Express.Multer.File) {
+		if (!file) throw new HttpException('No file provided', HttpStatus.BAD_REQUEST)
+		return {
+			success: true,
+			message: 'Site asset uploaded',
+			data: { url: `/uploads/${file.filename}` },
+		}
+	}
+
+	@Post('certification')
+	@UseGuards(AccessTokenGuard, RoleGuard)
+	@Roles('OWNER', 'ADMIN')
+	@UseInterceptors(
+		FileInterceptor('file', {
+			storage: diskStorage({
+				destination: './uploads',
+				filename: (_req, file, cb) => {
+					cb(null, `${uuidv4()}${extname(file.originalname).toLowerCase()}`)
+				},
+			}),
+			limits: { fileSize: MAX_CERTIFICATION_SIZE_BYTES },
+			fileFilter: (_req, file, cb) => {
+				if (ALLOWED_CERTIFICATION_MIME.includes(file.mimetype)) {
+					cb(null, true)
+				} else {
+					cb(new HttpException('Only image or PDF certificate files are allowed', HttpStatus.BAD_REQUEST), false)
+				}
+			},
+		}),
+	)
+	async uploadCertification(@UploadedFile() file: Express.Multer.File) {
+		if (!file) throw new HttpException('No file provided', HttpStatus.BAD_REQUEST)
+		return {
+			success: true,
+			message: 'Certification file uploaded',
 			data: { url: `/uploads/${file.filename}` },
 		}
 	}

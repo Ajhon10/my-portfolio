@@ -3,13 +3,16 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DataTable, { type DataTableColumn } from '@/components/DataTable.vue'
 import FormField from '@/components/FormField.vue'
 import Modal from '@/components/Modal.vue'
+import { useAuthProvider } from '@/composables/provider/auth.provider'
 import { useUserProvider, type UserInput } from '@/composables/provider/user.provider'
 import { useUserStore } from '@/stores/user'
 import { Role, type User } from '@/types'
 import { onMounted, reactive, ref } from 'vue'
+import { toast } from 'vue3-toastify'
 
 const provider = useUserProvider()
 const userStore = useUserStore()
+const authProvider = useAuthProvider()
 
 const items = ref<User[]>([])
 const loading = ref(true)
@@ -112,6 +115,12 @@ const doDelete = async () => {
 }
 
 const canDelete = (u: User) => u.id !== userStore.user?.id
+
+const resetUser2FA = async (u: User) => {
+	const res = await authProvider.adminReset2FA(u.id)
+	if (res.success) toast.success(`2FA disabled for ${u.firstName}`)
+	else toast.error(res.message || 'Failed to reset 2FA')
+}
 </script>
 
 <template>
@@ -154,14 +163,25 @@ const canDelete = (u: User) => u.id !== userStore.user?.id
 					<select v-model="form.role" class="input">
 						<option :value="Role.OWNER">Owner</option>
 						<option :value="Role.ADMIN">Admin</option>
+						<option :value="Role.CLIENT">Client</option>
 					</select>
 				</FormField>
 				<FormField label="Avatar URL">
 					<input v-model="form.avatarUrl" type="url" class="input" placeholder="https://..." />
 				</FormField>
-				<div class="flex justify-end gap-3 pt-2">
-					<button type="button" class="btn btn-ghost" @click="showModal = false">Cancel</button>
-					<button type="submit" class="btn btn-primary">Save</button>
+				<div class="flex items-center justify-between pt-2 gap-3">
+					<button
+						v-if="editingId && userStore.isOwner"
+						type="button"
+						class="btn btn-ghost text-red-400 hover:text-red-300 text-sm !px-3 !py-2"
+						@click="resetUser2FA(items.find(u => u.id === editingId)!)"
+					>
+						Reset 2FA
+					</button>
+					<div class="flex gap-3 ml-auto">
+						<button type="button" class="btn btn-ghost" @click="showModal = false">Cancel</button>
+						<button type="submit" class="btn btn-primary">Save</button>
+					</div>
 				</div>
 			</form>
 		</Modal>

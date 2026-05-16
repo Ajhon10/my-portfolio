@@ -6,6 +6,12 @@ export interface ChatbotKnowledgeInput {
 	enabled?: boolean
 }
 
+export interface ChatbotTagInput {
+	name: string
+	label: string
+	sortOrder?: number
+}
+
 export interface ChatbotChatInput {
 	sessionId: string
 	visitor?: string
@@ -19,6 +25,7 @@ export interface ChatbotChatResult {
 }
 
 export interface ChatbotContract {
+	listTags(): Promise<any[]>
 	listKnowledge(): Promise<any[]>
 	createKnowledge(data: ChatbotKnowledgeInput): Promise<any>
 	updateKnowledge(id: string, data: Partial<ChatbotKnowledgeInput>): Promise<void>

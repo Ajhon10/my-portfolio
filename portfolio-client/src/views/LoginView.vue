@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import TwoFactorSetupModal from '@/components/TwoFactorSetupModal.vue'
+import TwoFactorVerifyModal from '@/components/TwoFactorVerifyModal.vue'
 import { useUserStore } from '@/stores/user'
+import { Role } from '@/types'
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue3-toastify'
@@ -11,21 +14,67 @@ const route = useRoute()
 const form = reactive({ email: '', password: '' })
 const submitting = ref(false)
 const showPassword = ref(false)
+const errorMsg = ref('')
+
+// 2FA state
+const show2FASetup = ref(false)
+const show2FAVerify = ref(false)
+const setupData = ref<{ qrCode: string; setupToken: string } | null>(null)
+const verifyLoading = ref(false)
+const verifyError = ref('')
 
 const submit = async () => {
 	if (!form.email || !form.password) {
-		toast.error('Please enter your email and password.')
+		errorMsg.value = 'Please enter your email and password.'
 		return
 	}
 	submitting.value = true
+	errorMsg.value = ''
+
 	const res = await userStore.login(form.email, form.password)
 	submitting.value = false
+
+	if (res.requiresInitialTwoFactorSetup && res.setupData) {
+		setupData.value = res.setupData
+		show2FASetup.value = true
+		return
+	}
+
+	if (res.requires2FA) {
+		show2FAVerify.value = true
+		return
+	}
+
 	if (res.success) {
 		toast.success('Welcome back!')
-		const redirect = (route.query.redirect as string) || '/admin/dashboard'
+		const defaultPath = userStore.user?.role === Role.CLIENT ? '/client/portal' : '/admin/dashboard'
+		const redirect = (route.query.redirect as string) || defaultPath
 		router.push(redirect)
 	} else {
-		toast.error(res.message || 'Login failed')
+		errorMsg.value = res.message || 'Login failed'
+	}
+}
+
+const on2FASetupSuccess = () => {
+	show2FASetup.value = false
+	toast.success('Two-factor authentication enabled! Please sign in.')
+	// Force fresh login with 2FA now active
+}
+
+const on2FAVerify = async (code: string) => {
+	verifyLoading.value = true
+	verifyError.value = ''
+	const res = await userStore.login(form.email, form.password, code)
+	verifyLoading.value = false
+
+	if (res.success) {
+		show2FAVerify.value = false
+		toast.success('Welcome back!')
+		const defaultPath = userStore.user?.role === Role.CLIENT ? '/client/portal' : '/admin/dashboard'
+		const redirect = (route.query.redirect as string) || defaultPath
+		router.push(redirect)
+	} else {
+		verifyError.value = res.message || 'Invalid code.'
 	}
 }
 </script>
@@ -46,6 +95,10 @@ const submit = async () => {
 
 			<h1 class="font-display text-3xl font-bold mb-1">Welcome back</h1>
 			<p class="text-sm text-brand-gray-400 mb-8">Sign in to your portfolio admin.</p>
+
+			<div v-if="errorMsg" class="mb-4 rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-2 text-sm text-red-400">
+				{{ errorMsg }}
+			</div>
 
 			<form class="space-y-4" @submit.prevent="submit">
 				<div>
@@ -78,4 +131,23 @@ const submit = async () => {
 			</form>
 		</div>
 	</div>
+
+	<!-- 2FA Setup Modal (first-time setup) -->
+	<TwoFactorSetupModal
+		v-if="setupData"
+		:open="show2FASetup"
+		:qr-code="setupData.qrCode"
+		:setup-token="setupData.setupToken"
+		@success="on2FASetupSuccess"
+		@close="show2FASetup = false"
+	/>
+
+	<!-- 2FA Verify Modal (returning user with 2FA) -->
+	<TwoFactorVerifyModal
+		:open="show2FAVerify"
+		:loading="verifyLoading"
+		:error="verifyError"
+		@verify="on2FAVerify"
+		@close="show2FAVerify = false"
+	/>
 </template>

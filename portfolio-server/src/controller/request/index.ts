@@ -1,5 +1,6 @@
 export * from './auth-login.request'
 export * from './auth-register.request'
+export * from './certification.request'
 export * from './change-password.request'
 export * from './chatbot-chat.request'
 export * from './chatbot-knowledge.request'

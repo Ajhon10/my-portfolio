@@ -62,6 +62,27 @@ export const useProjectProvider = () => {
 		}
 	}
 
+	const uploadSiteAsset = async (file: File): Promise<{ success: boolean; url?: string; message?: string }> => {
+		const baseURL = (import.meta.env.VITE_API_ENDPOINT as string) || '/api'
+		const formData = new FormData()
+		formData.append('file', file)
+		try {
+			const { data, status } = await axios.post(`${baseURL}/upload/site-asset`, formData, {
+				headers: {
+					'Content-Type': 'multipart/form-data',
+					Authorization: `Bearer ${getToken()}`,
+				},
+				validateStatus: () => true,
+			})
+			if (status >= 400 || !data?.success) {
+				return { success: false, message: data?.message || 'Upload failed' }
+			}
+			return { success: true, url: data.data.url }
+		} catch {
+			return { success: false, message: 'Upload failed' }
+		}
+	}
+
 	const listProjectImages = async (projectId: string) => {
 		return await api.GET<ProjectImage[]>(`/upload/project-images/${projectId}`, {}, { silent: true })
 	}
@@ -90,5 +111,5 @@ export const useProjectProvider = () => {
 		return await api.PUT(`/upload/project-images/${imageId}/sort`, { sortOrder })
 	}
 
-	return { list, getBySlug, create, update, remove, uploadImage, listProjectImages, uploadProjectImage, deleteProjectImage, reorderProjectImage }
+	return { list, getBySlug, create, update, remove, uploadImage, uploadSiteAsset, listProjectImages, uploadProjectImage, deleteProjectImage, reorderProjectImage }
 }

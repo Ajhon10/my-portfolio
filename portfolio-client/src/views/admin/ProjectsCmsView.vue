@@ -3,6 +3,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DataTable, { type DataTableColumn } from '@/components/DataTable.vue'
 import FormField from '@/components/FormField.vue'
 import Modal from '@/components/Modal.vue'
+import SortOrderSelect from '@/components/SortOrderSelect.vue'
 import { useProjectProvider, type ProjectInput } from '@/composables/provider/project.provider'
 import { useTechStackProvider } from '@/composables/provider/tech-stack.provider'
 import type { Project, ProjectImage, TechStack } from '@/types'
@@ -83,6 +84,12 @@ const filtered = computed(() => {
 		(p) => p.title.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q) || (p.category?.toLowerCase().includes(q) ?? false),
 	)
 })
+
+const takenSortOrders = computed(() =>
+	items.value
+		.filter((p) => p.id !== editingId.value)
+		.map((p) => p.sortOrder),
+)
 
 const load = async () => {
 	loading.value = true
@@ -383,8 +390,8 @@ const toggleTech = (id: string) => {
 					<FormField label="Repo URL">
 						<input v-model="form.repoUrl" type="url" class="input" placeholder="https://github.com/..." />
 					</FormField>
-					<FormField label="Sort order">
-						<input v-model.number="form.sortOrder" type="number" class="input" />
+					<FormField label="Sort order" hint="Position in listing (lower = first)">
+						<SortOrderSelect v-model="form.sortOrder" :taken-values="takenSortOrders" />
 					</FormField>
 					<div class="flex items-center gap-6 pt-7">
 						<label class="flex items-center gap-2 text-sm">

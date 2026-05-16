@@ -14,7 +14,10 @@ model ClientRequest {
     description     String
     referenceLinks  String?              @map("reference_links")
     status          ClientRequestStatus  @default(PENDING)
+    clientUserId    String?              @map("client_user_id") @db.Uuid
+    clientUser      User?                @relation("ClientRequests", fields: [clientUserId], references: [id], onDelete: SetNull)
     replies         ClientRequestReply[]
+    messages        ClientRequestMessage[]
 
     @@map("client_request")
 }
@@ -41,4 +44,20 @@ model ClientRequestReply {
     repliedById  String        @map("replied_by_id") @db.Uuid
 
     @@map("client_request_reply")
+}
+
+model ClientRequestMessage {
+    id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt DateTime      @default(now()) @map("created_at")
+    updatedAt DateTime      @updatedAt @map("updated_at")
+    deletedAt DateTime?     @map("deleted_at")
+    deleted   Boolean       @default(false)
+    message   String
+    request   ClientRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+    requestId String        @map("request_id") @db.Uuid
+    sender    User          @relation("ClientRequestMessageSender", fields: [senderId], references: [id], onDelete: Restrict)
+    senderId  String        @map("sender_id") @db.Uuid
+
+    @@index([requestId, createdAt])
+    @@map("client_request_message")
 }

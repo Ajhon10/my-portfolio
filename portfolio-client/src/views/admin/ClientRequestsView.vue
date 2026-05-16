@@ -1,8 +1,13 @@
 <script setup lang="ts">
+import FormField from '@/components/FormField.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import Modal from '@/components/Modal.vue'
 import { useClientRequestProvider } from '@/composables/provider/client-request.provider'
-import { ClientRequestStatus, type ClientRequest } from '@/types'
-import { computed, onMounted, ref } from 'vue'
+import { getAdminSocket } from '@/composables/useSocket'
+import { ClientRequestStatus, Role, type ClientRequest, type ClientRequestMessage } from '@/types'
+import type { Socket } from 'socket.io-client'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { toast } from 'vue3-toastify'
 
 const provider = useClientRequestProvider()
 const items = ref<ClientRequest[]>([])
@@ -11,6 +16,25 @@ const selectedId = ref<string | null>(null)
 const filter = ref<string>('all')
 const replyText = ref('')
 const sending = ref(false)
+const messages = ref<ClientRequestMessage[]>([])
+const loadingMessages = ref(false)
+const chatText = ref('')
+const sendingChat = ref(false)
+const clientTyping = ref(false)
+const messageList = ref<HTMLElement | null>(null)
+const accountModalOpen = ref(false)
+const creatingAccount = ref(false)
+const accountErrors = ref<Record<string, string>>({})
+let socket: Socket | null = null
+let typingTimeout: ReturnType<typeof setTimeout> | null = null
+let lastTypingSent = 0
+
+const accountForm = reactive({
+	email: '',
+	password: '',
+	firstName: '',
+	lastName: '',
+})
 
 const selected = computed(() => items.value.find((r) => r.id === selectedId.value))
 
@@ -25,13 +49,46 @@ const load = async () => {
 	loading.value = true
 	const res = await provider.list()
 	if (res.success && res.data) {
-		items.value = res.data
+		items.value = sortRequests(res.data)
 		if (!selectedId.value && items.value.length) selectedId.value = items.value[0].id
 	}
 	loading.value = false
 }
 
-onMounted(load)
+const sortRequests = (requests: ClientRequest[]) =>
+	[...requests].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+
+const mergeRequest = (request: ClientRequest) => {
+	if (!request?.id) return
+	const idx = items.value.findIndex((item) => item.id === request.id)
+	if (idx >= 0) {
+		const next = [...items.value]
+		next[idx] = { ...next[idx], ...request }
+		items.value = sortRequests(next)
+		return
+	}
+	items.value = sortRequests([request, ...items.value])
+	if (!selectedId.value) selectedId.value = request.id
+}
+
+onMounted(async () => {
+	setupSocket()
+	await load()
+	await joinSelected(selectedId.value)
+})
+
+onBeforeUnmount(() => {
+	if (typingTimeout) clearTimeout(typingTimeout)
+	if (selectedId.value) socket?.emit('project-chat:leave', { requestId: selectedId.value })
+	teardownSocket()
+})
+
+watch(selectedId, async (next, prev) => {
+	if (prev) socket?.emit('project-chat:leave', { requestId: prev })
+	clientTyping.value = false
+	messages.value = []
+	await joinSelected(next)
+})
 
 const fmt = (d: string) => new Date(d).toLocaleString()
 
@@ -67,6 +124,138 @@ const sendReply = async () => {
 		replyText.value = ''
 		await load()
 	}
+}
+
+const setupSocket = () => {
+	socket = getAdminSocket()
+	if (!socket) {
+		setTimeout(setupSocket, 200)
+		return
+	}
+	socket.off('project-chat:message')
+	socket.off('project-chat:typing')
+	socket.off('client-request:new')
+
+	socket.on('client-request:new', ({ request }: { request: ClientRequest }) => {
+		if (!request?.id) return
+		mergeRequest(request)
+		toast.info(`New inquiry from ${request.fullName}`, {
+			toastId: `client-request-${request.id}`,
+		})
+	})
+
+	socket.on('project-chat:message', ({ requestId, message }: { requestId: string; message: ClientRequestMessage }) => {
+		const idx = items.value.findIndex((request) => request.id === requestId)
+		if (idx >= 0) {
+			const next = [...items.value]
+			next[idx] = { ...next[idx], updatedAt: message.createdAt }
+			items.value = next
+		}
+		if (requestId !== selectedId.value) return
+		if (messages.value.find((item) => item.id === message.id)) return
+		messages.value.push(message)
+		scrollMessages()
+	})
+
+	socket.on('project-chat:typing', ({ requestId, sender, typing }: { requestId: string; sender: string; typing: boolean }) => {
+		if (requestId === selectedId.value && sender === 'client') {
+			clientTyping.value = typing
+			scrollMessages()
+		}
+	})
+}
+
+const teardownSocket = () => {
+	if (!socket) return
+	socket.off('project-chat:message')
+	socket.off('project-chat:typing')
+	socket.off('client-request:new')
+}
+
+const joinSelected = async (requestId: string | null) => {
+	if (!requestId) return
+	socket?.emit('project-chat:join', { requestId })
+	loadingMessages.value = true
+	const res = await provider.listMessages(requestId)
+	if (res.success && res.data) messages.value = res.data
+	loadingMessages.value = false
+	await scrollMessages()
+}
+
+const scrollMessages = async () => {
+	await nextTick()
+	if (messageList.value) messageList.value.scrollTop = messageList.value.scrollHeight
+}
+
+const onChatInput = () => {
+	if (!socket || !selectedId.value) return
+	const now = Date.now()
+	if (now - lastTypingSent > 2000) {
+		socket.emit('project-chat:typing', { requestId: selectedId.value, typing: true })
+		lastTypingSent = now
+	}
+	if (typingTimeout) clearTimeout(typingTimeout)
+	typingTimeout = setTimeout(() => {
+		socket?.emit('project-chat:typing', { requestId: selectedId.value, typing: false })
+		lastTypingSent = 0
+	}, 1500)
+}
+
+const sendChat = async () => {
+	const text = chatText.value.trim()
+	if (!selected.value || !text || sendingChat.value) return
+	sendingChat.value = true
+	chatText.value = ''
+	socket?.emit('project-chat:typing', { requestId: selected.value.id, typing: false })
+	lastTypingSent = 0
+	const res = await provider.sendMessage(selected.value.id, text)
+	sendingChat.value = false
+	if (res.success && res.data && !messages.value.find((item) => item.id === res.data!.id)) {
+		messages.value.push(res.data)
+		await scrollMessages()
+	} else if (!res.success) {
+		chatText.value = text
+	}
+}
+
+const openAccountModal = () => {
+	if (!selected.value) return
+	const [first, ...rest] = selected.value.fullName.trim().split(/\s+/)
+	accountForm.email = selected.value.email
+	accountForm.password = ''
+	accountForm.firstName = first || ''
+	accountForm.lastName = rest.join(' ')
+	accountErrors.value = {}
+	accountModalOpen.value = true
+}
+
+const createClientAccount = async () => {
+	if (!selected.value) return
+	accountErrors.value = {}
+	if (!accountForm.email.trim()) accountErrors.value.email = 'Email is required'
+	if (!accountForm.firstName.trim()) accountErrors.value.firstName = 'First name is required'
+	if (!accountForm.lastName.trim()) accountErrors.value.lastName = 'Last name is required'
+	if (!accountForm.password || accountForm.password.length < 8) accountErrors.value.password = 'Password must be at least 8 characters'
+	if (Object.keys(accountErrors.value).length) return
+
+	creatingAccount.value = true
+	const res = await provider.createClientAccount(selected.value.id, {
+		email: accountForm.email.trim(),
+		password: accountForm.password,
+		firstName: accountForm.firstName.trim(),
+		lastName: accountForm.lastName.trim(),
+	})
+	creatingAccount.value = false
+	if (res.success) {
+		toast.success('Client account created.')
+		accountModalOpen.value = false
+		await load()
+	}
+}
+
+const senderName = (message: ClientRequestMessage) => {
+	if (message.sender?.role === Role.CLIENT) return `${message.sender?.firstName || 'Client'} ${message.sender?.lastName || ''}`.trim()
+	return 'You'
 }
 </script>
 
@@ -149,6 +338,19 @@ const sendReply = async () => {
 						>
 							{{ s }}
 						</button>
+						<button
+							v-if="!selected.clientUserId"
+							class="px-2.5 py-1 text-xs rounded-md border border-brand-blue/40 text-brand-blueLight hover:bg-brand-blue/10 transition"
+							@click="openAccountModal"
+						>
+							Create client account
+						</button>
+						<span
+							v-else
+							class="px-2.5 py-1 text-xs rounded-md border border-green-500/30 bg-green-500/10 text-green-300"
+						>
+							Client portal enabled
+						</span>
 					</div>
 				</div>
 				<div class="flex-1 overflow-y-auto p-5 space-y-4">
@@ -170,6 +372,60 @@ const sendReply = async () => {
 							</div>
 						</div>
 					</div>
+
+					<div>
+						<div class="flex items-center justify-between gap-3 mb-2">
+							<h4 class="text-xs uppercase tracking-wider text-brand-gray-500">Project chat</h4>
+							<span v-if="!selected.clientUserId" class="text-xs text-brand-gray-500">
+								Create a client account to let them access this chat.
+							</span>
+						</div>
+						<div ref="messageList" class="rounded-xl border border-white/10 bg-black/20 max-h-72 overflow-y-auto p-3 space-y-3">
+							<LoadingSpinner v-if="loadingMessages" />
+							<div v-else-if="!messages.length" class="py-8 text-center text-sm text-brand-gray-500">
+								No project chat messages yet.
+							</div>
+							<div
+								v-for="message in messages"
+								v-else
+								:key="message.id"
+								class="flex flex-col"
+								:class="message.sender?.role === Role.CLIENT ? 'items-start' : 'items-end'"
+							>
+								<div class="text-[10px] text-brand-gray-500 px-2 mb-0.5 font-medium uppercase tracking-wider">
+									{{ senderName(message) }} - {{ fmt(message.createdAt) }}
+								</div>
+								<div
+									class="max-w-[82%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap"
+									:class="message.sender?.role === Role.CLIENT
+										? 'bg-white/5 text-brand-gray-200 border border-white/5 rounded-bl-sm'
+										: 'bg-brand-blue text-white rounded-br-sm'"
+								>
+									{{ message.message }}
+								</div>
+							</div>
+							<div v-if="clientTyping" class="flex items-start">
+								<div class="px-3.5 py-2.5 rounded-2xl bg-white/5 border border-white/5 flex items-center gap-1">
+									<span class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft" />
+									<span class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft" style="animation-delay: 0.15s" />
+									<span class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft" style="animation-delay: 0.3s" />
+								</div>
+							</div>
+						</div>
+						<form class="flex gap-2 mt-3" @submit.prevent="sendChat">
+							<input
+								v-model="chatText"
+								type="text"
+								class="input !py-2 !px-3 text-sm flex-1"
+								placeholder="Send a realtime project message..."
+								:disabled="sendingChat || !selected.clientUserId"
+								@input="onChatInput"
+							/>
+							<button class="btn btn-primary !py-2 !px-4" :disabled="sendingChat || !chatText.trim() || !selected.clientUserId">
+								Send
+							</button>
+						</form>
+					</div>
 				</div>
 				<div class="p-4 border-t border-white/5 space-y-3">
 					<textarea
@@ -187,5 +443,30 @@ const sendReply = async () => {
 				</div>
 			</template>
 		</div>
+
+		<Modal :open="accountModalOpen" title="Create client account" size="md" @close="accountModalOpen = false">
+			<form class="space-y-4" @submit.prevent="createClientAccount">
+				<div class="grid sm:grid-cols-2 gap-4">
+					<FormField label="First name" :error="accountErrors.firstName" required>
+						<input v-model="accountForm.firstName" class="input" type="text" />
+					</FormField>
+					<FormField label="Last name" :error="accountErrors.lastName" required>
+						<input v-model="accountForm.lastName" class="input" type="text" />
+					</FormField>
+				</div>
+				<FormField label="Email" :error="accountErrors.email" required>
+					<input v-model="accountForm.email" class="input" type="email" />
+				</FormField>
+				<FormField label="Temporary password" :error="accountErrors.password" required hint="Share this securely with the client. They can change it after login.">
+					<input v-model="accountForm.password" class="input" type="password" />
+				</FormField>
+				<div class="flex justify-end gap-3">
+					<button type="button" class="btn btn-ghost" @click="accountModalOpen = false">Cancel</button>
+					<button class="btn btn-primary" :disabled="creatingAccount">
+						{{ creatingAccount ? 'Creating...' : 'Create account' }}
+					</button>
+				</div>
+			</form>
+		</Modal>
 	</div>
 </template>

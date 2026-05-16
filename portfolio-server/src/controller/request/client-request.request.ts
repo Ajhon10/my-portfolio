@@ -46,3 +46,33 @@ export class ClientRequestCreateRequest {
 	@IsString()
 	referenceLinks?: string
 }
+
+export class ClientAccountCreateRequest {
+	@ApiPropertyOptional()
+	@IsOptional()
+	@IsEmail()
+	email?: string
+
+	@ApiProperty()
+	@IsString()
+	@MinLength(8)
+	password: string
+
+	@ApiPropertyOptional()
+	@IsOptional()
+	@IsString()
+	firstName?: string
+
+	@ApiPropertyOptional()
+	@IsOptional()
+	@IsString()
+	lastName?: string
+}
+
+export class ClientRequestChatMessageRequest {
+	@ApiProperty()
+	@IsString()
+	@MinLength(1)
+	@MaxLength(5000)
+	message: string
+}

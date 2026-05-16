@@ -104,11 +104,13 @@ export const useApiProvider = () => {
 			return { success: false, message, error: responseData, status, data: responseData?.data }
 		}
 
-		// Unwrap { success, message, data } shape
+		// Unwrap { success, message, data } shape.
+		// When the server omits a `.data` key (e.g. 2FA flow responses), fall back
+		// to the full response body so callers can still read root-level fields.
 		if (responseData && typeof responseData === 'object' && 'success' in responseData) {
 			return {
 				success: true,
-				data: responseData.data as T,
+				data: ('data' in responseData ? responseData.data : responseData) as T,
 				message: responseData.message,
 				status,
 			}
@@ -180,6 +182,25 @@ export const useApiProvider = () => {
 		}
 	}
 
+	const UPLOAD = async <T>(
+		url: string,
+		file: File,
+		fieldName = 'file',
+		config: CustomConfig = {},
+	): Promise<TApiResponse<T>> => {
+		try {
+			const formData = new FormData()
+			formData.append(fieldName, file)
+			const { data, status } = await instance.post(url, formData, {
+				...config,
+				headers: { ...(config.headers || {}), 'Content-Type': 'multipart/form-data' },
+			})
+			return handleResponse<T>(data, status, config)
+		} catch (err: any) {
+			return { success: false, message: err?.message || 'Upload failed', status: 500 }
+		}
+	}
+
 	const DELETE = async <T>(url: string, params: any = {}, config: CustomConfig = {}): Promise<TApiResponse<T>> => {
 		try {
 			const { data, status } = await instance.delete(url, { params, ...config })
@@ -193,5 +214,5 @@ export const useApiProvider = () => {
 		}
 	}
 
-	return { GET, POST, PATCH, PUT, DELETE }
+	return { GET, POST, PATCH, PUT, DELETE, UPLOAD }
 }

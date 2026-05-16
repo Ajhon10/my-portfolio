@@ -5,9 +5,21 @@ import {
 	AuthSession,
 	DatabaseContract,
 	TokenContract,
+	TwoFactorContract,
 	UtilityContract,
 } from '@app/contract'
-import { BadRequestException, Inject, Injectable, UnauthorizedException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common'
+
+export interface LoginResult {
+	/** Present when login is fully complete */
+	accessToken?: string
+	user?: AuthSession
+	/** Present when 2FA setup is required for the first time */
+	requiresInitialTwoFactorSetup?: boolean
+	setupData?: { qrCode: string; setupToken: string }
+	/** Present when 2FA code needs to be entered */
+	requires2FA?: boolean
+}
 
 @Injectable()
 export class AuthProvider implements AuthContract {
@@ -15,6 +27,7 @@ export class AuthProvider implements AuthContract {
 		@Inject(AppContract.DATABASE) private readonly database: DatabaseContract,
 		@Inject(AppContract.UTILITY) private readonly utility: UtilityContract,
 		@Inject(AppContract.TOKEN) private readonly token: TokenContract,
+		@Inject(AppContract.TWO_FACTOR) private readonly twoFactor: TwoFactorContract,
 	) {}
 
 	async getByEmail(email: string) {
@@ -24,7 +37,7 @@ export class AuthProvider implements AuthContract {
 		})
 	}
 
-	async login(payload: AuthLoginPayload) {
+	async login(payload: AuthLoginPayload): Promise<LoginResult> {
 		const auth = await this.database.auth.findFirst({
 			where: { email: payload.email, deleted: false },
 			include: { user: true },
@@ -35,14 +48,41 @@ export class AuthProvider implements AuthContract {
 		if (!valid) {
 			await this.database.auth.update({
 				where: { id: auth.id },
-				data: {
-					loginAttempts: { increment: 1 },
-					lastFailedLogin: new Date(),
-				},
+				data: { loginAttempts: { increment: 1 }, lastFailedLogin: new Date() },
 			})
 			throw new UnauthorizedException({ message: 'Invalid credentials.' })
 		}
 
+		const userId = auth.user.id
+		const enabled = await this.twoFactor.isEnabled(userId)
+
+		if (enabled) {
+			const secret = await this.twoFactor.getSecret(userId)
+
+			// 2FA enabled but not yet set up → trigger first-time QR setup
+			if (!secret) {
+				const { secret: newSecret, qrCode } = await this.twoFactor.initializeSetup(userId, auth.email)
+				const setupToken = this.token.signSetupToken({ userId, email: auth.email, secret: newSecret })
+				return { requiresInitialTwoFactorSetup: true, setupData: { qrCode, setupToken } }
+			}
+
+			// 2FA enabled, secret exists, but no code provided → ask for code
+			if (!payload.totpToken) {
+				return { requires2FA: true }
+			}
+
+			// 2FA enabled, secret exists, code provided → verify it
+			const valid2fa = await this.twoFactor.verifyTokenForUser(userId, payload.totpToken)
+			if (!valid2fa) {
+				await this.database.auth.update({
+					where: { id: auth.id },
+					data: { loginAttempts: { increment: 1 }, lastFailedLogin: new Date() },
+				})
+				throw new ForbiddenException({ message: 'Invalid two-factor authentication code.' })
+			}
+		}
+
+		// All checks passed — issue access token
 		await this.database.auth.update({
 			where: { id: auth.id },
 			data: { lastLogin: new Date(), loginAttempts: 0 },
@@ -54,10 +94,12 @@ export class AuthProvider implements AuthContract {
 			role: auth.user.role,
 			firstName: auth.user.firstName,
 			lastName: auth.user.lastName,
+			avatarUrl: auth.user.avatarUrl,
 		}
 
 		const accessToken = await this.token.signAccessToken({
 			sub: auth.id,
+			userId: auth.user.id,
 			email: auth.email,
 			role: auth.user.role,
 			firstName: auth.user.firstName,
@@ -79,6 +121,7 @@ export class AuthProvider implements AuthContract {
 			role: auth.user.role,
 			firstName: auth.user.firstName,
 			lastName: auth.user.lastName,
+			avatarUrl: auth.user.avatarUrl,
 		}
 	}
 

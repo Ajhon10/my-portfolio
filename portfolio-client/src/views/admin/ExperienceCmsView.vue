@@ -3,9 +3,10 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DataTable, { type DataTableColumn } from '@/components/DataTable.vue'
 import FormField from '@/components/FormField.vue'
 import Modal from '@/components/Modal.vue'
+import SortOrderSelect from '@/components/SortOrderSelect.vue'
 import { useExperienceProvider, type ExperienceInput } from '@/composables/provider/experience.provider'
 import type { Experience } from '@/types'
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 
 const provider = useExperienceProvider()
 const items = ref<Experience[]>([])
@@ -119,6 +120,12 @@ const doDelete = async () => {
 	toDelete.value = null
 	if (res.success) await load()
 }
+
+const takenSortOrders = computed(() =>
+	items.value
+		.filter((e) => e.id !== editingId.value)
+		.map((e) => e.sortOrder),
+)
 </script>
 
 <template>
@@ -148,8 +155,8 @@ const doDelete = async () => {
 					<FormField label="Location">
 						<input v-model="form.location" type="text" class="input" />
 					</FormField>
-					<FormField label="Sort order">
-						<input v-model.number="form.sortOrder" type="number" class="input" />
+					<FormField label="Sort order" hint="Position in listing (lower = first)">
+						<SortOrderSelect v-model="form.sortOrder" :taken-values="takenSortOrders" />
 					</FormField>
 					<FormField label="Start date" :error="errors.startDate" required>
 						<input v-model="form.startDate" type="date" class="input" />
