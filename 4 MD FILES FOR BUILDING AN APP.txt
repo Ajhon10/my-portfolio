@@ -1,0 +1,37 @@
+4 MD FILES FOR BUILDING AN APP
+(this is beneficial to lessen token use and allow using the agents longer than usual)
+
+Agents.md, Context.md, Memory.md, Skills.md
+
+
+------------------------------------------------
+FOR CLIENT CHANGES ONLY
+
+cd C:\Users\Lenovo\Desktop\PROJECTS\MY_PORTFOLIO
+
+git checkout -b my-feature
+git add portfolio-client
+git commit -m "Update client feature"
+git push -u origin my-feature
+
+------------------------------------------------
+FOR SERVER CHANGES ONLY
+
+cd C:\Users\Lenovo\Desktop\PROJECTS\MY_PORTFOLIO
+
+git checkout -b server-feature
+git add portfolio-server
+git commit -m "Update server feature"
+git push -u origin server-feature
+
+------------------------------------------------
+FOR BOTH CHANGES IN FRONTEND AND BACKEND
+
+cd C:\Users\Lenovo\Desktop\PROJECTS\MY_PORTFOLIO
+
+git checkout -b feature/contact-form
+git add portfolio-client portfolio-server
+git commit -m "Add contact form feature"
+git push -u origin feature/contact-form
+
+------------------------------------------------

@@ -5,6 +5,7 @@ export type TApiResponse<T = unknown> =
 export enum Role {
 	OWNER = 'OWNER',
 	ADMIN = 'ADMIN',
+	CLIENT = 'CLIENT',
 }
 
 export enum ClientRequestStatus {
@@ -19,6 +20,7 @@ export enum ClientRequestStatus {
 export enum ChatbotMessageRole {
 	USER = 'USER',
 	ASSISTANT = 'ASSISTANT',
+	ADMIN = 'ADMIN',
 	SYSTEM = 'SYSTEM',
 }
 
@@ -93,11 +95,38 @@ export interface Experience {
 	sortOrder: number
 }
 
+export interface Certification {
+	id: string
+	title: string
+	issuer: string
+	description?: string | null
+	credentialId?: string | null
+	credentialUrl?: string | null
+	certificateUrl?: string | null
+	issuedAt: string
+	expiresAt?: string | null
+	featured: boolean
+	published: boolean
+	sortOrder: number
+	createdAt?: string
+	updatedAt?: string
+}
+
 export interface ClientRequestReply {
 	id: string
 	message: string
 	createdAt: string
 	repliedBy?: User
+}
+
+export interface ClientRequestMessage {
+	id: string
+	message: string
+	requestId: string
+	senderId: string
+	sender?: User
+	createdAt: string
+	updatedAt?: string
 }
 
 export interface ClientRequest {
@@ -112,7 +141,10 @@ export interface ClientRequest {
 	description: string
 	referenceLinks?: string | null
 	status: ClientRequestStatus
+	clientUserId?: string | null
+	clientUser?: User | null
 	replies?: ClientRequestReply[]
+	messages?: ClientRequestMessage[]
 	createdAt: string
 	updatedAt: string
 }
@@ -128,10 +160,21 @@ export interface ChatbotKB {
 	updatedAt?: string
 }
 
+export interface ChatbotTag {
+	id: string
+	name: string
+	label: string
+	sortOrder: number
+	createdAt?: string
+	updatedAt?: string
+}
+
 export interface ChatbotMessage {
 	id?: string
 	role: ChatbotMessageRole
 	content: string
+	senderName?: string | null
+	senderAvatar?: string | null
 	createdAt?: string
 }
 

@@ -3,10 +3,11 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DataTable, { type DataTableColumn } from '@/components/DataTable.vue'
 import FormField from '@/components/FormField.vue'
 import Modal from '@/components/Modal.vue'
+import SortOrderSelect from '@/components/SortOrderSelect.vue'
 import { useProjectProvider } from '@/composables/provider/project.provider'
 import { useTechStackProvider, type TechStackInput } from '@/composables/provider/tech-stack.provider'
 import type { TechStack } from '@/types'
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { toast } from 'vue3-toastify'
 
 const provider = useTechStackProvider()
@@ -131,6 +132,12 @@ const doDelete = async () => {
 	toDelete.value = null
 	if (res.success) await load()
 }
+
+const takenSortOrders = computed(() =>
+	items.value
+		.filter((t) => t.id !== editingId.value)
+		.map((t) => t.sortOrder),
+)
 </script>
 
 <template>
@@ -192,8 +199,8 @@ const doDelete = async () => {
 					<input v-model.number="form.proficiency" type="range" min="0" max="100" class="w-full" />
 					<div class="text-xs text-brand-gray-400 mt-1">{{ form.proficiency }}%</div>
 				</FormField>
-				<FormField label="Sort order">
-					<input v-model.number="form.sortOrder" type="number" class="input" />
+				<FormField label="Sort order" hint="Position in listing (lower = first)">
+					<SortOrderSelect v-model="form.sortOrder" :taken-values="takenSortOrders" />
 				</FormField>
 				<div class="flex justify-end gap-3 pt-2">
 					<button type="button" class="btn btn-ghost" @click="showModal = false">Cancel</button>

@@ -3,6 +3,8 @@ import { AccessTokenGuard, RoleGuard } from '@app/common/guard'
 import { TCurrentUser } from '@app/common/type'
 import {
 	ClientRequestCreateRequest,
+	ClientAccountCreateRequest,
+	ClientRequestChatMessageRequest,
 	ClientRequestReplyRequest,
 	ClientRequestStatusRequest,
 } from '@app/controller/request'
@@ -41,6 +43,34 @@ export class ClientRequestController {
 		}
 	}
 
+	@Post('my/submit')
+	@UseGuards(AccessTokenGuard, RoleGuard)
+	@Roles('CLIENT')
+	async submitMine(@Body() body: ClientRequestCreateRequest, @CurrentUser() user: TCurrentUser) {
+		try {
+			const data = await this.clientRequestProvider.create({ ...body, clientUserId: user.id })
+			return {
+				success: true,
+				message: 'Your request has been submitted. We will get back to you soon.',
+				data,
+			}
+		} catch (error) {
+			throw new HttpException(error.message, error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+		}
+	}
+
+	@Get('my')
+	@UseGuards(AccessTokenGuard, RoleGuard)
+	@Roles('CLIENT')
+	async myRequests(@CurrentUser() user: TCurrentUser) {
+		try {
+			const data = await this.clientRequestProvider.findForClient(user.id)
+			return { success: true, message: 'OK', data }
+		} catch (error) {
+			throw new HttpException(error.message, error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+		}
+	}
+
 	@Get()
 	@UseGuards(AccessTokenGuard, RoleGuard)
 	@Roles('OWNER', 'ADMIN')
@@ -61,6 +91,46 @@ export class ClientRequestController {
 			const data = await this.clientRequestProvider.findById(id)
 			if (!data) throw new HttpException('Request not found', HttpStatus.NOT_FOUND)
 			return { success: true, message: 'OK', data }
+		} catch (error) {
+			throw new HttpException(error.message, error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+		}
+	}
+
+	@Post(':id/client-account')
+	@UseGuards(AccessTokenGuard, RoleGuard)
+	@Roles('OWNER', 'ADMIN')
+	async createClientAccount(@Param('id') id: string, @Body() body: ClientAccountCreateRequest) {
+		try {
+			const data = await this.clientRequestProvider.createClientAccount(id, body)
+			return { success: true, message: 'Client account created', data }
+		} catch (error) {
+			throw new HttpException(error.message, error.status || HttpStatus.BAD_REQUEST)
+		}
+	}
+
+	@Get(':id/chat')
+	@UseGuards(AccessTokenGuard, RoleGuard)
+	@Roles('OWNER', 'ADMIN', 'CLIENT')
+	async listChat(@Param('id') id: string, @CurrentUser() user: TCurrentUser) {
+		try {
+			const data = await this.clientRequestProvider.listMessages(id, user)
+			return { success: true, message: 'OK', data }
+		} catch (error) {
+			throw new HttpException(error.message, error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+		}
+	}
+
+	@Post(':id/chat')
+	@UseGuards(AccessTokenGuard, RoleGuard)
+	@Roles('OWNER', 'ADMIN', 'CLIENT')
+	async sendChat(
+		@Param('id') id: string,
+		@Body() body: ClientRequestChatMessageRequest,
+		@CurrentUser() user: TCurrentUser,
+	) {
+		try {
+			const data = await this.clientRequestProvider.addMessage(id, user, body.message.trim())
+			return { success: true, message: 'Message sent', data }
 		} catch (error) {
 			throw new HttpException(error.message, error.status || HttpStatus.INTERNAL_SERVER_ERROR)
 		}

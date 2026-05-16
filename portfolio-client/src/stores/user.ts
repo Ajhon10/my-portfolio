@@ -1,9 +1,20 @@
 import { useAuthProvider } from '@/composables/provider/auth.provider'
 import { clearToken, setToken } from '@/composables/provider/api.provider'
+import { disconnectAdminSocket, disconnectClientSocket } from '@/composables/useSocket'
 import { Role, type User } from '@/types'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+
+export interface LoginResult {
+	success: boolean
+	message?: string
+	/** 2FA setup required for the first time */
+	requiresInitialTwoFactorSetup?: boolean
+	setupData?: { qrCode: string; setupToken: string }
+	/** 2FA code needed */
+	requires2FA?: boolean
+}
 
 export const useUserStore = defineStore('userStore', () => {
 	const router = useRouter()
@@ -15,6 +26,7 @@ export const useUserStore = defineStore('userStore', () => {
 	const isAuthenticated = computed(() => !!_user.value)
 	const isOwner = computed(() => _user.value?.role === Role.OWNER)
 	const isAdmin = computed(() => _user.value?.role === Role.ADMIN || _user.value?.role === Role.OWNER)
+	const isClient = computed(() => _user.value?.role === Role.CLIENT)
 
 	const whoAmI = async (): Promise<boolean> => {
 		try {
@@ -34,15 +46,36 @@ export const useUserStore = defineStore('userStore', () => {
 	const login = async (
 		email: string,
 		password: string,
-	): Promise<{ success: boolean; message?: string }> => {
+		totpToken?: string,
+	): Promise<LoginResult> => {
 		try {
-			const res = await authProvider.login({ email, password })
-			if (res.success && res.data) {
-				const { accessToken, user } = res.data
-				if (accessToken) setToken(accessToken)
-				_user.value = user
+			const res = await authProvider.login({ email, password, totpToken })
+
+			// The raw server body is available in res.error for failed responses,
+			// or in res.data for successful ones. For 2FA flows the flags live at the
+			// root of the server body, so we normalise access here.
+			const raw: any = (res.success ? res.data : res.error || res.data) || {}
+
+			// Server signals 2FA setup needed (success:true, no .data wrapper)
+			if (raw.requiresInitialTwoFactorSetup) {
+				return {
+					success: false,
+					requiresInitialTwoFactorSetup: true,
+					setupData: raw.setupData,
+				}
+			}
+
+			// Server signals 2FA code needed (success:false, no .data wrapper)
+			if (raw.requires2FA) {
+				return { success: false, requires2FA: true }
+			}
+
+			if (res.success && res.data?.accessToken) {
+				setToken(res.data.accessToken)
+				_user.value = res.data.user
 				return { success: true }
 			}
+
 			return { success: false, message: res.message || 'Login failed' }
 		} catch (err: any) {
 			return { success: false, message: err?.message || 'Login failed' }
@@ -50,9 +83,15 @@ export const useUserStore = defineStore('userStore', () => {
 	}
 
 	const logout = async (): Promise<void> => {
+		disconnectAdminSocket()
+		disconnectClientSocket()
 		clearToken()
 		_user.value = undefined
 		router.push('/login')
+	}
+
+	const setUser = (u: User) => {
+		_user.value = u
 	}
 
 	return {
@@ -61,8 +100,10 @@ export const useUserStore = defineStore('userStore', () => {
 		isAuthenticated,
 		isOwner,
 		isAdmin,
+		isClient,
 		whoAmI,
 		login,
 		logout,
+		setUser,
 	}
 })

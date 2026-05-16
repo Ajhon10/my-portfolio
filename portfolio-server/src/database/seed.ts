@@ -15,21 +15,185 @@ async function seed() {
 
 		// Seed tech stack
 		const techs = [
-			{ name: 'TypeScript', category: 'Language', proficiency: 95, sortOrder: 1 },
-			{ name: 'Vue.js 3', category: 'Frontend', proficiency: 90, sortOrder: 2 },
-			{ name: 'NestJS', category: 'Backend', proficiency: 90, sortOrder: 3 },
-			{ name: 'PostgreSQL', category: 'Database', proficiency: 85, sortOrder: 4 },
-			{ name: 'Tailwind CSS', category: 'Frontend', proficiency: 88, sortOrder: 5 },
-			{ name: 'Docker', category: 'DevOps', proficiency: 75, sortOrder: 6 },
-			{ name: 'Git', category: 'Tools', proficiency: 95, sortOrder: 7 },
-			{ name: 'Next.js', category: 'Frontend', proficiency: 80, sortOrder: 8 },
+			{
+				name: 'TypeScript',
+				category: 'Languages',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg',
+				proficiency: 95,
+				sortOrder: 1,
+			},
+			{
+				name: 'JavaScript',
+				category: 'Languages',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg',
+				proficiency: 92,
+				sortOrder: 2,
+			},
+			{
+				name: 'PHP',
+				category: 'Languages',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/php/php-original.svg',
+				proficiency: 86,
+				sortOrder: 3,
+			},
+			{
+				name: 'Vue.js 3',
+				category: 'Frontend',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vuejs/vuejs-original.svg',
+				proficiency: 94,
+				sortOrder: 10,
+			},
+			{
+				name: 'React',
+				category: 'Frontend',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg',
+				proficiency: 84,
+				sortOrder: 11,
+			},
+			{
+				name: 'Next.js',
+				category: 'Frontend',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nextjs/nextjs-original.svg',
+				proficiency: 82,
+				sortOrder: 12,
+			},
+			{
+				name: 'Tailwind CSS',
+				category: 'Frontend',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tailwindcss/tailwindcss-original.svg',
+				proficiency: 92,
+				sortOrder: 13,
+			},
+			{
+				name: 'Pinia',
+				category: 'Frontend',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pinia/pinia-original.svg',
+				proficiency: 88,
+				sortOrder: 14,
+			},
+			{
+				name: 'Vite',
+				category: 'Frontend',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vitejs/vitejs-original.svg',
+				proficiency: 90,
+				sortOrder: 15,
+			},
+			{
+				name: 'NestJS',
+				category: 'Backend',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nestjs/nestjs-original.svg',
+				proficiency: 92,
+				sortOrder: 20,
+			},
+			{
+				name: 'Node.js',
+				category: 'Backend',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg',
+				proficiency: 90,
+				sortOrder: 21,
+			},
+			{
+				name: 'Express.js',
+				category: 'Backend',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/express/express-original.svg',
+				proficiency: 86,
+				sortOrder: 22,
+			},
+			{
+				name: 'Laravel',
+				category: 'Backend',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/laravel/laravel-original.svg',
+				proficiency: 88,
+				sortOrder: 23,
+			},
+			{
+				name: 'Prisma',
+				category: 'Backend',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/prisma/prisma-original.svg',
+				proficiency: 88,
+				sortOrder: 24,
+			},
+			{
+				name: 'PostgreSQL',
+				category: 'Database',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg',
+				proficiency: 88,
+				sortOrder: 30,
+			},
+			{
+				name: 'MySQL',
+				category: 'Database',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mysql/mysql-original.svg',
+				proficiency: 84,
+				sortOrder: 31,
+			},
+			{
+				name: 'MongoDB',
+				category: 'Database',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg',
+				proficiency: 78,
+				sortOrder: 32,
+			},
+			{
+				name: 'Firebase',
+				category: 'Database',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/firebase/firebase-original.svg',
+				proficiency: 78,
+				sortOrder: 33,
+			},
+			{
+				name: 'Docker',
+				category: 'DevOps & Deployment',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg',
+				proficiency: 78,
+				sortOrder: 40,
+			},
+			{
+				name: 'Git',
+				category: 'DevOps & Deployment',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg',
+				proficiency: 95,
+				sortOrder: 41,
+			},
+			{
+				name: 'GitHub',
+				category: 'DevOps & Deployment',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg',
+				proficiency: 92,
+				sortOrder: 42,
+			},
+			{
+				name: 'Vercel',
+				category: 'DevOps & Deployment',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vercel/vercel-original.svg',
+				proficiency: 86,
+				sortOrder: 43,
+			},
+			{
+				name: 'Render',
+				category: 'DevOps & Deployment',
+				iconUrl: '',
+				proficiency: 84,
+				sortOrder: 44,
+			},
+			{
+				name: 'Figma',
+				category: 'Design',
+				iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/figma/figma-original.svg',
+				proficiency: 82,
+				sortOrder: 50,
+			},
 		]
 
 		for (const tech of techs) {
-			const existing = await database.techStack.findFirst({
-				where: { name: tech.name, deleted: false },
-			})
-			if (!existing) {
+			const existing = await database.techStack.findUnique({ where: { name: tech.name } })
+			if (existing) {
+				await database.techStack.update({
+					where: { id: existing.id },
+					data: { ...tech, deleted: false, deletedAt: null },
+				})
+				logger.log(`Updated tech: ${tech.name}`)
+			} else {
 				await database.techStack.create({ data: tech })
 				logger.log(`✓ Created tech: ${tech.name}`)
 			}
@@ -39,29 +203,30 @@ async function seed() {
 		const experiences = [
 			{
 				title: 'Fullstack Web Developer',
-				company: 'Tech Company XYZ',
-				location: 'Remote',
-				description: 'Built scalable web applications using Vue.js and NestJS',
-				startDate: new Date('2022-01-01'),
-				endDate: new Date('2023-12-31'),
-				current: false,
+				company: 'WWC Yellow Bumblebee',
+				location: 'Manila, Philippines',
+				description:
+					'Designed and developed fullstack web applications for government agencies and private companies, handling both frontend and backend development. Built internal systems to digitize and streamline operations across various clients — projects are confidential and not publicly disclosed. Tech stack includes Vue.js, NestJS, Laravel, Express.js, and TypeScript.',
+				startDate: new Date('2025-08-27'),
+				endDate: null,
+				current: true,
 				sortOrder: 1,
 			},
 			{
-				title: 'App Developer',
-				company: 'Mobile Solutions Inc',
-				location: 'Manila, Philippines',
-				description: 'Developed mobile applications for iOS and Android',
-				startDate: new Date('2021-06-01'),
-				endDate: new Date('2022-12-31'),
+				title: 'IT Intern',
+				company: 'Social Security System (SSS)',
+				location: 'Sorsogon, Philippines',
+				description: 'Developed a desktop application as part of the internship program.',
+				startDate: new Date('2025-01-20'),
+				endDate: new Date('2025-05-16'),
 				current: false,
 				sortOrder: 2,
 			},
 			{
 				title: 'Video Editor',
-				company: 'Content Studio Pro',
+				company: 'Cloudrbox.com',
 				location: 'Remote',
-				description: 'Edited and produced video content for marketing campaigns',
+				description: 'Edited and produced video content for marketing campaigns.',
 				startDate: new Date('2020-01-01'),
 				endDate: new Date('2021-05-31'),
 				current: false,
@@ -81,6 +246,36 @@ async function seed() {
 
 		// Seed site content
 		const contents = [
+			{
+				key: 'site_logo_text',
+				label: 'Logo Text',
+				value: 'JLJ',
+			},
+			{
+				key: 'site_logo_subtitle',
+				label: 'Logo Subtitle',
+				value: '/dev',
+			},
+			{
+				key: 'site_logo_url',
+				label: 'Website Logo URL',
+				value: '',
+			},
+			{
+				key: 'site_favicon_url',
+				label: 'Website Favicon URL',
+				value: '/favicon.svg',
+			},
+			{
+				key: 'site_title',
+				label: 'Browser Tab Title',
+				value: 'Jhon Lisley Jeresano - Fullstack Developer',
+			},
+			{
+				key: 'site_meta_description',
+				label: 'Meta Description',
+				value: 'Jhon Lisley Jeresano - Fullstack Web & App Developer, Video Editor, Photographer.',
+			},
 			{
 				key: 'hero_title',
 				label: 'Hero Title',
@@ -171,6 +366,29 @@ async function seed() {
 		}
 
 		// Seed chatbot knowledge
+		const chatbotTags = [
+			{ name: 'skills', label: 'Skills', sortOrder: 1 },
+			{ name: 'services', label: 'Services', sortOrder: 2 },
+			{ name: 'experience', label: 'Experience', sortOrder: 3 },
+			{ name: 'projects', label: 'Projects', sortOrder: 4 },
+			{ name: 'tech', label: 'Tech Stack', sortOrder: 5 },
+			{ name: 'availability', label: 'Availability', sortOrder: 6 },
+			{ name: 'pricing', label: 'Pricing', sortOrder: 7 },
+			{ name: 'contact', label: 'Contact', sortOrder: 8 },
+			{ name: 'background', label: 'Background', sortOrder: 9 },
+			{ name: 'portfolio', label: 'Portfolio', sortOrder: 10 },
+		]
+
+		for (const tag of chatbotTags) {
+			const existing = await database.chatbotTag.findFirst({
+				where: { name: tag.name, deleted: false },
+			})
+			if (!existing) {
+				await database.chatbotTag.create({ data: tag })
+				logger.log(`âœ“ Created chatbot tag: ${tag.label}`)
+			}
+		}
+
 		const knowledge = [
 			{
 				topic: 'Skills',

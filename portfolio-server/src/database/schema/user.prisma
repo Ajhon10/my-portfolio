@@ -1,17 +1,21 @@
 model User {
-    id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-    createdAt   DateTime  @default(now()) @map("created_at")
-    updatedAt   DateTime  @updatedAt @map("updated_at")
-    deletedAt   DateTime? @map("deleted_at")
-    deleted     Boolean   @default(false)
-    firstName   String    @map("first_name") @db.VarChar(100)
-    lastName    String    @map("last_name") @db.VarChar(100)
-    avatarUrl   String?   @map("avatar_url")
-    role        Role      @default(ADMIN)
-    auth        Auth      @relation(fields: [authId], references: [id], onDelete: Cascade)
-    authId      String    @unique @map("auth_id") @db.Uuid
+    id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt        DateTime  @default(now()) @map("created_at")
+    updatedAt        DateTime  @updatedAt @map("updated_at")
+    deletedAt        DateTime? @map("deleted_at")
+    deleted          Boolean   @default(false)
+    firstName        String    @map("first_name") @db.VarChar(100)
+    lastName         String    @map("last_name") @db.VarChar(100)
+    avatarUrl        String?   @map("avatar_url")
+    role             Role      @default(ADMIN)
+    twoFactorSecret  String?   @map("two_factor_secret") @db.VarChar(100)
+    twoFactorEnabled Boolean   @default(true) @map("two_factor_enabled")
+    auth             Auth      @relation(fields: [authId], references: [id], onDelete: Cascade)
+    authId           String    @unique @map("auth_id") @db.Uuid
 
-    repliedRequests ClientRequestReply[] @relation("AdminReplies")
+    repliedRequests       ClientRequestReply[]    @relation("AdminReplies")
+    clientRequests        ClientRequest[]         @relation("ClientRequests")
+    clientRequestMessages ClientRequestMessage[]  @relation("ClientRequestMessageSender")
 
     @@map("user")
 }
@@ -19,4 +23,5 @@ model User {
 enum Role {
     OWNER
     ADMIN
+    CLIENT
 }

@@ -1,0 +1,20 @@
+model Certification {
+    id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt      DateTime  @default(now()) @map("created_at")
+    updatedAt      DateTime  @updatedAt @map("updated_at")
+    deletedAt      DateTime? @map("deleted_at")
+    deleted        Boolean   @default(false)
+    title          String    @db.VarChar(200)
+    issuer         String    @db.VarChar(200)
+    description    String?
+    credentialId   String?   @map("credential_id") @db.VarChar(200)
+    credentialUrl  String?   @map("credential_url") @db.VarChar(500)
+    certificateUrl String?   @map("certificate_url")
+    issuedAt       DateTime  @map("issued_at")
+    expiresAt      DateTime? @map("expires_at")
+    featured       Boolean   @default(false)
+    published      Boolean   @default(true)
+    sortOrder      Int       @default(0) @map("sort_order")
+
+    @@map("certification")
+}

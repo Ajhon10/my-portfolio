@@ -1,6 +1,7 @@
 export interface AuthLoginPayload {
 	email: string
 	password: string
+	totpToken?: string
 }
 
 export interface AuthSession {
@@ -9,11 +10,12 @@ export interface AuthSession {
 	role: string
 	firstName: string
 	lastName: string
+	avatarUrl?: string | null
 }
 
 export interface AuthContract {
 	getByEmail(email: string): Promise<any | null>
-	login(payload: AuthLoginPayload): Promise<{ accessToken: string; user: AuthSession }>
+	login(payload: AuthLoginPayload): Promise<any>
 	whoAmI(authId: string): Promise<AuthSession | null>
 	register(data: {
 		email: string

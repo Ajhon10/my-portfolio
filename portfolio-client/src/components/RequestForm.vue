@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useClientRequestProvider } from '@/composables/provider/client-request.provider'
-import { reactive, ref } from 'vue'
+import { useUserStore } from '@/stores/user'
+import { onMounted, reactive, ref } from 'vue'
 import { toast } from 'vue3-toastify'
 
 const provider = useClientRequestProvider()
+const userStore = useUserStore()
 
 const form = reactive({
 	fullName: '',
@@ -34,6 +36,13 @@ const budgets = ['< $500', '$500 – $1,500', '$1,500 – $5,000', '$5,000 – $
 
 const timelines = ['ASAP', '1–2 weeks', '1 month', '2–3 months', 'Flexible']
 
+onMounted(() => {
+	if (userStore.isClient && userStore.user) {
+		form.fullName = `${userStore.user.firstName} ${userStore.user.lastName}`.trim()
+		form.email = userStore.user.email || ''
+	}
+})
+
 const validate = (): boolean => {
 	for (const k of Object.keys(errors)) delete errors[k]
 	if (!form.fullName.trim()) errors.fullName = 'Name is required'
@@ -51,7 +60,7 @@ const submit = async () => {
 		return
 	}
 	submitting.value = true
-	const res = await provider.submit({
+	const payload = {
 		fullName: form.fullName,
 		email: form.email,
 		company: form.company || undefined,
@@ -61,7 +70,8 @@ const submit = async () => {
 		timeline: form.timeline || undefined,
 		description: form.description,
 		referenceLinks: form.referenceLinks || undefined,
-	})
+	}
+	const res = userStore.isClient ? await provider.submitMine(payload) : await provider.submit(payload)
 	submitting.value = false
 	if (res.success) {
 		toast.success('Thanks! Your request was sent. I will reply soon.')

@@ -6,6 +6,7 @@ declare global {
 
 import { NestFactory } from '@nestjs/core'
 import { NestExpressApplication } from '@nestjs/platform-express'
+import { IoAdapter } from '@nestjs/platform-socket.io'
 import { BadRequestException, Logger, ValidationPipe } from '@nestjs/common'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { ValidationError, useContainer } from 'class-validator'
@@ -98,6 +99,7 @@ async function bootstrap() {
 
 	app.setGlobalPrefix('/api')
 	app.useGlobalFilters(new AllExceptionsFilter())
+	app.useWebSocketAdapter(new IoAdapter(app))
 	app.set('trust proxy', 1)
 
 	mkdirSync(join(process.cwd(), 'uploads'), { recursive: true })

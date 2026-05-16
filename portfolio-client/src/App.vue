@@ -6,10 +6,12 @@ import PublicLayout from '@/layout/PublicLayout.vue'
 import AdminLayout from '@/layout/AdminLayout.vue'
 import { useUserStore } from '@/stores/user'
 import { useTheme } from '@/composables/useTheme'
+import { useSiteBranding } from '@/composables/useSiteBranding'
 
 const route = useRoute()
 const userStore = useUserStore()
 const { init: initTheme } = useTheme()
+const { loadBranding } = useSiteBranding()
 
 const layout = computed(() => {
 	if (route.path.startsWith('/admin')) return 'admin'
@@ -19,6 +21,7 @@ const layout = computed(() => {
 
 onMounted(async () => {
 	initTheme()
+	loadBranding()
 	const token = localStorage.getItem('portfolio_token')
 	if (token) {
 		await userStore.whoAmI()

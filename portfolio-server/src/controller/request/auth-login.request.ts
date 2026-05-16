@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger'
-import { IsEmail, IsString, MinLength } from 'class-validator'
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { IsEmail, IsOptional, IsString, Length, MinLength } from 'class-validator'
 
 export class AuthLoginRequest {
 	@ApiProperty()
@@ -10,4 +10,10 @@ export class AuthLoginRequest {
 	@IsString()
 	@MinLength(8)
 	password: string
+
+	@ApiPropertyOptional()
+	@IsOptional()
+	@IsString()
+	@Length(6, 6)
+	totpToken?: string
 }

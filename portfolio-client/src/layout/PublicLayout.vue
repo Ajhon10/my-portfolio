@@ -6,7 +6,7 @@ import { useRoute } from 'vue-router'
 import { computed } from 'vue'
 
 const route = useRoute()
-const showChatbot = computed(() => !route.path.startsWith('/admin'))
+const showChatbot = computed(() => !route.path.startsWith('/admin') && !route.path.startsWith('/client'))
 </script>
 
 <template>
