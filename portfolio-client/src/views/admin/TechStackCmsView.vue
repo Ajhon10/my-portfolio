@@ -104,7 +104,10 @@ const openEdit = (t: TechStack) => {
 const save = async () => {
 	errors.value = {}
 	if (!form.name.trim()) errors.value.name = 'Name is required'
-	if (Object.keys(errors.value).length) return
+	if (Object.keys(errors.value).length) {
+		toast.error('Please fix the highlighted fields.')
+		return
+	}
 
 	const payload = {
 		name: form.name.trim(),

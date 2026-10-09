@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ParticlePortrait from '@/components/ParticlePortrait.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useProjectProvider } from '@/composables/provider/project.provider'
 import { useSiteContentProvider } from '@/composables/provider/site-content.provider'
@@ -9,33 +10,65 @@ import { toast } from 'vue3-toastify'
 
 const provider = useSiteContentProvider()
 const uploadProvider = useProjectProvider()
-const { loadBranding, resolveAssetUrl } = useSiteBranding()
+const { refreshBranding, resolveAssetUrl } = useSiteBranding()
 
 const defaultItems: SiteContent[] = [
+	{
+		id: 'default-hero_particle_density',
+		key: 'hero_particle_density',
+		label: 'Portrait character spacing (4-10)',
+		value: '6',
+	},
+	{
+		id: 'default-hero_particle_strength',
+		key: 'hero_particle_strength',
+		label: 'Portrait hover strength (1-10)',
+		value: '5',
+	},
 	{ id: 'default-site_logo_text', key: 'site_logo_text', label: 'Logo Text', value: 'JLJ' },
 	{ id: 'default-site_logo_subtitle', key: 'site_logo_subtitle', label: 'Logo Subtitle', value: '/dev' },
 	{ id: 'default-site_logo_url', key: 'site_logo_url', label: 'Website Logo', value: '' },
 	{ id: 'default-site_favicon_url', key: 'site_favicon_url', label: 'Website Favicon', value: '/favicon.svg' },
-	{ id: 'default-site_title', key: 'site_title', label: 'Browser Tab Title', value: 'Jhon Lisley Jeresano - Fullstack Developer' },
+	{
+		id: 'default-site_title',
+		key: 'site_title',
+		label: 'Browser Tab Title',
+		value: 'Jhon Lisley Jeresano - Fullstack Developer',
+	},
 	{
 		id: 'default-site_meta_description',
 		key: 'site_meta_description',
 		label: 'Meta Description',
 		value: 'Jhon Lisley Jeresano - Fullstack Web & App Developer, Video Editor, Photographer.',
 	},
-	{ id: 'default-hero_title', key: 'hero_title', label: 'Hero Title', value: 'I am Jhon Lisley Jeresano' },
-	{ id: 'default-hero_subtitle', key: 'hero_subtitle', label: 'Hero Subtitle', value: 'a Fullstack Developer, Video Editor, and Photographer' },
+	{ id: 'default-hero_title', key: 'hero_title', label: 'Hero Title', value: 'hi, Jhon here.' },
+	{
+		id: 'default-hero_subtitle',
+		key: 'hero_subtitle',
+		label: 'Hero Subtitle',
+		value: 'I build for the web. From the first idea to the final interaction.',
+	},
 	{ id: 'default-hero_freelance_available', key: 'hero_freelance_available', label: 'Freelance Status', value: 'true' },
-	{ id: 'default-hero_freelance_label', key: 'hero_freelance_label', label: 'Freelance Status Label', value: 'Available for freelance' },
+	{
+		id: 'default-hero_freelance_label',
+		key: 'hero_freelance_label',
+		label: 'Freelance Status Label',
+		value: 'Available for freelance',
+	},
 	{ id: 'default-hero_email', key: 'hero_email', label: 'Contact Email', value: 'itsajhon@gmail.com' },
 	{ id: 'default-hero_stat_1_value', key: 'hero_stat_1_value', label: 'Hero Stat 1 Value', value: '3+' },
 	{ id: 'default-hero_stat_1_label', key: 'hero_stat_1_label', label: 'Hero Stat 1 Label', value: 'Years building' },
 	{ id: 'default-hero_stat_2_value', key: 'hero_stat_2_value', label: 'Hero Stat 2 Value', value: '20+' },
 	{ id: 'default-hero_stat_2_label', key: 'hero_stat_2_label', label: 'Hero Stat 2 Label', value: 'Projects shipped' },
-	{ id: 'default-hero_stat_3_value', key: 'hero_stat_3_value', label: 'Hero Stat 3 Value', value: '∞' },
+	{ id: 'default-hero_stat_3_value', key: 'hero_stat_3_value', label: 'Hero Stat 3 Value', value: 'infinity' },
 	{ id: 'default-hero_stat_3_label', key: 'hero_stat_3_label', label: 'Hero Stat 3 Label', value: 'Cups of coffee' },
 	{ id: 'default-hero_photo_url', key: 'hero_photo_url', label: 'Hero Photo', value: '' },
-	{ id: 'default-about_short', key: 'about_short', label: 'About Short', value: 'I create beautiful and functional digital experiences' },
+	{
+		id: 'default-about_short',
+		key: 'about_short',
+		label: 'About Short',
+		value: 'I create beautiful and functional digital experiences',
+	},
 	{ id: 'default-cta_hire_me', key: 'cta_hire_me', label: 'CTA Button Text', value: 'Hire Me' },
 	{ id: 'default-social_github', key: 'social_github', label: 'GitHub URL', value: '' },
 	{ id: 'default-social_linkedin', key: 'social_linkedin', label: 'LinkedIn URL', value: '' },
@@ -56,17 +89,13 @@ const BRAND_KEYS = [
 ]
 
 const HERO_KEYS = [
+	'hero_particle_density',
+	'hero_particle_strength',
 	'hero_title',
 	'hero_subtitle',
 	'hero_freelance_available',
 	'hero_freelance_label',
 	'hero_email',
-	'hero_stat_1_value',
-	'hero_stat_1_label',
-	'hero_stat_2_value',
-	'hero_stat_2_label',
-	'hero_stat_3_value',
-	'hero_stat_3_label',
 	'hero_photo_url',
 ]
 
@@ -91,12 +120,6 @@ const SINGLE_LINE_KEYS = new Set([
 	'hero_subtitle',
 	'hero_freelance_label',
 	'hero_email',
-	'hero_stat_1_value',
-	'hero_stat_1_label',
-	'hero_stat_2_value',
-	'hero_stat_2_label',
-	'hero_stat_3_value',
-	'hero_stat_3_label',
 	'cta_hire_me',
 ])
 
@@ -112,14 +135,17 @@ const SOCIAL_META: Record<string, { label: string; placeholder: string; color: s
 
 const hints: Record<string, string> = {
 	site_logo_url: 'Upload a transparent PNG, SVG, or WebP logo for the navbar.',
-	site_favicon_url: 'Upload an ICO, PNG, or SVG icon used in the browser tab.',
+	site_favicon_url:
+		'Upload an ICO, PNG, SVG, or WebP icon (up to 8 MB). Saving refreshes the browser tab icon and other open portfolio tabs.',
 	site_title: 'Shown in the browser tab and search previews.',
 	site_meta_description: 'Short summary used by search engines and link previews.',
-	hero_photo_url: 'Upload a portrait or transparent PNG for the right side of the hero section.',
+	hero_photo_url:
+		'Upload a background-free PNG or WebP (up to 8 MB). It becomes an interactive blue character portrait automatically. Transparency is preserved; background removal is not applied.',
 }
 
 const items = ref<SiteContent[]>([])
 const loading = ref(true)
+const loadFailed = ref(false)
 const drafts = ref<Record<string, string>>({})
 const saving = ref<Record<string, boolean>>({})
 const uploading = ref<Record<string, boolean>>({})
@@ -137,7 +163,13 @@ const brandItems = computed(() => orderedItems(BRAND_KEYS))
 const heroItems = computed(() => orderedItems(HERO_KEYS))
 const socialItems = computed(() => orderedItems(SOCIAL_KEYS))
 const otherItems = computed(() =>
-	items.value.filter((item) => !BRAND_KEYS.includes(item.key) && !HERO_KEYS.includes(item.key) && !SOCIAL_KEYS.includes(item.key)),
+	items.value.filter(
+		(item) =>
+			!item.key.startsWith('hero_stat_') &&
+			!BRAND_KEYS.includes(item.key) &&
+			!HERO_KEYS.includes(item.key) &&
+			!SOCIAL_KEYS.includes(item.key),
+	),
 )
 
 const contentGroups = computed(() => [
@@ -164,6 +196,7 @@ const contentGroups = computed(() => [
 const load = async () => {
 	loading.value = true
 	const res = await provider.list()
+	loadFailed.value = !res.success
 	if (res.success && res.data) {
 		items.value = mergeDefaults(res.data)
 		drafts.value = Object.fromEntries(items.value.map((item) => [item.key, item.value]))
@@ -177,30 +210,35 @@ const isDirty = (item: SiteContent) => drafts.value[item.key] !== item.value
 const hasDirty = (list: SiteContent[]) => list.some((item) => isDirty(item))
 const isBrandItem = (item: SiteContent) => BRAND_KEYS.includes(item.key)
 
-const save = async (item: SiteContent, options: { skipToast?: boolean } = {}) => {
+const save = async (item: SiteContent, options: { skipToast?: boolean; silent?: boolean } = {}) => {
 	saving.value[item.key] = true
 	const res = await provider.update(item.key, item.label, drafts.value[item.key] ?? '', options)
 	saving.value[item.key] = false
 	if (res.success && res.data) {
 		const idx = items.value.findIndex((entry) => entry.key === item.key)
 		if (idx >= 0) items.value[idx] = res.data
-		if (isBrandItem(item)) await loadBranding(true)
+		if (isBrandItem(item)) await refreshBranding()
 	}
+	return res.success
 }
 
 const saveAll = async (list: SiteContent[], successMessage: string) => {
 	let saved = false
+	let failed = false
 	for (const item of list) {
 		if (isDirty(item)) {
-			await save(item, { skipToast: true })
-			saved = true
+			if (await save(item, { silent: true })) saved = true
+			else failed = true
 		}
 	}
-	if (saved) toast.success(successMessage)
+	if (failed) toast.error('Some changes could not be saved. Please retry.')
+	else if (saved) toast.success(successMessage)
 }
 
 const fileAccept = (item: SiteContent) => {
-	if (item.key === 'site_favicon_url') return 'image/png,image/webp,image/svg+xml,image/x-icon,.ico'
+	if (item.key === 'hero_photo_url') return 'image/png,image/webp'
+	if (item.key === 'site_favicon_url')
+		return 'image/png,image/webp,image/svg+xml,image/x-icon,image/vnd.microsoft.icon,.ico'
 	if (item.key === 'site_logo_url') return 'image/jpeg,image/png,image/webp,image/gif,image/svg+xml'
 	return 'image/png,image/webp,image/jpeg'
 }
@@ -223,6 +261,19 @@ const onAssetUpload = async (item: SiteContent, event: Event) => {
 	const input = event.target as HTMLInputElement
 	const file = input.files?.[0]
 	if (!file) return
+	if (file.size > 8 * 1024 * 1024) {
+		toast.error('Choose a file up to 8 MB.')
+		input.value = ''
+		return
+	}
+	if (
+		item.key === 'hero_photo_url' &&
+		(!['image/png', 'image/webp'].includes(file.type) || file.size > 8 * 1024 * 1024)
+	) {
+		toast.error('Choose a transparent PNG or WebP up to 8 MB.')
+		input.value = ''
+		return
+	}
 
 	uploading.value[item.key] = true
 	const result = SITE_ASSET_KEYS.has(item.key)
@@ -232,8 +283,8 @@ const onAssetUpload = async (item: SiteContent, event: Event) => {
 
 	if (result.success && result.url) {
 		drafts.value[item.key] = result.url
-		await save(item, { skipToast: true })
-		toast.success(uploadSuccessText(item))
+		if (await save(item, { silent: true })) toast.success(uploadSuccessText(item))
+		else toast.error('Image uploaded, but saving failed. Use Save to retry.')
 	} else {
 		toast.error(result.message || 'Upload failed')
 	}
@@ -243,8 +294,8 @@ const onAssetUpload = async (item: SiteContent, event: Event) => {
 
 const clearAsset = async (item: SiteContent) => {
 	drafts.value[item.key] = ''
-	await save(item, { skipToast: true })
-	toast.success(`${item.label} cleared`)
+	if (await save(item, { silent: true })) toast.success(`${item.label} cleared`)
+	else toast.error(`Unable to clear ${item.label.toLowerCase()}`)
 }
 
 const toggleBoolean = (item: SiteContent) => {
@@ -254,12 +305,11 @@ const toggleBoolean = (item: SiteContent) => {
 
 <template>
 	<LoadingSpinner v-if="loading" size="lg" />
+	<div v-else-if="loadFailed" role="alert" class="card p-6">
+		Unable to load site content. <button class="text-brand-blueLight" @click="load">Try again</button>
+	</div>
 	<div v-else class="space-y-8">
-		<section
-			v-for="group in contentGroups"
-			:key="group.id"
-			class="card p-6"
-		>
+		<section v-for="group in contentGroups" :key="group.id" class="card p-6">
 			<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-2">
 				<div>
 					<h3 class="font-display font-semibold text-lg">{{ group.title }}</h3>
@@ -268,19 +318,28 @@ const toggleBoolean = (item: SiteContent) => {
 				<button
 					v-if="group.id !== 'other'"
 					class="btn btn-primary text-sm !py-1.5 !px-4"
-					:disabled="!hasDirty(group.items)"
+					:disabled="!hasDirty(group.items) || Object.values(saving).some(Boolean)"
 					@click="saveAll(group.items, `${group.title} saved`)"
 				>
 					Save all
 				</button>
 			</div>
 
+			<div v-if="group.id === 'hero'" class="my-6 p-4 rounded-xl border border-brand-blue/30 bg-[#090f1b] max-w-md">
+				<p class="text-sm text-blue-200">Live portrait preview / move your mouse over the figure</p>
+				<ParticlePortrait
+					:src="drafts.hero_photo_url"
+					:density="Number(drafts.hero_particle_density) || 6"
+					:strength="Number(drafts.hero_particle_strength) || 5"
+				/>
+			</div>
 			<div v-if="!group.items.length" class="pt-5 text-sm text-brand-gray-500">No content items in this group.</div>
 
 			<div
 				v-for="item in group.items"
 				v-else
 				:key="item.key"
+				:data-content-key="item.key"
 				class="py-5 border-t border-white/5 first:border-t-0"
 			>
 				<div class="flex items-start justify-between gap-3 mb-3">
@@ -300,7 +359,18 @@ const toggleBoolean = (item: SiteContent) => {
 					</button>
 				</div>
 
-				<div v-if="BOOLEAN_KEYS.has(item.key)" class="flex items-center gap-4">
+				<div v-if="item.key.startsWith('hero_particle_')">
+					<label :for="item.key" class="label">{{ item.label }}</label
+					><input
+						:id="item.key"
+						v-model="drafts[item.key]"
+						type="range"
+						:min="item.key === 'hero_particle_density' ? 4 : 1"
+						max="10"
+						step="1"
+					/><span class="ml-3">{{ drafts[item.key] }}</span>
+				</div>
+				<div v-else-if="BOOLEAN_KEYS.has(item.key)" class="flex items-center gap-4">
 					<button
 						type="button"
 						class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
@@ -321,14 +391,30 @@ const toggleBoolean = (item: SiteContent) => {
 					<div
 						v-if="drafts[item.key]"
 						class="relative inline-flex items-center justify-center rounded-xl overflow-hidden border border-white/10 bg-white/5"
-						:class="item.key === 'site_favicon_url' ? 'w-20 h-20' : item.key === 'site_logo_url' ? 'min-w-44 h-20 px-4' : 'w-44 min-h-32'"
-						:style="item.key === 'hero_photo_url' ? 'background: repeating-conic-gradient(#ffffff10 0% 25%, transparent 0% 50%) 0 0 / 12px 12px' : ''"
+						:class="
+							item.key === 'site_favicon_url'
+								? 'w-20 h-20'
+								: item.key === 'site_logo_url'
+									? 'min-w-44 h-20 px-4'
+									: 'w-44 min-h-32'
+						"
+						:style="
+							item.key === 'hero_photo_url'
+								? 'background: repeating-conic-gradient(#ffffff10 0% 25%, transparent 0% 50%) 0 0 / 12px 12px'
+								: ''
+						"
 					>
 						<img
 							:src="resolveAssetUrl(drafts[item.key])"
 							:alt="item.label"
 							class="object-contain"
-							:class="item.key === 'hero_photo_url' ? 'w-full h-auto' : item.key === 'site_favicon_url' ? 'w-12 h-12' : 'max-h-12 max-w-40'"
+							:class="
+								item.key === 'hero_photo_url'
+									? 'w-full h-auto'
+									: item.key === 'site_favicon_url'
+										? 'w-12 h-12'
+										: 'max-h-12 max-w-40'
+							"
 						/>
 						<button
 							type="button"
@@ -346,12 +432,16 @@ const toggleBoolean = (item: SiteContent) => {
 					</div>
 
 					<label class="inline-flex items-center gap-2 cursor-pointer">
-						<span class="btn btn-ghost text-xs px-3 py-1.5" :class="uploading[item.key] ? 'opacity-50 pointer-events-none' : ''">
+						<span
+							class="btn btn-ghost text-xs px-3 py-1.5"
+							:class="uploading[item.key] ? 'opacity-50 pointer-events-none' : ''"
+						>
 							{{ uploadText(item) }}
 						</span>
 						<input
 							type="file"
 							:accept="fileAccept(item)"
+							:aria-label="`Upload ${item.label}`"
 							class="sr-only"
 							:disabled="uploading[item.key]"
 							@change="onAssetUpload(item, $event)"
@@ -376,19 +466,9 @@ const toggleBoolean = (item: SiteContent) => {
 					</div>
 				</div>
 
-				<input
-					v-else-if="SINGLE_LINE_KEYS.has(item.key)"
-					v-model="drafts[item.key]"
-					type="text"
-					class="input"
-				/>
+				<input v-else-if="SINGLE_LINE_KEYS.has(item.key)" v-model="drafts[item.key]" type="text" class="input" />
 
-				<textarea
-					v-else
-					v-model="drafts[item.key]"
-					rows="3"
-					class="input resize-y"
-				/>
+				<textarea v-else v-model="drafts[item.key]" rows="3" class="input resize-y" />
 			</div>
 		</section>
 
@@ -400,7 +480,7 @@ const toggleBoolean = (item: SiteContent) => {
 				</div>
 				<button
 					class="btn btn-primary text-sm !py-1.5 !px-4"
-					:disabled="!hasDirty(socialItems)"
+					:disabled="!hasDirty(socialItems) || Object.values(saving).some(Boolean)"
 					@click="saveAll(socialItems, 'Social links saved')"
 				>
 					Save all

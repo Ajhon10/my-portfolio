@@ -170,6 +170,7 @@ export interface ChatbotTag {
 }
 
 export interface ChatbotMessage {
+ references?: Array<{ title: string; href: string }>
 	id?: string
 	role: ChatbotMessageRole
 	content: string

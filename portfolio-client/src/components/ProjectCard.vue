@@ -1,25 +1,22 @@
 <script setup lang="ts">
+import { useSiteBranding } from '@/composables/useSiteBranding'
 import type { Project } from '@/types'
 import { computed } from 'vue'
 
 const props = defineProps<{ project: Project }>()
 
-const imgSrc = computed(() => {
-	const url = props.project.thumbnailUrl
-	if (!url) return ''
-	// External URL — use as-is
-	if (url.startsWith('http') || url.startsWith('//')) return url
-	// Local upload path — proxy handles /uploads/* → backend in dev; same origin in prod
-	return url
-})
+const { resolveAssetUrl } = useSiteBranding()
+const imgSrc = computed(() => resolveAssetUrl(props.project.thumbnailUrl || ''))
 </script>
 
 <template>
 	<router-link
-		:to="`/projects/${project.slug}`"
-		class="card card-hover group block overflow-hidden"
+		:to="{ path: '/', query: { project: project.slug }, hash: '#projects' }"
+		class="work-card card card-hover group block overflow-hidden"
 	>
-		<div class="aspect-[16/10] overflow-hidden bg-gradient-to-br from-brand-blue/20 to-brand-blueDark/20 relative">
+		<div
+			class="work-cover aspect-[16/10] overflow-hidden bg-gradient-to-br from-brand-blue/20 to-brand-blueDark/20 relative"
+		>
 			<img
 				v-if="imgSrc"
 				:src="imgSrc"
@@ -28,16 +25,30 @@ const imgSrc = computed(() => {
 				loading="lazy"
 			/>
 			<div v-else class="w-full h-full flex items-center justify-center text-brand-gray-500 font-mono text-sm">
-				{{ project.title }}
+				<span class="work-monogram">{{
+					project.title.includes('DEOS')
+						? 'DEOS'
+						: project.title.includes('PDEA')
+							? 'PDEA'
+							: project.title.includes('OADR')
+								? 'OADR'
+								: '\u2197'
+				}}</span>
 			</div>
-			<div v-if="project.featured" class="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-brand-gold text-black text-xs font-semibold">
+			<div
+				v-if="project.featured"
+				class="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-blue-200 text-blue-950 text-xs font-semibold"
+			>
 				Featured
 			</div>
-			<div v-if="project.category" class="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur text-xs font-mono text-brand-blueLight">
+			<div
+				v-if="project.category"
+				class="absolute bottom-3 left-3 right-3 w-fit max-w-[calc(100%-1.5rem)] px-2.5 py-1 rounded-full bg-black/70 backdrop-blur text-[10px] font-mono text-brand-blueLight"
+			>
 				{{ project.category }}
 			</div>
 		</div>
-		<div class="p-5">
+		<div class="work-copy p-5">
 			<h3 class="font-display font-semibold text-lg mb-2 group-hover:text-brand-blueLight transition-colors">
 				{{ project.title }}
 			</h3>

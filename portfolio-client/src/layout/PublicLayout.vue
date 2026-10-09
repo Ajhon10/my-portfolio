@@ -10,7 +10,7 @@ const showChatbot = computed(() => !route.path.startsWith('/admin') && !route.pa
 </script>
 
 <template>
-	<div class="min-h-screen flex flex-col bg-brand-black text-white">
+	<div class="public-portfolio min-h-screen flex flex-col">
 		<Navbar />
 		<main class="flex-1">
 			<slot />

@@ -210,11 +210,15 @@ const sendChat = async () => {
 	lastTypingSent = 0
 	const res = await provider.sendMessage(selected.value.id, text)
 	sendingChat.value = false
-	if (res.success && res.data && !messages.value.find((item) => item.id === res.data!.id)) {
-		messages.value.push(res.data)
-		await scrollMessages()
-	} else if (!res.success) {
+	if (res.success) {
+		if (res.data && !messages.value.find((item) => item.id === res.data!.id)) {
+			messages.value.push(res.data)
+			await scrollMessages()
+		}
+		toast.success('Message sent')
+	} else {
 		chatText.value = text
+		toast.error(res.message || 'Unable to send message')
 	}
 }
 
@@ -236,7 +240,10 @@ const createClientAccount = async () => {
 	if (!accountForm.firstName.trim()) accountErrors.value.firstName = 'First name is required'
 	if (!accountForm.lastName.trim()) accountErrors.value.lastName = 'Last name is required'
 	if (!accountForm.password || accountForm.password.length < 8) accountErrors.value.password = 'Password must be at least 8 characters'
-	if (Object.keys(accountErrors.value).length) return
+	if (Object.keys(accountErrors.value).length) {
+		toast.error('Please fix the highlighted fields.')
+		return
+	}
 
 	creatingAccount.value = true
 	const res = await provider.createClientAccount(selected.value.id, {
@@ -247,7 +254,6 @@ const createClientAccount = async () => {
 	})
 	creatingAccount.value = false
 	if (res.success) {
-		toast.success('Client account created.')
 		accountModalOpen.value = false
 		await load()
 	}

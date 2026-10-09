@@ -119,16 +119,18 @@ const onGalleryFilesChange = async (event: Event) => {
 	const files = Array.from(input.files || [])
 	if (!files.length || !editingId.value) return
 	galleryUploading.value = true
+	let uploaded = 0
 	for (const file of files) {
 		const res = await provider.uploadProjectImage(editingId.value, file)
 		if (res.success && res.data) {
 			galleryImages.value.push(res.data)
+			uploaded += 1
 		} else {
 			toast.error(res.message || 'Upload failed')
 		}
 	}
 	galleryUploading.value = false
-	toast.success(`${files.length} image(s) uploaded`)
+	if (uploaded) toast.success(`${uploaded} gallery image${uploaded === 1 ? '' : 's'} uploaded`)
 	input.value = ''
 }
 
@@ -199,7 +201,10 @@ const validate = (): boolean => {
 }
 
 const save = async () => {
-	if (!validate()) return
+	if (!validate()) {
+		toast.error('Please fix the highlighted fields.')
+		return
+	}
 	const payload: ProjectInput = {
 		title: form.title.trim(),
 		slug: form.slug?.trim() || undefined,

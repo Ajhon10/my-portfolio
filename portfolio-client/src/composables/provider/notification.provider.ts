@@ -18,8 +18,8 @@ export const useNotificationProvider = () => {
 	const list = async () => api.GET<AppNotification[]>('/notifications', {}, { silent: true })
 	const unreadCount = async () => api.GET<{ count: number }>('/notifications/unread-count', {}, { silent: true })
 	const markRead = async (id: string) => api.PUT(`/notifications/${id}/read`, {}, {}, { silent: true })
-	const markAllRead = async () => api.PUT(`/notifications/read-all`, {}, {}, { silent: true })
-	const remove = async (id: string) => api.DELETE(`/notifications/${id}`, {}, { silent: true })
+	const markAllRead = async () => api.PUT(`/notifications/read-all`)
+	const remove = async (id: string) => api.DELETE(`/notifications/${id}`)
 
 	return { list, unreadCount, markRead, markAllRead, remove }
 }

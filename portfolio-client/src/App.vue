@@ -1,17 +1,27 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, onBeforeUnmount } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import { computed } from 'vue'
 import PublicLayout from '@/layout/PublicLayout.vue'
 import AdminLayout from '@/layout/AdminLayout.vue'
 import { useUserStore } from '@/stores/user'
 import { useTheme } from '@/composables/useTheme'
-import { useSiteBranding } from '@/composables/useSiteBranding'
+import { useSiteBranding, BRANDING_EVENT_KEY } from '@/composables/useSiteBranding'
 
 const route = useRoute()
 const userStore = useUserStore()
 const { init: initTheme } = useTheme()
 const { loadBranding } = useSiteBranding()
+const onBrandingChange = (event: StorageEvent) => {
+	if (event.key === BRANDING_EVENT_KEY) void loadBranding(true)
+}
+const onFocus = () => {
+	void loadBranding(true)
+}
+onBeforeUnmount(() => {
+	window.removeEventListener('storage', onBrandingChange)
+	window.removeEventListener('focus', onFocus)
+})
 
 const layout = computed(() => {
 	if (route.path.startsWith('/admin')) return 'admin'
@@ -20,6 +30,8 @@ const layout = computed(() => {
 })
 
 onMounted(async () => {
+	window.addEventListener('storage', onBrandingChange)
+	window.addEventListener('focus', onFocus)
 	initTheme()
 	loadBranding()
 	const token = localStorage.getItem('portfolio_token')

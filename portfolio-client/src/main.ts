@@ -29,3 +29,5 @@ app.use(Vue3Toastify, {
 } as ToastContainerOptions)
 
 app.mount('#app')
+
+import './assets/portfolio.css'

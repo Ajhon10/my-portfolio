@@ -138,30 +138,35 @@ const visible = computed(() => store.sorted.slice(0, 20))
 						<div class="text-4xl mb-2 opacity-50">🔔</div>
 						<p class="text-sm text-brand-gray-500">No notifications yet</p>
 					</div>
-					<button
+					<div
 						v-for="n in visible"
 						:key="n.id"
-						class="w-full text-left px-4 py-3 hover:bg-white/5 border-b border-white/5 transition-colors flex gap-3 group"
+						class="w-full border-b border-white/5 transition-colors flex group"
 						:class="{ 'bg-brand-blue/5': !n.read }"
-						@click="onItemClick(n.id, n.link)"
 					>
-						<div class="text-lg shrink-0 leading-none mt-0.5">{{ iconFor(n.type) }}</div>
-						<div class="flex-1 min-w-0">
-							<div class="flex items-start gap-2">
-								<p class="text-sm font-medium leading-tight flex-1">{{ n.title }}</p>
-								<span v-if="!n.read" class="w-2 h-2 mt-1.5 rounded-full bg-brand-blueLight shrink-0" />
-							</div>
-							<p class="text-xs text-brand-gray-400 mt-0.5 line-clamp-2">{{ n.message }}</p>
-							<p class="text-[11px] text-brand-gray-500 mt-1">{{ fmtTime(n.createdAt) }}</p>
-						</div>
 						<button
-							class="opacity-0 group-hover:opacity-100 text-brand-gray-500 hover:text-red-400 text-xs px-1 self-start"
-							:title="'Remove'"
+							class="min-w-0 flex-1 text-left px-4 py-3 hover:bg-white/5 transition-colors flex gap-3"
+							@click="onItemClick(n.id, n.link)"
+						>
+							<div class="text-lg shrink-0 leading-none mt-0.5">{{ iconFor(n.type) }}</div>
+							<div class="flex-1 min-w-0">
+								<div class="flex items-start gap-2">
+									<p class="text-sm font-medium leading-tight flex-1">{{ n.title }}</p>
+									<span v-if="!n.read" class="w-2 h-2 mt-1.5 rounded-full bg-brand-blueLight shrink-0" />
+								</div>
+								<p class="text-xs text-brand-gray-400 mt-0.5 line-clamp-2">{{ n.message }}</p>
+								<p class="text-[11px] text-brand-gray-500 mt-1">{{ fmtTime(n.createdAt) }}</p>
+							</div>
+						</button>
+						<button
+							class="opacity-0 group-hover:opacity-100 focus:opacity-100 text-brand-gray-500 hover:text-red-400 text-xs px-3 self-stretch"
+							title="Remove"
+							:aria-label="`Remove ${n.title} notification`"
 							@click.stop="store.remove(n.id)"
 						>
 							✕
 						</button>
-					</button>
+					</div>
 				</div>
 			</div>
 		</transition>
