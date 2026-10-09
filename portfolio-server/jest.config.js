@@ -1,0 +1,9 @@
+module.exports = {
+  moduleFileExtensions: ['js', 'json', 'ts'],
+  rootDir: '.',
+  testRegex: '.*\\.spec\\.ts$',
+  transform: { '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: { types: ['node', 'jest'] } }] },
+  moduleNameMapper: { '^@app/(.*)$': '<rootDir>/src/$1' },
+  testEnvironment: 'node',
+  clearMocks: true,
+}

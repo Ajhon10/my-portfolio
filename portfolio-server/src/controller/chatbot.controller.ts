@@ -76,7 +76,7 @@ export class ChatbotController {
 	async createKnowledge(@Body() body: ChatbotKnowledgeCreateRequest) {
 		try {
 			const data = await this.chatbotProvider.createKnowledge(body)
-			return { success: true, message: 'Knowledge added — bot trained', data }
+			return { success: true, message: 'Knowledge added', data }
 		} catch (error) {
 			throw new HttpException(error.message, error.status || HttpStatus.INTERNAL_SERVER_ERROR)
 		}
