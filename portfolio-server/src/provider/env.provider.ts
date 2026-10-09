@@ -41,7 +41,7 @@ export class EnvProvider implements EnvContract {
 	get openai() {
 		return {
 			OPENAI_API_KEY: this.config.get<string>('OPENAI_API_KEY', ''),
-			OPENAI_MODEL: this.config.get<string>('OPENAI_MODEL', 'gpt-4o-mini'),
+			OPENAI_MODEL: this.config.get<string>('OPENAI_MODEL', 'gpt-5.6-luna'),
 		}
 	}
 }

@@ -1,0 +1,16 @@
+model Photograph {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deleted Boolean @default(false)
+  deletedAt DateTime? @map("deleted_at")
+  title String @db.VarChar(200)
+  altText String @map("alt_text") @db.VarChar(500)
+  caption String @default("")
+  location String @default("") @db.VarChar(200)
+  category String @default("Personal") @db.VarChar(100)
+  imageUrl String @map("image_url")
+  published Boolean @default(false)
+  sortOrder Int @default(0) @map("sort_order")
+  @@map("photograph")
+}

@@ -1,3 +1,4 @@
+import { PhotographyModule } from './module/photography.module'
 import { Module } from '@nestjs/common'
 import {
 	AuthModule,
@@ -34,6 +35,7 @@ import {
 
 @Module({
 	imports: [
+        PhotographyModule,
 		EnvModule,
 		UtilityModule,
 		DatabaseModule,

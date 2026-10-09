@@ -1,3 +1,5 @@
+import { portfolioKnowledge } from './chatbot-knowledge'
+import { portfolioProjects } from './portfolio-projects'
 import { AppMigrateModule } from '@app/app.migrate.module'
 import { AppContract, DatabaseContract, UtilityContract } from '@app/contract'
 import { DatabaseModule, UtilityModule } from '@app/module'
@@ -199,14 +201,19 @@ async function seed() {
 			}
 		}
 
-		// Seed experiences
+		// Create projects without overwriting later CMS edits.
+        for (const project of portfolioProjects) {
+            await database.project.upsert({ where: { slug: project.slug }, update: {}, create: project })
+        }
+
+        // Seed experiences
 		const experiences = [
 			{
 				title: 'Fullstack Web Developer',
-				company: 'WWC Yellow Bumblebee',
+				company: 'WWC Yellow Bumblebee Corp.',
 				location: 'Manila, Philippines',
 				description:
-					'Designed and developed fullstack web applications for government agencies and private companies, handling both frontend and backend development. Built internal systems to digitize and streamline operations across various clients — projects are confidential and not publicly disclosed. Tech stack includes Vue.js, NestJS, Laravel, Express.js, and TypeScript.',
+					'Fullstack development for DEOS, PDEA Virtual Museum, and OADR. Built the complete PDEA website and integrated its Unity application; developed the OADR recruitment process, performance management, awards and recognition pages.',
 				startDate: new Date('2025-08-27'),
 				endDate: null,
 				current: true,
@@ -279,12 +286,12 @@ async function seed() {
 			{
 				key: 'hero_title',
 				label: 'Hero Title',
-				value: 'I am Jhon Lisley Jeresano',
+				value: 'hi, Jhon here.',
 			},
 			{
 				key: 'hero_subtitle',
 				label: 'Hero Subtitle',
-				value: 'a Fullstack Developer, Video Editor, and Photographer',
+				value: 'I build for the web. From the first idea to the final interaction.',
 			},
 			{
 				key: 'about_short',
@@ -390,6 +397,7 @@ async function seed() {
 		}
 
 		const knowledge = [
+            ...portfolioKnowledge,
 			{
 				topic: 'Skills',
 				question: 'What technologies do you use?',
@@ -410,7 +418,7 @@ async function seed() {
 				topic: 'Experience',
 				question: 'How much experience do you have?',
 				answer:
-					'I have 3+ years of professional experience building scalable web and mobile applications, along with experience in content creation.',
+					'Jhon is a fullstack web developer at WWC Yellow Bumblebee Corp. The Experience section lists his roles and dates; use those dates rather than assuming a total number of professional years.',
 				tags: 'experience,background',
 				enabled: true,
 			},
