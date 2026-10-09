@@ -157,7 +157,10 @@ const validate = () => {
 }
 
 const save = async () => {
-	if (!validate()) return
+	if (!validate()) {
+		toast.error('Please fix the highlighted fields.')
+		return
+	}
 
 	const payload: CertificationInput = {
 		title: form.title.trim(),

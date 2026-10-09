@@ -10,6 +10,7 @@ import { useUserStore } from '@/stores/user'
 import { ChatbotMessageRole, type ChatbotConversation, type ChatbotKB, type ChatbotMessage, type ChatbotTag } from '@/types'
 import type { Socket } from 'socket.io-client'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { toast } from 'vue3-toastify'
 
 const provider = useChatbotProvider()
 const userStore = useUserStore()
@@ -262,6 +263,7 @@ const toggleTakeover = () => {
 	})
 	const cur = activeSessionMap.value.get(sessionId) || { takenOver: false, isLive: true }
 	activeSessionMap.value.set(sessionId, { ...cur, takenOver: next })
+	toast.success(next ? 'Live chat takeover enabled' : 'Live chat takeover ended')
 }
 
 const onReplyInput = () => {
@@ -294,8 +296,11 @@ const sendReply = async () => {
 
 	const res = await provider.adminReply(sessionId, text)
 	sending.value = false
-	if (!res.success) {
+	if (res.success) {
+		toast.success('Reply sent')
+	} else {
 		replyText.value = text
+		toast.error(res.message || 'Unable to send reply')
 	}
 }
 
@@ -351,7 +356,10 @@ const save = async () => {
 	if (!form.topic.trim()) errors.value.topic = 'Topic is required'
 	if (!form.question.trim()) errors.value.question = 'Question is required'
 	if (!form.answer.trim()) errors.value.answer = 'Answer is required'
-	if (Object.keys(errors.value).length) return
+	if (Object.keys(errors.value).length) {
+		toast.error('Please fix the highlighted fields.')
+		return
+	}
 
 	const payload: KBInput = {
 		topic: form.topic.trim(),
@@ -404,7 +412,7 @@ const fmt = (d: string) => new Date(d).toLocaleString()
 					Conversations
 				</button>
 			</div>
-			<button v-if="tab === 'kb'" class="btn btn-primary" @click="openCreate">+ Train AI</button>
+			<button v-if="tab === 'kb'" class="btn btn-primary" @click="openCreate">+ Add Q&A</button>
 		</div>
 
 		<DataTable
@@ -412,7 +420,7 @@ const fmt = (d: string) => new Date(d).toLocaleString()
 			:columns="columns"
 			:rows="items"
 			:loading="loading"
-			empty="No knowledge entries yet. Train your AI by adding Q&A pairs."
+			empty="Add verified Q&A pairs to supplement published projects, technologies, experience, and certifications."
 			@edit="openEdit"
 			@delete="askDelete"
 		/>
@@ -573,7 +581,7 @@ const fmt = (d: string) => new Date(d).toLocaleString()
 			</div>
 		</div>
 
-		<Modal :open="showModal" :title="editingId ? 'Edit knowledge' : 'Train the AI'" size="lg" @close="showModal = false">
+		<Modal :open="showModal" :title="editingId ? 'Edit knowledge' : 'Add verified knowledge'" size="lg" @close="showModal = false">
 			<form class="space-y-4" @submit.prevent="save">
 				<FormField label="Topic" :error="errors.topic" required hint="e.g. Pricing, Services, Availability">
 					<input v-model="form.topic" type="text" class="input" />

@@ -33,7 +33,10 @@ const saveProfile = async () => {
 	profileErrors.value = {}
 	if (!profile.firstName.trim()) profileErrors.value.firstName = 'First name is required'
 	if (!profile.lastName.trim()) profileErrors.value.lastName = 'Last name is required'
-	if (Object.keys(profileErrors.value).length) return
+	if (Object.keys(profileErrors.value).length) {
+		toast.error('Please fix the highlighted fields.')
+		return
+	}
 
 	profileSaving.value = true
 	const res = await authProvider.updateProfile({
@@ -45,16 +48,16 @@ const saveProfile = async () => {
 
 	if (res.success) {
 		await userStore.whoAmI()
-		toast.success('Profile updated')
 	}
 }
 
 const onAvatarUploaded = async (url: string) => {
 	profile.avatarUrl = url || null
 	// Auto-save the avatar so the change is immediate
-	const res = await authProvider.updateProfile({ avatarUrl: url || null })
+	const res = await authProvider.updateProfile({ avatarUrl: url || null }, { skipToast: true })
 	if (res.success) {
 		await userStore.whoAmI()
+		if (!url) toast.success('Avatar removed')
 	}
 }
 
@@ -69,7 +72,10 @@ const submit = async () => {
 	if (!form.newPassword) errors.value.newPassword = 'New password is required'
 	else if (form.newPassword.length < 8) errors.value.newPassword = 'Use at least 8 characters'
 	if (form.newPassword !== form.confirmPassword) errors.value.confirmPassword = 'Passwords do not match'
-	if (Object.keys(errors.value).length) return
+	if (Object.keys(errors.value).length) {
+		toast.error('Please fix the highlighted fields.')
+		return
+	}
 
 	submitting.value = true
 	const res = await authProvider.changePassword({
@@ -81,7 +87,6 @@ const submit = async () => {
 		form.currentPassword = ''
 		form.newPassword = ''
 		form.confirmPassword = ''
-		toast.success('Password updated')
 	}
 }
 
@@ -122,7 +127,11 @@ const on2FASetupSuccess = async () => {
 }
 
 const disable2FA = async () => {
-	if (disableCode.value.length !== 6) { disableError.value = 'Enter the 6-digit code.'; return }
+	if (disableCode.value.length !== 6) {
+		disableError.value = 'Enter the 6-digit code.'
+		toast.error(disableError.value)
+		return
+	}
 	disableLoading.value = true
 	disableError.value = ''
 	const res = await authProvider.disable2FA(disableCode.value)
@@ -131,7 +140,6 @@ const disable2FA = async () => {
 		twoFAEnabled.value = false
 		showDisableForm.value = false
 		disableCode.value = ''
-		toast.success('Two-factor authentication disabled.')
 	} else {
 		disableError.value = res.message || 'Invalid code.'
 	}

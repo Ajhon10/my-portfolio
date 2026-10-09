@@ -11,6 +11,7 @@ const userStore = useUserStore()
 const links = computed(() => [
 	{ to: '/admin/dashboard', label: 'Dashboard', icon: 'grid' },
 	{ to: '/admin/projects', label: 'Projects', icon: 'folder' },
+	{ to: '/admin/photography', label: 'Photography', icon: 'camera' },
 	{ to: '/admin/tech-stack', label: 'Tech Stack', icon: 'cpu' },
 	{ to: '/admin/experience', label: 'Experience', icon: 'briefcase' },
 	{ to: '/admin/certifications', label: 'Certifications', icon: 'award' },
@@ -22,6 +23,7 @@ const links = computed(() => [
 ])
 
 const icons: Record<string, string> = {
+ camera: 'M3 6h4l2-3h6l2 3h4v15H3zM16 13a4 4 0 1 1-8 0 4 4 0 0 1 8 0',
 	grid: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',
 	folder: 'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z',
 	cpu: 'M4 4h16v16H4zM9 9h6v6H9z',
@@ -49,7 +51,7 @@ const icons: Record<string, string> = {
 				</svg>
 			</button>
 		</div>
-		<nav class="p-3 space-y-1">
+		<nav class="p-3 space-y-1 overflow-y-auto h-[calc(100vh-8rem)] pb-8">
 			<router-link
 				v-for="l in links"
 				:key="l.to"

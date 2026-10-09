@@ -23,6 +23,7 @@ const title = computed(() => {
 	const map: Record<string, string> = {
 		'admin-dashboard': 'Dashboard',
 		'admin-projects': 'Projects',
+        'admin-photography': 'Photography',
 		'admin-tech-stack': 'Tech Stack',
 		'admin-experience': 'Experience',
 		'admin-certifications': 'Certifications',

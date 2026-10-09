@@ -4,7 +4,10 @@ import { useApiProvider } from './api.provider'
 export interface ChatbotChatResponse {
 	conversationId: string
 	answer: string
-	source: 'KB' | 'AI' | 'FALLBACK'
+	source: 'KB' | 'AI' | 'FALLBACK' | 'PORTFOLIO' | 'ADMIN'
+	suppressed?: boolean
+	suggestions?: string[]
+	references?: Array<{ title: string; href: string }>
 }
 
 export interface KBInput {
@@ -19,12 +22,7 @@ export const useChatbotProvider = () => {
 	const api = useApiProvider()
 
 	const chat = async (sessionId: string, message: string, visitor?: string) => {
-		return await api.POST<ChatbotChatResponse>(
-			'/chatbot/chat',
-			{ sessionId, message, visitor },
-			{},
-			{ silent: true },
-		)
+		return await api.POST<ChatbotChatResponse>('/chatbot/chat', { sessionId, message, visitor }, {}, { silent: true })
 	}
 
 	const listTags = async () => api.GET<ChatbotTag[]>('/chatbot/tags', {}, { silent: true })
@@ -34,8 +32,7 @@ export const useChatbotProvider = () => {
 		api.PUT<ChatbotKB>(`/chatbot/knowledge/${id}`, data)
 	const deleteKnowledge = async (id: string) => api.DELETE(`/chatbot/knowledge/${id}`)
 
-	const listConversations = async () =>
-		api.GET<ChatbotConversation[]>('/chatbot/conversations', {}, { silent: true })
+	const listConversations = async () => api.GET<ChatbotConversation[]>('/chatbot/conversations', {}, { silent: true })
 
 	const listActiveSessions = async () =>
 		api.GET<

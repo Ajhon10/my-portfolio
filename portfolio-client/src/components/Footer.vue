@@ -83,7 +83,8 @@ const socialLinks = computed(() => [
 				<h4 class="font-semibold mb-3 text-brand-gray-200">Navigate</h4>
 				<ul class="space-y-2 text-sm text-brand-gray-400">
 					<li><router-link to="/" class="hover:text-brand-blueLight">Home</router-link></li>
-					<li><router-link to="/projects" class="hover:text-brand-blueLight">Projects</router-link></li>
+					<li><router-link to="/#projects" class="hover:text-brand-blueLight">Projects</router-link></li>
+					<li><router-link to="/#photography" class="hover:text-brand-blueLight">Photography</router-link></li>
 					<li><a href="/#certifications" class="hover:text-brand-blueLight">Certifications</a></li>
 					<li><router-link to="/login" class="hover:text-brand-blueLight">Admin</router-link></li>
 				</ul>
@@ -95,7 +96,7 @@ const socialLinks = computed(() => [
 					<li>
 						<a :href="`mailto:${email}`" class="hover:text-brand-blueLight">{{ email }}</a>
 					</li>
-					<li><a href="#contact" class="hover:text-brand-blueLight">Hire me</a></li>
+					<li><a href="/#contact" class="hover:text-brand-blueLight">Hire me</a></li>
 					<template v-for="s in socialLinks" :key="s.key">
 						<li>
 							<a :href="raw[s.key]" target="_blank" rel="noopener noreferrer" class="hover:text-brand-blueLight">

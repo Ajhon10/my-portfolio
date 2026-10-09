@@ -7,6 +7,7 @@ import SortOrderSelect from '@/components/SortOrderSelect.vue'
 import { useExperienceProvider, type ExperienceInput } from '@/composables/provider/experience.provider'
 import type { Experience } from '@/types'
 import { computed, onMounted, reactive, ref } from 'vue'
+import { toast } from 'vue3-toastify'
 
 const provider = useExperienceProvider()
 const items = ref<Experience[]>([])
@@ -89,7 +90,10 @@ const save = async () => {
 	if (!form.company.trim()) errors.value.company = 'Company is required'
 	if (!form.startDate) errors.value.startDate = 'Start date is required'
 	if (!form.description.trim()) errors.value.description = 'Description is required'
-	if (Object.keys(errors.value).length) return
+	if (Object.keys(errors.value).length) {
+		toast.error('Please fix the highlighted fields.')
+		return
+	}
 
 	const payload: ExperienceInput = {
 		title: form.title.trim(),

@@ -77,7 +77,10 @@ const save = async () => {
 	if (!form.firstName.trim()) errors.value.firstName = 'First name required'
 	if (!form.lastName.trim()) errors.value.lastName = 'Last name required'
 	if (!editingId.value && !form.password) errors.value.password = 'Password is required'
-	if (Object.keys(errors.value).length) return
+	if (Object.keys(errors.value).length) {
+		toast.error('Please fix the highlighted fields.')
+		return
+	}
 
 	const payload: Partial<UserInput> = {
 		firstName: form.firstName.trim(),
@@ -117,9 +120,7 @@ const doDelete = async () => {
 const canDelete = (u: User) => u.id !== userStore.user?.id
 
 const resetUser2FA = async (u: User) => {
-	const res = await authProvider.adminReset2FA(u.id)
-	if (res.success) toast.success(`2FA disabled for ${u.firstName}`)
-	else toast.error(res.message || 'Failed to reset 2FA')
+	await authProvider.adminReset2FA(u.id)
 }
 </script>
 

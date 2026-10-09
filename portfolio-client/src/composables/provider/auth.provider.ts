@@ -42,8 +42,11 @@ export const useAuthProvider = () => {
 		return await api.POST('/auth/change-password', data)
 	}
 
-	const updateProfile = async (data: { firstName?: string; lastName?: string; avatarUrl?: string | null }) => {
-		return await api.PUT<User>('/auth/profile', data)
+	const updateProfile = async (
+		data: { firstName?: string; lastName?: string; avatarUrl?: string | null },
+		options: { skipToast?: boolean; silent?: boolean } = {},
+	) => {
+		return await api.PUT<User>('/auth/profile', data, {}, options)
 	}
 
 	return { login, verify2FA, disable2FA, adminReset2FA, get2FAStatus, register, whoAmI, changePassword, updateProfile }

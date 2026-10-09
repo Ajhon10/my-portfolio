@@ -3,12 +3,35 @@ import { useChatbotProvider } from '@/composables/provider/chatbot.provider'
 import { connectVisitorSocket, disconnectVisitorSocket } from '@/composables/useSocket'
 import { useChatbotStore } from '@/stores/chatbot'
 import { ChatbotMessageRole, type ChatbotMessage } from '@/types'
+import { useRouter } from 'vue-router'
 import type { Socket } from 'socket.io-client'
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 
 const store = useChatbotStore()
 const provider = useChatbotProvider()
 
+const router = useRouter()
+const starterQuestions = [
+	'What did Jhon contribute to DEOS?',
+	'Did Jhon build the PDEA Unity app?',
+	'How does Jhon use AI when coding?',
+	'How can I discuss a website project?',
+]
+const suggestions = ref<string[]>(starterQuestions)
+const goToReference = (href: string) => {
+	if (
+		!/^\/(?:#(?:projects|about|tech|experience|certifications|contact|photography)|\?project=[a-zA-Z0-9%_-]+#projects)$/.test(
+			href,
+		)
+	)
+		return
+	store.close()
+	void router.push(href)
+}
+const askSuggestion = (question: string) => {
+	input.value = question
+	void send()
+}
 const input = ref('')
 const listEl = ref<HTMLElement | null>(null)
 const adminOnline = ref(false)
@@ -115,6 +138,8 @@ const close = () => {
 }
 
 const resetChat = () => {
+	if (store.isSending) return
+	suggestions.value = starterQuestions
 	store.reset()
 	disconnectSocket()
 	store.addMessage(
@@ -156,7 +181,7 @@ const send = async () => {
 	try {
 		const sid = store.ensureSession()
 		const res = await provider.chat(sid, msg)
-		const suppressed = (res.data as any)?.suppressed === true
+		const suppressed = res.success && res.data.suppressed === true
 
 		if (suppressed) {
 			// Admin has taken over — don't add a bot reply; admin replies arrive via socket.
@@ -168,6 +193,8 @@ const send = async () => {
 			// Admin replies arrive via socket (chat:message with role ADMIN) and are
 			// handled separately, so there's no double-add risk.
 			store.addMessage(ChatbotMessageRole.ASSISTANT, res.data.answer)
+			store.messages[store.messages.length - 1].references = res.data.references
+			suggestions.value = res.data.suggestions || starterQuestions
 		} else {
 			console.warn('Chat request failed:', res)
 			store.addMessage(
@@ -185,10 +212,13 @@ const send = async () => {
 }
 
 watch(() => store.messages.length, scrollToBottom)
-watch(() => store.isOpen, (open) => {
-	if (open) connectSocket()
-	else disconnectSocket()
-})
+watch(
+	() => store.isOpen,
+	(open) => {
+		if (open) connectSocket()
+		else disconnectSocket()
+	},
+)
 
 onBeforeUnmount(() => {
 	disconnectSocket()
@@ -196,7 +226,7 @@ onBeforeUnmount(() => {
 
 const senderLabel = (m: ChatbotMessage) => {
 	if (m.role === ChatbotMessageRole.ADMIN) return m.senderName || 'Support'
-	if (m.role === ChatbotMessageRole.ASSISTANT) return 'Jhon\'s AI'
+	if (m.role === ChatbotMessageRole.ASSISTANT) return "Jhon's AI"
 	return ''
 }
 </script>
@@ -210,7 +240,16 @@ const senderLabel = (m: ChatbotMessage) => {
 			aria-label="Open chat"
 			@click="open"
 		>
-			<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<svg
+				width="28"
+				height="28"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
 				<rect x="3" y="8" width="18" height="12" rx="2" />
 				<circle cx="12" cy="4" r="1.5" />
 				<line x1="12" y1="5.5" x2="12" y2="8" />
@@ -228,10 +267,12 @@ const senderLabel = (m: ChatbotMessage) => {
 		<!-- Panel -->
 		<div
 			v-else
-			class="w-[92vw] sm:w-96 h-[70vh] sm:h-[32rem] card flex flex-col overflow-hidden shadow-2xl shadow-brand-blue/20 border-brand-blue/20"
+			class="w-[92vw] sm:w-96 h-[min(80dvh,40rem)] sm:h-[38rem] card flex flex-col overflow-hidden shadow-2xl shadow-brand-blue/20 border-brand-blue/20"
 		>
 			<!-- Header -->
-			<div class="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-gradient-to-r from-brand-blue/10 to-transparent">
+			<div
+				class="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-gradient-to-r from-brand-blue/10 to-transparent"
+			>
 				<div class="flex items-center gap-3">
 					<div class="relative">
 						<div
@@ -244,11 +285,29 @@ const senderLabel = (m: ChatbotMessage) => {
 								class="w-full h-full object-cover"
 								alt="Admin"
 							/>
-							<svg v-else-if="adminTakenOver" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2">
+							<svg
+								v-else-if="adminTakenOver"
+								width="18"
+								height="18"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="#22c55e"
+								stroke-width="2"
+							>
 								<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
 								<circle cx="12" cy="7" r="4" />
 							</svg>
-							<svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3388ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<svg
+								v-else
+								width="20"
+								height="20"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="#3388ff"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
 								<rect x="3" y="8" width="18" height="12" rx="2" />
 								<circle cx="12" cy="4" r="1.5" />
 								<line x1="12" y1="5.5" x2="12" y2="8" />
@@ -270,7 +329,7 @@ const senderLabel = (m: ChatbotMessage) => {
 						<div class="text-xs text-brand-gray-500 flex items-center gap-1">
 							<span v-if="adminTakenOver" class="text-green-400">● Live with Jhon</span>
 							<span v-else-if="adminOnline">Jhon is online</span>
-							<span v-else>Trained on Jhon's portfolio</span>
+							<span v-else>Based on published portfolio content</span>
 						</div>
 					</div>
 				</div>
@@ -278,10 +337,20 @@ const senderLabel = (m: ChatbotMessage) => {
 					<button
 						class="text-brand-gray-400 hover:text-white p-1"
 						aria-label="Reset chat"
+						:disabled="store.isSending"
 						title="Start a new conversation"
 						@click="resetChat"
 					>
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<svg
+							width="16"
+							height="16"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
 							<polyline points="1 4 1 10 7 10" />
 							<path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
 						</svg>
@@ -296,7 +365,13 @@ const senderLabel = (m: ChatbotMessage) => {
 			</div>
 
 			<!-- Messages -->
-			<div ref="listEl" class="flex-1 overflow-y-auto p-4 space-y-3 bg-black/30">
+			<div
+				ref="listEl"
+				role="log"
+				aria-label="Conversation"
+				aria-live="polite"
+				class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-black/30"
+			>
 				<div
 					v-for="(m, i) in store.messages"
 					:key="m.id || i"
@@ -315,11 +390,21 @@ const senderLabel = (m: ChatbotMessage) => {
 							m.role === 'USER'
 								? 'bg-brand-blue text-white rounded-br-sm'
 								: m.role === 'ADMIN'
-								? 'bg-green-500/15 text-green-50 border border-green-500/30 rounded-bl-sm'
-								: 'bg-white/5 text-brand-gray-200 border border-white/5 rounded-bl-sm'
+									? 'bg-green-500/15 text-green-50 border border-green-500/30 rounded-bl-sm'
+									: 'bg-white/5 text-brand-gray-200 border border-white/5 rounded-bl-sm'
 						"
 					>
 						{{ m.content }}
+					</div>
+					<div v-if="m.references?.length" class="flex flex-wrap gap-2 mt-2 max-w-[90%]">
+						<button
+							v-for="reference in m.references"
+							:key="reference.href"
+							class="text-xs text-blue-300 underline text-left"
+							@click="goToReference(reference.href)"
+						>
+							View: {{ reference.title }}
+						</button>
 					</div>
 				</div>
 
@@ -347,10 +432,26 @@ const senderLabel = (m: ChatbotMessage) => {
 				</div>
 			</div>
 
+			<div
+				v-if="!adminTakenOver && !store.isSending"
+				class="px-3 py-2 border-t border-white/5 flex flex-wrap gap-2"
+				aria-label="Suggested questions"
+			>
+				<button
+					v-for="question in suggestions"
+					:key="question"
+					class="text-xs text-blue-200 border border-blue-400/30 rounded-lg px-2 py-1.5 text-left hover:bg-blue-500/15"
+					@click="askSuggestion(question)"
+				>
+					{{ question }}
+				</button>
+			</div>
 			<!-- Input -->
 			<form class="p-3 border-t border-white/5 flex gap-2" @submit.prevent="send">
 				<input
 					v-model="input"
+					aria-label="Your question"
+					maxlength="2000"
 					type="text"
 					class="input !py-2 !px-3 text-sm flex-1"
 					:placeholder="adminTakenOver ? 'Type to chat with Jhon...' : 'Ask anything...'"
@@ -359,6 +460,7 @@ const senderLabel = (m: ChatbotMessage) => {
 				/>
 				<button
 					type="submit"
+					aria-label="Send question"
 					class="btn btn-primary !py-2 !px-3"
 					:disabled="store.isSending || !input.trim()"
 				>

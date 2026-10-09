@@ -4,13 +4,23 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
 	history: createWebHistory(import.meta.env.BASE_URL),
-	scrollBehavior(to) {
+	scrollBehavior(to, from, savedPosition) {
+		if (savedPosition) return savedPosition
+		if (to.query.project && from.path === '/') return false
+		const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
 		if (to.hash) {
-			return { el: to.hash, behavior: 'smooth' }
+			return { el: to.hash, behavior }
 		}
-		return { top: 0, behavior: 'smooth' }
+		return { top: 0, behavior }
 	},
 	routes: [
+		{ path: '/photography', redirect: { path: '/', hash: '#photography' } },
+		{
+			path: '/admin/photography',
+			name: 'admin-photography',
+			component: () => import('@/views/admin/PhotographyCmsView.vue'),
+			meta: { requiresAuth: true },
+		},
 		{
 			path: '/',
 			name: 'home',
@@ -19,14 +29,12 @@ const router = createRouter({
 		},
 		{
 			path: '/projects',
-			name: 'projects',
-			component: () => import('@/views/ProjectsView.vue'),
+			redirect: { path: '/', hash: '#projects' },
 			meta: { requiresAuth: false },
 		},
 		{
 			path: '/projects/:slug',
-			name: 'project-detail',
-			component: () => import('@/views/ProjectDetailView.vue'),
+			redirect: (to) => ({ path: '/', query: { project: String(to.params.slug) }, hash: '#projects' }),
 			meta: { requiresAuth: false },
 		},
 		{

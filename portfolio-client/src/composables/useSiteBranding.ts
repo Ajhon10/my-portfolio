@@ -13,6 +13,8 @@ const DEFAULT_BRANDING = {
 const branding = reactive<Record<string, string>>({ ...DEFAULT_BRANDING })
 let loadingPromise: Promise<void> | null = null
 let loaded = false
+let faviconRevision = ''
+export const BRANDING_EVENT_KEY = 'portfolio_branding_updated'
 
 const apiAssetOrigin = () => {
 	const base = (import.meta.env.VITE_API_ENDPOINT as string) || '/api'
@@ -32,7 +34,7 @@ const resolveAssetUrl = (url: string) => {
 }
 
 const faviconType = (url: string) => {
-	const value = url.toLowerCase().split('?')[0]
+	const value = url.toLowerCase().split(/[?#]/)[0]
 	if (value.endsWith('.ico')) return 'image/x-icon'
 	if (value.endsWith('.svg')) return 'image/svg+xml'
 	if (value.endsWith('.webp')) return 'image/webp'
@@ -59,7 +61,16 @@ const setOrCreateFavicon = (href: string) => {
 	}
 	const resolvedHref = resolveAssetUrl(href)
 	link.type = faviconType(resolvedHref)
-	link.href = resolvedHref
+	const versioned = new URL(resolvedHref, document.baseURI)
+	if (faviconRevision && ['http:', 'https:'].includes(versioned.protocol))
+		versioned.searchParams.set('v', faviconRevision)
+	// Replacing the node also prompts browsers to refresh an icon with the same filename.
+	if (link.href !== versioned.href) {
+		const replacement = link.cloneNode() as HTMLLinkElement
+		replacement.href = versioned.href
+		replacement.type = faviconType(resolvedHref)
+		link.replaceWith(replacement)
+	}
 }
 
 const applyBranding = () => {
@@ -74,7 +85,7 @@ const loadBranding = async (force = false) => {
 		applyBranding()
 		return
 	}
-	if (loadingPromise && !force) return loadingPromise
+	if (loadingPromise) return loadingPromise
 
 	const provider = useSiteContentProvider()
 	loadingPromise = (async () => {
@@ -83,14 +94,24 @@ const loadBranding = async (force = false) => {
 			Object.assign(branding, DEFAULT_BRANDING)
 			for (const item of res.data) {
 				if (item.key in DEFAULT_BRANDING) branding[item.key] = item.value
+				if (item.key === 'site_favicon_url') faviconRevision = item.updatedAt || ''
 			}
+			loaded = true
 		}
-		loaded = true
 		applyBranding()
 	})()
 
 	await loadingPromise
 	loadingPromise = null
+}
+
+const refreshBranding = async () => {
+	await loadBranding(true)
+	try {
+		localStorage.setItem(BRANDING_EVENT_KEY, String(Date.now()))
+	} catch {
+		/* Storage may be disabled. */
+	}
 }
 
 export const useSiteBranding = () => {
@@ -104,6 +125,7 @@ export const useSiteBranding = () => {
 		logoSubtitle,
 		logoUrl,
 		loadBranding,
+		refreshBranding,
 		applyBranding,
 		resolveAssetUrl,
 	}
