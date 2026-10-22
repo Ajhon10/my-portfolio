@@ -11,6 +11,15 @@ async function seed() {
 	const database = app.select(DatabaseModule).get<DatabaseContract>(AppContract.DATABASE)
 	const utility = app.select(UtilityModule).get<UtilityContract>(AppContract.UTILITY)
 	const logger = new Logger()
+	const production = process.env.NODE_ENV === 'production'
+	const adminEmail = process.env.SEED_ADMIN_EMAIL || (production ? '' : 'admin@portfolio.local')
+	const adminPassword = process.env.SEED_ADMIN_PASSWORD || (production ? '' : 'Admin@123456')
+	if (!adminEmail || !adminPassword || (production && (adminPassword.length < 16 || adminPassword === 'Admin@123456'))) {
+		logger.error('Production seeding requires SEED_ADMIN_EMAIL and a unique SEED_ADMIN_PASSWORD of at least 16 characters.')
+		await app.close()
+		process.exitCode = 1
+		return
+	}
 
 	try {
 		logger.log('🌱 Seeding database...')
@@ -435,10 +444,9 @@ async function seed() {
 		}
 
 		// Seed admin user
-		const adminEmail = 'admin@portfolio.local'
 		const existing = await database.auth.findFirst({ where: { email: adminEmail, deleted: false } })
 		if (!existing) {
-			const hashed = await utility.hash('Admin@123456')
+			const hashed = await utility.hash(adminPassword)
 			await database.auth.create({
 				data: {
 					email: adminEmail,
@@ -453,7 +461,7 @@ async function seed() {
 					},
 				},
 			})
-			logger.log(`✓ Created admin user: ${adminEmail} (password: Admin@123456)`)
+			logger.log('Created owner account. Credentials are not logged.')
 		}
 
 		logger.log('✅ Seeding completed!')

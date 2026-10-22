@@ -59,10 +59,12 @@ export class EnvValidation {
 }
 
 export function validateEnv(config: Record<string, unknown>) {
-	const validated = plainToInstance(EnvValidation, config, { enableImplicitConversion: true })
+	const validated = plainToInstance(EnvValidation, {
+		NODE_ENV: 'development', APP_PORT: '3000', ACCESS_TOKEN_EXPIRES_IN: '1d', ...config,
+	}, { enableImplicitConversion: true })
 	const errors = validateSync(validated, { skipMissingProperties: false })
 	if (errors.length > 0) {
-		throw new Error(errors.toString())
+		throw new Error(`Invalid backend configuration: ${errors.map((error) => error.property).join(', ')}`)
 	}
 	return validated
 }

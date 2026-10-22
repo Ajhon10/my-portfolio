@@ -17,11 +17,14 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
 APP_DOMAIN=http://localhost:5173
 ACCESS_TOKEN_SECRET=change-me
 OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5.6-luna
 MAIL_HOST=
 MAIL_PORT=
 MAIL_USER=
 MAIL_PASS=
 ```
+
+Create the key in the OpenAI Platform and keep it in the backend `.env` only. See [OpenAI API setup](docs/openai-api-setup.md) for key creation, model choices, pricing, testing, and troubleshooting.
 
 Run migrations and seed data:
 
@@ -117,6 +120,10 @@ npm run migrate:seed
 This ensures baseline tech stack, site content, chatbot tags, and admin user data exist.
 
 ## Troubleshooting
+
+### Watch mode reports zero errors but cannot find `dist/main`
+
+Keep `compilerOptions.tsBuildInfoFile` set to `./dist/tsconfig.build.tsbuildinfo` in `portfolio-server/tsconfig.build.json`. Nest clears `dist` before compiling; the incremental cache must be cleared with it so TypeScript emits the application files again. After changing this setting, stop the old watcher with `Ctrl+C` and run `npm run start:dev` again.
 
 ### Missing database columns
 

@@ -1,9 +1,9 @@
 import { AppContract, EnvContract } from '@app/contract'
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Inject, Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common'
 import { PrismaClient } from '@prisma/client'
 
 @Injectable()
-export class DatabaseProvider extends PrismaClient implements OnModuleInit {
+export class DatabaseProvider extends PrismaClient implements OnModuleInit, OnModuleDestroy {
 	private readonly logger = new Logger(DatabaseProvider.name)
 
 	constructor(@Inject(AppContract.ENV) private readonly env: EnvContract) {
@@ -17,4 +17,6 @@ export class DatabaseProvider extends PrismaClient implements OnModuleInit {
 		await this.$connect()
 		this.logger.debug('Database connection is OK.')
 	}
+
+	async onModuleDestroy() { await this.$disconnect() }
 }

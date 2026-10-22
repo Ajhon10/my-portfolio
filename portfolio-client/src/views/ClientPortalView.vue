@@ -54,9 +54,16 @@ const load = async () => {
 	loading.value = false
 }
 
+const refreshAfterReconnect = () => {
+	adminTyping.value = false
+	void load().then(() => joinSelected(selectedId.value))
+}
+
 const connectSocket = () => {
 	socket = connectClientSocket()
 	if (!socket) return
+	socket.off('connect', refreshAfterReconnect)
+	socket.on('connect', refreshAfterReconnect)
 	socket.off('project-chat:message')
 	socket.off('project-chat:typing')
 
@@ -86,7 +93,7 @@ const joinSelected = async (requestId: string | null) => {
 	socket?.emit('project-chat:join', { requestId })
 	loadingMessages.value = true
 	const res = await provider.listMessages(requestId)
-	if (res.success && res.data) messages.value = res.data
+	if (res.success && res.data && selectedId.value === requestId) messages.value = res.data
 	loadingMessages.value = false
 	await scrollMessages()
 }

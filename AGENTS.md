@@ -9,7 +9,10 @@ This repository contains a full-stack portfolio system:
 - `portfolio-client/` - Vue 3, TypeScript, Vite, Tailwind CSS, Pinia, Vue Router, Axios.
 - `portfolio-server/` - NestJS, TypeScript, PostgreSQL, Prisma, JWT auth, Socket.IO, OpenAI integration.
 - The client is intended for Vercel deployment with `portfolio-client` as the root directory.
-- The server is intended for Render deployment with `portfolio-server` as the root directory.
+- The server supports Vercel Functions or Render with `portfolio-server` as the root directory.
+- For both apps on Vercel, follow `docs/vercel-deployment.md`: managed PostgreSQL,
+  Vercel Blob direct uploads, and Redis-backed Socket.IO are required. Preserve
+  the existing Vue/NestJS stack. See `docs/ENGINEERING_ACCEPTANCE.md` for evidence.
 
 Use Git from the repository root:
 
@@ -155,7 +158,7 @@ Use this role when testing features, finding regressions, preparing releases, or
   - Form validation and disabled states.
 - Deployment:
   - Vercel root directory is `portfolio-client`.
-  - Render root directory is `portfolio-server`.
+  - Vercel backend or Render root directory is `portfolio-server`.
   - Environment variables are configured in hosting dashboards.
   - No local-only paths or localhost URLs are hardcoded for production.
 

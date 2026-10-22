@@ -2,185 +2,109 @@ import { AccessTokenGuard, RoleGuard } from '@app/common/guard'
 import { Roles } from '@app/common/decorator'
 import { AppContract, DatabaseContract } from '@app/contract'
 import {
-	Body,
-	Controller,
-	Delete,
-	Get,
-	HttpException,
-	HttpStatus,
-	Inject,
-	Param,
-	Post,
-	Put,
-	UploadedFile,
-	UseGuards,
-	UseInterceptors,
+	BadRequestException, Body, Controller, Delete, Get, Inject, NotFoundException,
+	Param, ParseUUIDPipe, Post, Put, UploadedFile, UseGuards, UseInterceptors,
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { ApiTags } from '@nestjs/swagger'
-import { diskStorage } from 'multer'
-import { extname } from 'path'
-import { v4 as uuidv4 } from 'uuid'
+import { memoryStorage } from 'multer'
+import { UploadProvider, uploadPolicy, UploadKind } from '../provider/upload.provider'
+import { AttachBlobRequest, SortImageRequest, UploadTokenRequest } from './request/upload.request'
 
-const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-const ALLOWED_CERTIFICATION_MIME = [...ALLOWED_MIME, 'application/pdf']
-const ALLOWED_SITE_ASSET_MIME = [...ALLOWED_MIME, 'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon']
-const MAX_SIZE_BYTES = 8 * 1024 * 1024 // 8 MB
-const MAX_CERTIFICATION_SIZE_BYTES = 12 * 1024 * 1024 // 12 MB
+function localUpload(kind: UploadKind) {
+	const policy = uploadPolicy(kind)
+	return FileInterceptor('file', {
+		storage: memoryStorage(),
+		limits: { fileSize: policy.maxBytes, files: 1, fields: 0 },
+		fileFilter: (_req, file, callback) => {
+			if (policy.types.includes(file.mimetype)) callback(null, true)
+			else callback(new BadRequestException('Unsupported file type.'), false)
+		},
+	})
+}
 
 @ApiTags('Upload')
 @Controller('/upload')
+@UseGuards(AccessTokenGuard, RoleGuard)
+@Roles('OWNER', 'ADMIN')
 export class UploadController {
-	constructor(@Inject(AppContract.DATABASE) private readonly database: DatabaseContract) {}
+	constructor(
+		@Inject(AppContract.DATABASE) private readonly database: DatabaseContract,
+		private readonly uploads: UploadProvider,
+	) {}
 
-	// ── Generic image upload ───────────────────────────────────────────────────
+	@Get('config')
+	config() {
+		return { success: true, data: { storage: this.uploads.storage } }
+	}
+
+	private async requireProject(projectId: string) {
+		const project = await this.database.project.findFirst({ where: { id: projectId, deleted: false }, select: { id: true } })
+		if (!project) throw new NotFoundException('Project not found.')
+	}
+
+	@Post('token')
+	async token(@Body() body: UploadTokenRequest) {
+		if (body.kind === 'project-image') {
+			if (!body.projectId) throw new BadRequestException('projectId is required.')
+			await this.requireProject(body.projectId)
+		} else if (body.projectId) throw new BadRequestException('projectId is only valid for project images.')
+		return { success: true, data: await this.uploads.createToken(body.kind, body.filename, body.projectId) }
+	}
+
 	@Post('image')
-	@UseGuards(AccessTokenGuard, RoleGuard)
-	@Roles('OWNER', 'ADMIN')
-	@UseInterceptors(
-		FileInterceptor('file', {
-			storage: diskStorage({
-				destination: './uploads',
-				filename: (_req, file, cb) => {
-					cb(null, `${uuidv4()}${extname(file.originalname).toLowerCase()}`)
-				},
-			}),
-			limits: { fileSize: MAX_SIZE_BYTES },
-			fileFilter: (_req, file, cb) => {
-				if (ALLOWED_MIME.includes(file.mimetype)) {
-					cb(null, true)
-				} else {
-					cb(new HttpException('Only JPEG, PNG, WebP, and GIF images are allowed', HttpStatus.BAD_REQUEST), false)
-				}
-			},
-		}),
-	)
+	@UseInterceptors(localUpload('image'))
 	async uploadImage(@UploadedFile() file: Express.Multer.File) {
-		if (!file) throw new HttpException('No file provided', HttpStatus.BAD_REQUEST)
-		return {
-			success: true,
-			message: 'Image uploaded',
-			data: { url: `/uploads/${file.filename}` },
-		}
+		return { success: true, message: 'Image uploaded', data: { url: await this.uploads.saveLocal(file, 'image') } }
 	}
 
 	@Post('site-asset')
-	@UseGuards(AccessTokenGuard, RoleGuard)
-	@Roles('OWNER', 'ADMIN')
-	@UseInterceptors(
-		FileInterceptor('file', {
-			storage: diskStorage({
-				destination: './uploads',
-				filename: (_req, file, cb) => {
-					cb(null, `${uuidv4()}${extname(file.originalname).toLowerCase()}`)
-				},
-			}),
-			limits: { fileSize: MAX_SIZE_BYTES },
-			fileFilter: (_req, file, cb) => {
-				if (ALLOWED_SITE_ASSET_MIME.includes(file.mimetype)) {
-					cb(null, true)
-				} else {
-					cb(new HttpException('Only JPG, PNG, WebP, GIF, SVG, or ICO files are allowed', HttpStatus.BAD_REQUEST), false)
-				}
-			},
-		}),
-	)
+	@UseInterceptors(localUpload('site-asset'))
 	async uploadSiteAsset(@UploadedFile() file: Express.Multer.File) {
-		if (!file) throw new HttpException('No file provided', HttpStatus.BAD_REQUEST)
-		return {
-			success: true,
-			message: 'Site asset uploaded',
-			data: { url: `/uploads/${file.filename}` },
-		}
+		return { success: true, message: 'Site asset uploaded', data: { url: await this.uploads.saveLocal(file, 'site-asset') } }
 	}
 
 	@Post('certification')
-	@UseGuards(AccessTokenGuard, RoleGuard)
-	@Roles('OWNER', 'ADMIN')
-	@UseInterceptors(
-		FileInterceptor('file', {
-			storage: diskStorage({
-				destination: './uploads',
-				filename: (_req, file, cb) => {
-					cb(null, `${uuidv4()}${extname(file.originalname).toLowerCase()}`)
-				},
-			}),
-			limits: { fileSize: MAX_CERTIFICATION_SIZE_BYTES },
-			fileFilter: (_req, file, cb) => {
-				if (ALLOWED_CERTIFICATION_MIME.includes(file.mimetype)) {
-					cb(null, true)
-				} else {
-					cb(new HttpException('Only image or PDF certificate files are allowed', HttpStatus.BAD_REQUEST), false)
-				}
-			},
-		}),
-	)
+	@UseInterceptors(localUpload('certification'))
 	async uploadCertification(@UploadedFile() file: Express.Multer.File) {
-		if (!file) throw new HttpException('No file provided', HttpStatus.BAD_REQUEST)
-		return {
-			success: true,
-			message: 'Certification file uploaded',
-			data: { url: `/uploads/${file.filename}` },
-		}
+		return { success: true, message: 'Certification file uploaded', data: { url: await this.uploads.saveLocal(file, 'certification') } }
 	}
 
-	// ── Project image gallery ─────────────────────────────────────────────────
 	@Get('project-images/:projectId')
-	@UseGuards(AccessTokenGuard, RoleGuard)
-	@Roles('OWNER', 'ADMIN')
-	async listProjectImages(@Param('projectId') projectId: string) {
+	async listProjectImages(@Param('projectId', ParseUUIDPipe) projectId: string) {
 		const images = await this.database.projectImage.findMany({
-			where: { projectId },
-			orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+			where: { projectId }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
 		})
 		return { success: true, message: 'OK', data: images }
 	}
 
-	@Post('project-images/:projectId')
-	@UseGuards(AccessTokenGuard, RoleGuard)
-	@Roles('OWNER', 'ADMIN')
-	@UseInterceptors(
-		FileInterceptor('file', {
-			storage: diskStorage({
-				destination: './uploads',
-				filename: (_req, file, cb) => {
-					cb(null, `${uuidv4()}${extname(file.originalname).toLowerCase()}`)
-				},
-			}),
-			limits: { fileSize: MAX_SIZE_BYTES },
-			fileFilter: (_req, file, cb) => {
-				if (ALLOWED_MIME.includes(file.mimetype)) {
-					cb(null, true)
-				} else {
-					cb(new HttpException('Only JPEG, PNG, WebP, and GIF images are allowed', HttpStatus.BAD_REQUEST), false)
-				}
-			},
-		}),
-	)
-	async addProjectImage(@Param('projectId') projectId: string, @UploadedFile() file: Express.Multer.File) {
-		if (!file) throw new HttpException('No file provided', HttpStatus.BAD_REQUEST)
-		const count = await this.database.projectImage.count({ where: { projectId } })
-		const image = await this.database.projectImage.create({
-			data: { projectId, url: `/uploads/${file.filename}`, sortOrder: count },
-		})
+	private async attach(projectId: string, url: string) {
+		const sortOrder = await this.database.projectImage.count({ where: { projectId } })
+		const image = await this.database.projectImage.create({ data: { projectId, url, sortOrder } })
 		return { success: true, message: 'Image added', data: image }
 	}
 
+	@Post('project-images/:projectId')
+	@UseInterceptors(localUpload('project-image'))
+	async addProjectImage(@Param('projectId', ParseUUIDPipe) projectId: string, @UploadedFile() file: Express.Multer.File) {
+		await this.requireProject(projectId)
+		return this.attach(projectId, await this.uploads.saveLocal(file, 'project-image'))
+	}
+
+	@Post('project-images/:projectId/blob')
+	async attachProjectBlob(@Param('projectId', ParseUUIDPipe) projectId: string, @Body() body: AttachBlobRequest) {
+		await this.requireProject(projectId)
+		return this.attach(projectId, await this.uploads.verifyBlob(body.url, 'project-image', projectId))
+	}
+
 	@Put('project-images/:imageId/sort')
-	@UseGuards(AccessTokenGuard, RoleGuard)
-	@Roles('OWNER', 'ADMIN')
-	async reorderImage(@Param('imageId') imageId: string, @Body() body: { sortOrder: number }) {
-		const image = await this.database.projectImage.update({
-			where: { id: imageId },
-			data: { sortOrder: body.sortOrder },
-		})
+	async reorderImage(@Param('imageId', ParseUUIDPipe) imageId: string, @Body() body: SortImageRequest) {
+		const image = await this.database.projectImage.update({ where: { id: imageId }, data: { sortOrder: body.sortOrder } })
 		return { success: true, message: 'Reordered', data: image }
 	}
 
 	@Delete('project-images/:imageId')
-	@UseGuards(AccessTokenGuard, RoleGuard)
-	@Roles('OWNER', 'ADMIN')
-	async deleteProjectImage(@Param('imageId') imageId: string) {
+	async deleteProjectImage(@Param('imageId', ParseUUIDPipe) imageId: string) {
 		await this.database.projectImage.delete({ where: { id: imageId } })
 		return { success: true, message: 'Image deleted' }
 	}

@@ -9,7 +9,7 @@ export class EnvProvider implements EnvContract {
 	get app() {
 		return {
 			NODE_ENV: this.config.get<string>('NODE_ENV', 'development'),
-			APP_PORT: Number(this.config.get<string>('APP_PORT', '3000')),
+			APP_PORT: Number(this.config.get<string>('PORT') || this.config.get<string>('APP_PORT', '3000')),
 			APP_DOMAIN: this.config.get<string>('APP_DOMAIN', 'http://localhost:5173'),
 			APP_TOKEN: this.config.get<string>('APP_TOKEN', 'change-me'),
 		}

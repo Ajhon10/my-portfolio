@@ -111,7 +111,7 @@ export class ChatbotProvider implements ChatbotContract {
 
     // Notify admins. Skip if an admin is already actively watching this session
     // to avoid spamming the bell while they're already in the conversation.
-    const isWatched = this.realtime?.isSessionWatched?.(input.sessionId) ?? false
+    const isWatched = (await this.realtime?.isSessionWatched?.(input.sessionId)) ?? false
     if (!isWatched) {
       try {
         await this.notification.create({
@@ -128,7 +128,7 @@ export class ChatbotProvider implements ChatbotContract {
 
     // If an admin has taken over this conversation, do NOT auto-reply.
     // The admin will respond via the takeover UI.
-    if (this.realtime?.isSessionTakenOver(input.sessionId)) {
+    if (await this.realtime?.isSessionTakenOver(input.sessionId)) {
       return { conversationId: conversation.id, answer: '', source: 'ADMIN', suppressed: true }
     }
 
@@ -189,7 +189,7 @@ export class ChatbotProvider implements ChatbotContract {
       source = 'FALLBACK'
     }
     // An admin can take over while a model request is still running.
-    if (this.realtime?.isSessionTakenOver(input.sessionId))
+    if (await this.realtime?.isSessionTakenOver(input.sessionId))
       return { conversationId: conversation.id, answer: '', source: 'ADMIN', suppressed: true }
     const botMessage = await this.database.chatbotMessage.create({
       data: { conversationId: conversation.id, role: 'ASSISTANT', content: answer },

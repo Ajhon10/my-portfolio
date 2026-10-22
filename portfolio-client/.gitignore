@@ -2,6 +2,7 @@ node_modules
 .DS_Store
 dist
 client-dist
+.vercel/
 dist-ssr
 coverage
 *.local

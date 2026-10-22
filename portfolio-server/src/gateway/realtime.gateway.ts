@@ -2,13 +2,8 @@ import { AppContract, DatabaseContract, EnvContract } from '@app/contract'
 import { Inject, Logger } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import {
-	ConnectedSocket,
-	MessageBody,
-	OnGatewayConnection,
-	OnGatewayDisconnect,
-	SubscribeMessage,
-	WebSocketGateway,
-	WebSocketServer,
+	ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect,
+	OnGatewayInit, SubscribeMessage, WebSocketGateway, WebSocketServer,
 } from '@nestjs/websockets'
 import type { Server, Socket } from 'socket.io'
 
@@ -19,21 +14,15 @@ interface SocketData {
 	lastName?: string
 	avatarUrl?: string | null
 	sessionId?: string
+	watchedSessions?: string[]
 }
 
-@WebSocketGateway({
-	cors: { origin: true, credentials: true },
-	transports: ['websocket', 'polling'],
-})
-export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
+const validSession = (value: unknown): value is string => typeof value === 'string' && /^[a-zA-Z0-9_-]{16,100}$/.test(value)
+
+@WebSocketGateway({ transports: ['websocket'] })
+export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
 	private readonly logger = new Logger(RealtimeGateway.name)
-
 	@WebSocketServer() io: Server
-
-	/** sessionId -> set of admin sockets currently watching */
-	private adminSocketsBySession = new Map<string, Set<string>>()
-	/** Track which sessions have an admin actively in the conversation */
-	private adminTakenoverSessions = new Set<string>()
 
 	constructor(
 		@Inject(AppContract.ENV) private readonly env: EnvContract,
@@ -41,275 +30,198 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 		private readonly jwt: JwtService,
 	) {}
 
-	async handleConnection(client: Socket) {
-		const data: SocketData = {}
-		const auth = client.handshake.auth || {}
-
-		try {
-			if (auth.token) {
-				const payload = await this.jwt.verifyAsync<any>(auth.token, {
-					secret: this.env.token.ACCESS_TOKEN,
-				})
-				const socketRole = payload.role === 'CLIENT' ? 'client' : 'admin'
-				data.role = socketRole
-				data.userId = payload.userId || payload.sub
-				data.firstName = payload.firstName
-				data.lastName = payload.lastName
-				if (socketRole === 'admin') {
-					client.join('admins')
-					this.logger.log(`Admin connected: ${payload.email} (${client.id})`)
-					// Send the new admin the current list of online visitors
-					client.emit('visitor:list', this.getActiveSessions())
-					this.broadcastAdminPresence(true)
-				} else {
-					client.join(`client:${data.userId}`)
-					this.logger.log(`Client connected: ${payload.email} (${client.id})`)
-				}
-			} else if (auth.sessionId) {
-				data.role = 'visitor'
-				data.sessionId = auth.sessionId
-				client.join(`session:${auth.sessionId}`)
-				client.emit('admin:presence', { online: this.isAdminOnline() })
-				if (this.io) {
-					this.io.to('admins').emit('visitor:online', { sessionId: auth.sessionId })
-				}
-				this.logger.log(`Visitor connected: session=${auth.sessionId} (${client.id})`)
-			} else {
-				this.logger.warn(`Connection rejected — no auth token or sessionId`)
-				client.disconnect()
-				return
-			}
-
-			client.data = data
-		} catch (err: any) {
-			this.logger.error(`Connection auth failed: ${err.message}`)
-			client.disconnect()
-		}
-	}
-
-	handleDisconnect(client: Socket) {
-		const data = client.data as SocketData
-		if (data?.role === 'admin') {
-			this.logger.log(`Admin disconnected: ${client.id}`)
-			for (const [sessionId, sockets] of this.adminSocketsBySession.entries()) {
-				if (sockets.has(client.id)) {
-					sockets.delete(client.id)
-					if (sockets.size === 0) {
-						this.adminSocketsBySession.delete(sessionId)
-						this.adminTakenoverSessions.delete(sessionId)
-						this.io?.to(`session:${sessionId}`).emit('chat:admin-left', {})
-					}
-				}
-			}
-			if (!this.isAdminOnline()) {
-				this.broadcastAdminPresence(false)
-			}
-		} else if (data?.role === 'visitor' && data.sessionId) {
-			const stillOnline = this.isVisitorOnline(data.sessionId, client.id)
-			if (!stillOnline) {
-				this.io?.to('admins').emit('visitor:offline', { sessionId: data.sessionId })
-			}
-		}
-	}
-
-	private isVisitorOnline(sessionId: string, excludeSocketId?: string): boolean {
-		if (!this.io?.sockets?.sockets) return false
-		for (const s of this.io.sockets.sockets.values()) {
-			if (excludeSocketId && s.id === excludeSocketId) continue
-			const d = s.data as SocketData
-			if (d?.role === 'visitor' && d.sessionId === sessionId) return true
-		}
-		return false
-	}
-
-	private isAdminOnline(): boolean {
-		if (!this.io?.sockets?.adapter) return false
-		const room = this.io.sockets.adapter.rooms.get('admins')
-		return !!room && room.size > 0
-	}
-
-	private broadcastAdminPresence(online: boolean) {
-		if (!this.io?.sockets?.sockets) return
-		this.io.sockets.sockets.forEach((s) => {
-			const d = s.data as SocketData
-			if (d?.role === 'visitor') {
-				s.emit('admin:presence', { online })
-			}
+	afterInit(server: Server) {
+		// Middleware finishes authentication before any subscription can be handled.
+		server.use(async (client, next) => {
+			try {
+				const auth = client.handshake.auth || {}
+				if (auth.token) {
+					const payload = await this.jwt.verifyAsync(auth.token, { secret: this.env.token.ACCESS_TOKEN })
+					if (typeof payload.userId !== 'string' || typeof payload.sub !== 'string') throw new Error()
+					const user = await this.database.user.findFirst({
+						where: { id: payload.userId, authId: payload.sub, deleted: false, auth: { deleted: false } },
+						select: { id: true, role: true, firstName: true, lastName: true, avatarUrl: true },
+					})
+					if (!user || !['OWNER', 'ADMIN', 'CLIENT'].includes(user.role)) throw new Error()
+					client.data = { role: user.role === 'CLIENT' ? 'client' : 'admin', userId: user.id,
+						firstName: user.firstName, lastName: user.lastName, avatarUrl: user.avatarUrl, watchedSessions: [] }
+				} else if (validSession(auth.sessionId)) {
+					client.data = { role: 'visitor', sessionId: auth.sessionId }
+				} else throw new Error()
+				next()
+			} catch { next(new Error('Unauthorized')) }
 		})
 	}
 
-	// ── Notification push ────────────────────────────────────────────────────
-	emitNotification(notification: any, targetUserId?: string | null) {
-		if (!this.io?.sockets?.sockets) return
-			if (targetUserId) {
-				this.io.sockets.sockets.forEach((s) => {
-					const d = s.data as SocketData
-					if ((d?.role === 'admin' || d?.role === 'client') && d?.userId === targetUserId) {
-						s.emit('notification:new', notification)
-					}
-				})
-		} else {
-			this.io.to('admins').emit('notification:new', notification)
+	async handleConnection(client: Socket) {
+		try {
+			const data = client.data as SocketData
+			if (data.userId) await client.join(`user:${data.userId}`)
+			if (data.role === 'admin') {
+				await client.join('admins')
+				client.emit('visitor:list', await this.getActiveSessions())
+				this.io.to('visitors').emit('admin:presence', { online: true })
+			} else if (data.role === 'client') {
+				await client.join(`client:${data.userId}`)
+			} else if (data.role === 'visitor' && data.sessionId) {
+				await client.join(['visitors', `session:${data.sessionId}`])
+				client.emit('admin:presence', { online: await this.hasMember('admins') })
+				this.io.to('admins').emit('visitor:online', { sessionId: data.sessionId })
+			}
+		} catch {
+			this.logger.warn('Realtime connection setup failed.')
+			client.disconnect(true)
 		}
 	}
 
-	// ── Chat takeover ────────────────────────────────────────────────────────
+	async handleDisconnect(client: Socket) {
+		try {
+			const data = client.data as SocketData
+			if (data.role === 'admin') {
+				for (const sessionId of data.watchedSessions || []) await this.broadcastTakeover(sessionId, client.id)
+				this.io.to('visitors').emit('admin:presence', { online: await this.hasMember('admins', client.id) })
+			} else if (data.role === 'visitor' && data.sessionId) {
+				const members = await this.io.in(`session:${data.sessionId}`).fetchSockets()
+				if (!members.some((socket) => socket.id !== client.id && socket.data.role === 'visitor')) {
+					this.io.to('admins').emit('visitor:offline', { sessionId: data.sessionId })
+				}
+			}
+		} catch { this.logger.warn('Realtime disconnect synchronization failed.') }
+	}
+
+	private async hasMember(room: string, excludeId?: string) {
+		if (!this.io) return false
+		const members = await this.io.in(room).fetchSockets()
+		return members.some((socket) => socket.id !== excludeId)
+	}
+
+	emitNotification(notification: any, targetUserId?: string | null) {
+		this.io?.to(targetUserId ? `user:${targetUserId}` : 'admins').emit('notification:new', notification)
+	}
+
 	@SubscribeMessage('visitor:list-request')
-	onVisitorListRequest(@ConnectedSocket() client: Socket) {
-		const data = client.data as SocketData
-		if (data?.role !== 'admin') return
-		client.emit('visitor:list', this.getActiveSessions())
+	async onVisitorListRequest(@ConnectedSocket() client: Socket) {
+		if (client.data.role === 'admin') client.emit('visitor:list', await this.getActiveSessions())
 	}
 
 	@SubscribeMessage('chat:admin-watch')
-	onAdminWatch(@ConnectedSocket() client: Socket, @MessageBody() body: { sessionId: string }) {
-		const data = client.data as SocketData
-		if (data?.role !== 'admin') return
-		client.join(`session:${body.sessionId}`)
-		const set = this.adminSocketsBySession.get(body.sessionId) || new Set<string>()
-		set.add(client.id)
-		this.adminSocketsBySession.set(body.sessionId, set)
+	async onAdminWatch(@ConnectedSocket() client: Socket, @MessageBody() body: { sessionId: string }) {
+		if (client.data.role !== 'admin' || !validSession(body?.sessionId)) return
+		const watched = (client.data.watchedSessions || []) as string[]
+		if (watched.length >= 20 && !watched.includes(body.sessionId)) return
+		await client.join([`session:${body.sessionId}`, `watch:${body.sessionId}`])
+		client.data.watchedSessions = [...new Set([...watched, body.sessionId])]
 	}
 
 	@SubscribeMessage('chat:admin-unwatch')
-	onAdminUnwatch(@ConnectedSocket() client: Socket, @MessageBody() body: { sessionId: string }) {
-		const data = client.data as SocketData
-		if (data?.role !== 'admin') return
-		client.leave(`session:${body.sessionId}`)
-		const set = this.adminSocketsBySession.get(body.sessionId)
-		if (set) {
-			set.delete(client.id)
-			if (set.size === 0) {
-				this.adminSocketsBySession.delete(body.sessionId)
-			}
-		}
+	async onAdminUnwatch(@ConnectedSocket() client: Socket, @MessageBody() body: { sessionId: string }) {
+		if (client.data.role !== 'admin' || !validSession(body?.sessionId)) return
+		await client.leave(`session:${body.sessionId}`)
+		await client.leave(`watch:${body.sessionId}`)
+		await client.leave(`takeover:${body.sessionId}`)
+		client.data.watchedSessions = (client.data.watchedSessions || []).filter((id: string) => id !== body.sessionId)
+		await this.broadcastTakeover(body.sessionId)
+	}
+
+	private async broadcastTakeover(sessionId: string, excludeId?: string) {
+		const members = await this.io.in(`takeover:${sessionId}`).fetchSockets()
+		const admin = members.find((socket) => socket.id !== excludeId && socket.data.role === 'admin')?.data
+		const state = { takeover: !!admin, admin: admin ? {
+			firstName: admin.firstName, lastName: admin.lastName, avatarUrl: admin.avatarUrl,
+		} : null }
+		this.io.to(`session:${sessionId}`).emit('chat:admin-takeover', state)
+		this.io.to('admins').emit('chat:takeover-state', { sessionId, takenOver: !!admin })
+		if (!admin) this.io.to(`session:${sessionId}`).emit('chat:admin-left', {})
 	}
 
 	@SubscribeMessage('chat:admin-takeover')
-	onAdminTakeover(
-		@ConnectedSocket() client: Socket,
-		@MessageBody() body: { sessionId: string; takeover: boolean; admin: { firstName: string; lastName: string; avatarUrl?: string | null } },
-	) {
-		const data = client.data as SocketData
-		if (data?.role !== 'admin') return
-		if (body.takeover) {
-			this.adminTakenoverSessions.add(body.sessionId)
-		} else {
-			this.adminTakenoverSessions.delete(body.sessionId)
-		}
-		this.io?.to(`session:${body.sessionId}`).emit('chat:admin-takeover', {
-			takeover: body.takeover,
-			admin: body.admin,
+	async onAdminTakeover(@ConnectedSocket() client: Socket, @MessageBody() body: { sessionId: string; takeover: boolean }) {
+		if (client.data.role !== 'admin' || !validSession(body?.sessionId) || typeof body.takeover !== 'boolean') return
+		await this.onAdminWatch(client, body)
+		if (!client.rooms.has(`watch:${body.sessionId}`)) return
+		if (body.takeover) await client.join(`takeover:${body.sessionId}`)
+		else await client.leave(`takeover:${body.sessionId}`)
+		await this.broadcastTakeover(body.sessionId)
+	}
+
+	async isSessionTakenOver(sessionId: string) { return this.hasMember(`takeover:${sessionId}`) }
+	async isSessionWatched(sessionId: string) { return this.hasMember(`watch:${sessionId}`) }
+
+	@SubscribeMessage('chat:sync')
+	async onChatSync(@ConnectedSocket() client: Socket) {
+		if (client.data.role !== 'visitor' || !validSession(client.data.sessionId)) return
+		const sessionId = client.data.sessionId as string
+		const conversation = await this.database.chatbotConversation.findFirst({
+			where: { sessionId, deleted: false }, orderBy: { createdAt: 'desc' },
+			include: { messages: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 100 } },
 		})
-	}
-
-	isSessionTakenOver(sessionId: string): boolean {
-		return this.adminTakenoverSessions.has(sessionId)
-	}
-
-	/** True when at least one admin currently has this conversation open */
-	isSessionWatched(sessionId: string): boolean {
-		const set = this.adminSocketsBySession.get(sessionId)
-		return !!set && set.size > 0
+		const admins = await this.io.in(`takeover:${sessionId}`).fetchSockets()
+		const admin = admins.find((socket) => socket.data.role === 'admin')?.data
+		client.emit('chat:state', { messages: (conversation?.messages || []).reverse(), takeover: !!admin,
+			admin: admin ? { firstName: admin.firstName, lastName: admin.lastName, avatarUrl: admin.avatarUrl } : null })
 	}
 
 	@SubscribeMessage('chat:typing')
-	onTyping(
-		@ConnectedSocket() client: Socket,
-		@MessageBody() body: { sessionId: string; typing: boolean },
-	) {
-		const data = client.data as SocketData
-		const sender = data?.role === 'admin' ? 'admin' : 'visitor'
-		this.io?.to(`session:${body.sessionId}`).except(client.id).emit('chat:typing', {
-			sender,
-			typing: body.typing,
+	onTyping(@ConnectedSocket() client: Socket, @MessageBody() body: { sessionId: string; typing: boolean }) {
+		if (!validSession(body?.sessionId) || typeof body.typing !== 'boolean') return
+		if (client.data.role !== 'admin' && client.data.sessionId !== body.sessionId) return
+		if (client.data.role === 'admin' && !client.rooms.has(`watch:${body.sessionId}`)) return
+		this.io.to(`session:${body.sessionId}`).except(client.id).emit('chat:typing', {
+			sender: client.data.role === 'admin' ? 'admin' : 'visitor', typing: body.typing,
 		})
 	}
 
-	@SubscribeMessage('chat:message')
-	onMessage(
-		@ConnectedSocket() client: Socket,
-		@MessageBody() body: { sessionId: string; message: any },
-	) {
-		// Transport-level relay; admin replies normally arrive via REST + emitChatMessage.
-		this.io?.to(`session:${body.sessionId}`).except(client.id).emit('chat:message', body.message)
-	}
-
-	/** Called by server-side code (chatbot provider) to broadcast a stored message */
+	// Chat messages are persisted through REST before being broadcast.
 	emitChatMessage(sessionId: string, message: any) {
-		if (!this.io) return
-		// Notify the visitor sitting in the session room
-		this.io.to(`session:${sessionId}`).except('admins').emit('chat:message', message)
-		// All admins get a single chat:activity event with the full message —
-		// they handle their own list-update + selected-conversation append from there.
-		this.io.to('admins').emit('chat:activity', { sessionId, message })
+		this.io?.to(`session:${sessionId}`).except('admins').emit('chat:message', message)
+		this.io?.to('admins').emit('chat:activity', { sessionId, message })
 	}
 
-	/** Called when a brand-new conversation is created */
 	emitNewConversation(sessionId: string, conversation: any) {
-		if (!this.io) return
-		this.io.to('admins').emit('conversation:new', { sessionId, conversation })
+		this.io?.to('admins').emit('conversation:new', { sessionId, conversation })
 	}
 
-	// Project inquiry chat
 	@SubscribeMessage('project-chat:join')
 	async onProjectChatJoin(@ConnectedSocket() client: Socket, @MessageBody() body: { requestId: string }) {
-		const data = client.data as SocketData
-		if (!data?.role || !body?.requestId) return
-		if (data.role === 'admin') {
-			client.join(`project:${body.requestId}`)
-			return
-		}
-		if (data.role === 'client' && data.userId) {
-			const req = await this.database.clientRequest.findFirst({
-				where: { id: body.requestId, deleted: false, clientUserId: data.userId },
-				select: { id: true },
+		if (!body?.requestId || !/^[a-f0-9-]{36}$/i.test(body.requestId)) return
+		if (client.data.role === 'admin') { await client.join(`project:${body.requestId}`); return }
+		if (client.data.role === 'client' && client.data.userId) {
+			const request = await this.database.clientRequest.findFirst({
+				where: { id: body.requestId, deleted: false, clientUserId: client.data.userId }, select: { id: true },
 			})
-			if (req) client.join(`project:${body.requestId}`)
+			if (request) await client.join(`project:${body.requestId}`)
 		}
 	}
 
 	@SubscribeMessage('project-chat:leave')
-	onProjectChatLeave(@ConnectedSocket() client: Socket, @MessageBody() body: { requestId: string }) {
-		if (!body?.requestId) return
-		client.leave(`project:${body.requestId}`)
+	async onProjectChatLeave(@ConnectedSocket() client: Socket, @MessageBody() body: { requestId: string }) {
+		if (body?.requestId) await client.leave(`project:${body.requestId}`)
 	}
 
 	@SubscribeMessage('project-chat:typing')
-	onProjectChatTyping(
-		@ConnectedSocket() client: Socket,
-		@MessageBody() body: { requestId: string; typing: boolean },
-	) {
-		const data = client.data as SocketData
-		if (!body?.requestId || !data?.role) return
-		this.io?.to(`project:${body.requestId}`).except(client.id).emit('project-chat:typing', {
-			requestId: body.requestId,
-			sender: data.role,
-			typing: body.typing,
+	onProjectChatTyping(@ConnectedSocket() client: Socket, @MessageBody() body: { requestId: string; typing: boolean }) {
+		if (!body?.requestId || typeof body.typing !== 'boolean' || !client.rooms.has(`project:${body.requestId}`)) return
+		this.io.to(`project:${body.requestId}`).except(client.id).emit('project-chat:typing', {
+			requestId: body.requestId, sender: client.data.role, typing: body.typing,
 		})
 	}
 
 	emitProjectMessage(requestId: string, message: any) {
-		if (!this.io) return
-		this.io.to(`project:${requestId}`).emit('project-chat:message', { requestId, message })
-		this.io.to('admins').emit('project-chat:activity', { requestId, message })
+		this.io?.to(`project:${requestId}`).emit('project-chat:message', { requestId, message })
+		this.io?.to('admins').emit('project-chat:activity', { requestId, message })
 	}
 
-	emitClientRequestCreated(request: any) {
-		if (!this.io) return
-		this.io.to('admins').emit('client-request:new', { request })
-	}
+	emitClientRequestCreated(request: any) { this.io?.to('admins').emit('client-request:new', { request }) }
 
-	/** List of active visitor sessions (for admin "Live conversations" UI) */
-	getActiveSessions(): { sessionId: string; takenOver: boolean }[] {
-		if (!this.io?.sockets?.sockets) return []
-		const sessions = new Map<string, boolean>()
-		this.io.sockets.sockets.forEach((s) => {
-			const d = s.data as SocketData
-			if (d?.role === 'visitor' && d.sessionId) {
-				sessions.set(d.sessionId, this.adminTakenoverSessions.has(d.sessionId))
-			}
-		})
-		return Array.from(sessions.entries()).map(([sessionId, takenOver]) => ({ sessionId, takenOver }))
+	async getActiveSessions(): Promise<{ sessionId: string; takenOver: boolean }[]> {
+		if (!this.io) return []
+		const sockets = await this.io.fetchSockets()
+		const takenOver = new Set<string>()
+		for (const socket of sockets) {
+			if (socket.data.role !== 'admin') continue
+			for (const room of socket.rooms) if (room.startsWith('takeover:')) takenOver.add(room.slice(9))
+		}
+		const sessions = new Set(sockets.filter((socket) => socket.data.role === 'visitor').map((socket) => socket.data.sessionId as string))
+		return [...sessions].map((sessionId) => ({ sessionId, takenOver: takenOver.has(sessionId) }))
 	}
 }

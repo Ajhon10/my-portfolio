@@ -1,6 +1,4 @@
 import type { Project, ProjectImage } from '@/types'
-import axios from 'axios'
-import { getToken } from './api.provider'
 import { useApiProvider } from './api.provider'
 
 export interface ProjectInput {
@@ -42,45 +40,13 @@ export const useProjectProvider = () => {
 	}
 
 	const uploadImage = async (file: File): Promise<{ success: boolean; url?: string; message?: string }> => {
-		const baseURL = (import.meta.env.VITE_API_ENDPOINT as string) || '/api'
-		const formData = new FormData()
-		formData.append('file', file)
-		try {
-			const { data, status } = await axios.post(`${baseURL}/upload/image`, formData, {
-				headers: {
-					'Content-Type': 'multipart/form-data',
-					Authorization: `Bearer ${getToken()}`,
-				},
-				validateStatus: () => true,
-			})
-			if (status >= 400 || !data?.success) {
-				return { success: false, message: data?.message || 'Upload failed' }
-			}
-			return { success: true, url: data.data.url }
-		} catch {
-			return { success: false, message: 'Upload failed' }
-		}
+		const result = await api.UPLOAD<{ url: string }>('/upload/image', file, 'file', { silent: true })
+		return { success: result.success, url: result.data?.url, message: result.message }
 	}
 
 	const uploadSiteAsset = async (file: File): Promise<{ success: boolean; url?: string; message?: string }> => {
-		const baseURL = (import.meta.env.VITE_API_ENDPOINT as string) || '/api'
-		const formData = new FormData()
-		formData.append('file', file)
-		try {
-			const { data, status } = await axios.post(`${baseURL}/upload/site-asset`, formData, {
-				headers: {
-					'Content-Type': 'multipart/form-data',
-					Authorization: `Bearer ${getToken()}`,
-				},
-				validateStatus: () => true,
-			})
-			if (status >= 400 || !data?.success) {
-				return { success: false, message: data?.message || 'Upload failed' }
-			}
-			return { success: true, url: data.data.url }
-		} catch {
-			return { success: false, message: 'Upload failed' }
-		}
+		const result = await api.UPLOAD<{ url: string }>('/upload/site-asset', file, 'file', { silent: true })
+		return { success: result.success, url: result.data?.url, message: result.message }
 	}
 
 	const listProjectImages = async (projectId: string) => {
@@ -88,19 +54,7 @@ export const useProjectProvider = () => {
 	}
 
 	const uploadProjectImage = async (projectId: string, file: File): Promise<{ success: boolean; data?: ProjectImage; message?: string }> => {
-		const baseURL = (import.meta.env.VITE_API_ENDPOINT as string) || '/api'
-		const formData = new FormData()
-		formData.append('file', file)
-		try {
-			const { data, status } = await axios.post(`${baseURL}/upload/project-images/${projectId}`, formData, {
-				headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${getToken()}` },
-				validateStatus: () => true,
-			})
-			if (status >= 400 || !data?.success) return { success: false, message: data?.message || 'Upload failed' }
-			return { success: true, data: data.data }
-		} catch {
-			return { success: false, message: 'Upload failed' }
-		}
+		return api.UPLOAD<ProjectImage>(`/upload/project-images/${projectId}`, file, 'file', { silent: true })
 	}
 
 	const deleteProjectImage = async (imageId: string) => {

@@ -1,5 +1,6 @@
 import { getToken } from '@/composables/provider/api.provider'
 import { io, type Socket } from 'socket.io-client'
+import { restoreSubscriptions } from './socket-subscriptions'
 
 let adminSocket: Socket | null = null
 let visitorSocket: Socket | null = null
@@ -14,17 +15,14 @@ const getSocketBase = () => {
 export const connectAdminSocket = (): Socket | null => {
 	const token = getToken()
 	if (!token) return null
-	if (adminSocket?.connected) return adminSocket
-	if (adminSocket) {
-		adminSocket.disconnect()
-		adminSocket = null
-	}
+	if (adminSocket) return adminSocket
 
 	adminSocket = io(getSocketBase(), {
-		transports: ['websocket', 'polling'],
-		auth: { token },
+		transports: ['websocket'],
+		auth: (callback) => callback({ token: getToken() }),
 		autoConnect: true,
 	})
+	restoreSubscriptions(adminSocket, 'admin')
 
 	return adminSocket
 }
@@ -42,17 +40,14 @@ export const getAdminSocket = (): Socket | null => adminSocket
 export const connectClientSocket = (): Socket | null => {
 	const token = getToken()
 	if (!token) return null
-	if (clientSocket?.connected) return clientSocket
-	if (clientSocket) {
-		clientSocket.disconnect()
-		clientSocket = null
-	}
+	if (clientSocket) return clientSocket
 
 	clientSocket = io(getSocketBase(), {
-		transports: ['websocket', 'polling'],
-		auth: { token },
+		transports: ['websocket'],
+		auth: (callback) => callback({ token: getToken() }),
 		autoConnect: true,
 	})
+	restoreSubscriptions(clientSocket, 'client')
 
 	return clientSocket
 }
@@ -68,17 +63,14 @@ export const getClientSocket = (): Socket | null => clientSocket
 
 /** Connect (or return existing) visitor socket — requires sessionId */
 export const connectVisitorSocket = (sessionId: string): Socket => {
-	if (visitorSocket?.connected) return visitorSocket
-	if (visitorSocket) {
-		visitorSocket.disconnect()
-		visitorSocket = null
-	}
+	if (visitorSocket) return visitorSocket
 
 	visitorSocket = io(getSocketBase(), {
-		transports: ['websocket', 'polling'],
+		transports: ['websocket'],
 		auth: { sessionId },
 		autoConnect: true,
 	})
+	restoreSubscriptions(visitorSocket, 'visitor')
 
 	return visitorSocket
 }
