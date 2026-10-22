@@ -21,6 +21,7 @@ A full-stack portfolio system for Jhon Lisley Jeresano with a public portfolio s
 - Chatbot knowledge base and live conversation tools.
 - Site Content CMS grouped into Branding, Hero Section, Other Site Content, and Social Media Links.
 - Owner-only user management and profile/security settings.
+- Backend OpenAI API setup and model guidance. See `docs/openai-api-setup.md`.
 
 ### Client Portal
 - Clients can sign in after an admin creates their client account.
@@ -51,7 +52,7 @@ A full-stack portfolio system for Jhon Lisley Jeresano with a public portfolio s
 ```text
 MY_PORTFOLIO/
   portfolio-client/      Vue 3 frontend, intended for Vercel
-  portfolio-server/      NestJS backend, intended for Render
+  portfolio-server/      NestJS backend, supports Vercel Functions or Render
   AGENTS.md              Agent/developer workflow guidance
   README.md              Main project documentation
   QUICKSTART.md          Local setup guide
@@ -166,6 +167,17 @@ Socket.IO is used for:
 
 ## Deployment
 
+Start with the [step-by-step Vercel + Neon walkthrough](docs/vercel-step-by-step.md)
+for a free PostgreSQL alternative to Render, account setup, environment variables
+and database initialization. Current free-plan limits and Vercel eligibility are
+included in that guide.
+
+For both applications on Vercel, follow [Vercel deployment](docs/vercel-deployment.md).
+Use separate Vercel projects for `portfolio-client` and `portfolio-server`, managed
+PostgreSQL through Marketplace, Vercel Blob uploads and Redis for realtime state.
+See [architecture](docs/vercel-architecture.md) and [verification](docs/ENGINEERING_ACCEPTANCE.md)
+for decisions and remaining production checks. The existing Vue/NestJS stack is retained.
+
 ### Vercel Frontend
 - Root directory: `portfolio-client`
 - Build command: `npm run build`
@@ -174,6 +186,8 @@ Socket.IO is used for:
   - `VITE_API_ENDPOINT=https://your-render-api.onrender.com/api`
 
 ### Render Backend
+The existing Render deployment remains an alternative. Durable uploads must use
+Blob or a correctly configured persistent disk; an ephemeral filesystem is insufficient.
 - Root directory: `portfolio-server`
 - Build command: `npm install && npx prisma generate --schema ./src/database/schema && npm run build`
 - Start command: `npx prisma migrate deploy --schema ./src/database/schema && npm run start:prod`
@@ -181,7 +195,7 @@ Socket.IO is used for:
 
 ## Environment Notes
 
-Backend `.env` must include database, JWT, mail, OpenAI, and app domain settings. Frontend `.env.local` only needs `VITE_API_ENDPOINT` for normal use.
+Backend `.env` must include database, JWT, mail, OpenAI, and app domain settings. Frontend `.env.local` only needs `VITE_API_ENDPOINT` for normal use. Keep `OPENAI_API_KEY` exclusively on the backend; setup details are in `docs/openai-api-setup.md`.
 
 ## Status
 

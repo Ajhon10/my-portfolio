@@ -189,6 +189,26 @@ export const useApiProvider = () => {
 		config: CustomConfig = {},
 	): Promise<TApiResponse<T>> => {
 		try {
+			const settings = await GET<{ storage: 'local' | 'blob' }>('/upload/config', {}, { silent: true })
+			if (!settings.success || !settings.data) {
+				return { success: false, message: settings.message || 'Upload configuration is unavailable.', status: settings.status }
+			}
+			if (settings.data.storage === 'blob') {
+				const gallery = /^\/upload\/project-images\/([a-f0-9-]+)$/i.exec(url)
+				const kind = gallery ? 'project-image' : url.replace('/upload/', '')
+				const authorization = await POST<{ token: string; pathname: string }>('/upload/token', {
+					kind, filename: file.name, ...(gallery ? { projectId: gallery[1] } : {}),
+				}, {}, { silent: true })
+				if (!authorization.success || !authorization.data) {
+					return { success: false, message: authorization.message || 'Upload is not authorized.', status: authorization.status }
+				}
+				const { put } = await import('@vercel/blob/client')
+				const blob = await put(authorization.data.pathname, file, {
+					access: 'public', token: authorization.data.token, contentType: file.type || undefined,
+				})
+				if (gallery) return POST<T>(`${url}/blob`, { url: blob.url }, {}, config)
+				return { success: true, data: { url: blob.url } as T, status: 201 }
+			}
 			const formData = new FormData()
 			formData.append(fieldName, file)
 			const { data, status } = await instance.post(url, formData, {

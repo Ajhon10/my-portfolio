@@ -57,8 +57,22 @@ const scrollToBottom = async () => {
 
 const connectSocket = () => {
 	const sid = store.ensureSession()
-	if (socket?.connected) return
+	if (socket) return
 	socket = connectVisitorSocket(sid)
+	socket.on('disconnect', () => {
+		adminOnline.value = false
+		adminTyping.value = false
+	})
+	socket.on('chat:state', (state: { messages: ChatbotMessage[]; takeover: boolean; admin: any }) => {
+		adminTakenOver.value = state.takeover
+		adminInfo.value = state.admin
+		for (const message of state.messages) {
+			if (message.role !== ChatbotMessageRole.ADMIN || store.messages.some((item) => item.id === message.id)) continue
+			store.messages.push(message)
+		}
+		store.messages.sort((a, b) => Date.parse(a.createdAt || '') - Date.parse(b.createdAt || ''))
+		void scrollToBottom()
+	})
 
 	socket.on('admin:presence', ({ online }: { online: boolean }) => {
 		adminOnline.value = online

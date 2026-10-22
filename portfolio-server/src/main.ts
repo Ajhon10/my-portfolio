@@ -6,7 +6,8 @@ declare global {
 
 import { NestFactory } from '@nestjs/core'
 import { NestExpressApplication } from '@nestjs/platform-express'
-import { IoAdapter } from '@nestjs/platform-socket.io'
+import { RedisIoAdapter } from './common/redis-io.adapter'
+import { deploymentConfig } from './common/deployment'
 import { BadRequestException, Logger, ValidationPipe } from '@nestjs/common'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { ValidationError, useContainer } from 'class-validator'
@@ -35,8 +36,10 @@ async function bootstrap() {
 
 	useContainer(app.select(AppModule), { fallbackOnErrors: true })
 
+	const deployment = deploymentConfig()
+	const origins = env.app.APP_DOMAIN.split(',').map((origin) => origin.trim())
 	app.enableCors({
-		origin: env.app.APP_DOMAIN,
+		origin: origins,
 		credentials: true,
 		methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 		allowedHeaders: [
@@ -99,11 +102,16 @@ async function bootstrap() {
 
 	app.setGlobalPrefix('/api')
 	app.useGlobalFilters(new AllExceptionsFilter())
-	app.useWebSocketAdapter(new IoAdapter(app))
+	const socketAdapter = new RedisIoAdapter(app)
+	await socketAdapter.connect(deployment, origins)
+	app.useWebSocketAdapter(socketAdapter)
+	app.enableShutdownHooks()
 	app.set('trust proxy', 1)
 
-	mkdirSync(join(process.cwd(), 'uploads'), { recursive: true })
-	app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' })
+	if (deployment.storage === 'local') {
+		mkdirSync(join(process.cwd(), 'uploads'), { recursive: true })
+		app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' })
+	}
 
 	const swaggerConfig = new DocumentBuilder()
 		.setTitle('MY PORTFOLIO API')
@@ -120,6 +128,6 @@ async function bootstrap() {
 }
 
 bootstrap().catch((err) => {
-	console.error('Failed to start server:', err)
+	console.error('Failed to start server. Check backend configuration and service connectivity.')
 	process.exit(1)
 })

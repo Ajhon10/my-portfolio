@@ -131,6 +131,23 @@ const removeActiveSession = (sessionId: string) => {
 	activeSessionMap.value = next
 }
 
+const refreshAfterReconnect = async () => {
+	visitorTyping.value = false
+	await loadConversations()
+	const sessionId = selectedConversation.value?.sessionId
+	if (!sessionId) return
+	const result = await provider.getLiveSession(sessionId)
+	if (result.success && result.data && selectedConversation.value?.sessionId === sessionId) {
+		selectedConversation.value = result.data
+		selectedMessages.value = result.data.messages || []
+		await scrollMessages()
+	}
+}
+
+const onTakeoverState = ({ sessionId, takenOver }: { sessionId: string; takenOver: boolean }) => {
+	setActiveSession(sessionId, { takenOver })
+}
+
 const setupSocket = () => {
 	socket = getAdminSocket()
 	if (!socket) {
@@ -140,6 +157,10 @@ const setupSocket = () => {
 	}
 
 	// Always replace listeners on (re)setup
+	socket.off('connect', refreshAfterReconnect)
+	socket.on('connect', refreshAfterReconnect)
+	socket.off('chat:takeover-state', onTakeoverState)
+	socket.on('chat:takeover-state', onTakeoverState)
 	socket.off('chat:message')
 	socket.off('chat:typing')
 	socket.off('chat:activity')
@@ -222,6 +243,8 @@ const setupSocket = () => {
 
 const teardownSocket = () => {
 	if (!socket) return
+	socket.off('connect', refreshAfterReconnect)
+	socket.off('chat:takeover-state', onTakeoverState)
 	socket.off('chat:message')
 	socket.off('chat:typing')
 	socket.off('chat:activity')

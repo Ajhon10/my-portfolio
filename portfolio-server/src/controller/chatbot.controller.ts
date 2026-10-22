@@ -138,7 +138,7 @@ export class ChatbotController {
 	@Roles('OWNER', 'ADMIN')
 	async listActiveSessions() {
 		try {
-			const sessions = this.realtime.getActiveSessions()
+			const sessions = await this.realtime.getActiveSessions()
 			// Enrich with conversation snapshot
 			const enriched = await Promise.all(
 				sessions.map(async (s) => {

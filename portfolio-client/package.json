@@ -9,10 +9,12 @@
 		"preview": "vite preview",
 		"build-only": "vite build",
 		"type-check": "vue-tsc --build --force",
+		"test": "node --test tests/*.test.cjs",
 		"lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
 		"format": "prettier --write src/"
 	},
 	"dependencies": {
+		"@vercel/blob": "^2.8.2",
 		"@vueuse/core": "^10.9.0",
 		"axios": "^1.13.2",
 		"gsap": "^3.12.5",

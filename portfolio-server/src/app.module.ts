@@ -30,7 +30,6 @@ import {
 	ClientRequestController,
 	ChatbotController,
 	SiteContentController,
-	UploadController,
 } from '@app/controller'
 
 @Module({
@@ -64,7 +63,6 @@ import {
 		ClientRequestController,
 		ChatbotController,
 		SiteContentController,
-		UploadController,
 	],
 	providers: [IsEmailUniqueConstraint, IsStrongPasswordConstraint],
 })
