@@ -1,6 +1,7 @@
 export * from './api.provider'
 export * from './auth.provider'
 export * from './certification.provider'
+export * from './gear.provider'
 export * from './project.provider'
 export * from './tech-stack.provider'
 export * from './experience.provider'

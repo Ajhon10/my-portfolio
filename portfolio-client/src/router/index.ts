@@ -28,6 +28,12 @@ const router = createRouter({
 			meta: { requiresAuth: false },
 		},
 		{
+			path: '/gears',
+			name: 'gears',
+			component: () => import('@/views/GearsView.vue'),
+			meta: { requiresAuth: false },
+		},
+		{
 			path: '/projects',
 			redirect: { path: '/', hash: '#projects' },
 			meta: { requiresAuth: false },
@@ -69,6 +75,12 @@ const router = createRouter({
 			path: '/admin/projects',
 			name: 'admin-projects',
 			component: () => import('@/views/admin/ProjectsCmsView.vue'),
+			meta: { requiresAuth: true },
+		},
+		{
+			path: '/admin/gears',
+			name: 'admin-gears',
+			component: () => import('@/views/admin/GearsCmsView.vue'),
 			meta: { requiresAuth: true },
 		},
 		{

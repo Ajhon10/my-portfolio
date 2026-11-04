@@ -28,10 +28,13 @@ function enlarge(url: string) {
 			</div>
 			<router-link
 				:to="{ path: '/', hash: '#projects' }"
-				class="folio-text-link shrink-0"
+				class="project-close shrink-0"
 				aria-label="Close project details"
-				>Close ×</router-link
 			>
+				<svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+					<path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+				</svg>
+			</router-link>
 		</div>
 		<p v-if="project.shortSummary" class="text-brand-gray-300 mt-5 text-lg">{{ project.shortSummary }}</p>
 		<div v-if="images.length" class="grid sm:grid-cols-2 gap-4 mt-6">
@@ -83,12 +86,44 @@ function enlarge(url: string) {
 			aria-label="Project image"
 			@click="$event.target === dialog && dialog?.close()"
 		>
-			<button aria-label="Close image" @click="dialog?.close()">Close ×</button>
+			<button class="image-close" aria-label="Close image" @click="dialog?.close()">
+				<svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+					<path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+				</svg>
+			</button>
 			<img :src="resolveAssetUrl(enlarged)" :alt="project.title" />
 		</dialog>
 	</article>
 </template>
 <style scoped>
+.project-close,
+.image-close {
+	display: inline-flex;
+	width: 44px;
+	height: 44px;
+	align-items: center;
+	justify-content: center;
+	border-radius: 9999px;
+	color: #bfdbfe;
+	transition:
+		color 150ms ease,
+		background-color 150ms ease;
+}
+.project-close:hover,
+.image-close:hover {
+	background: rgb(59 130 246 / 0.12);
+	color: #ffffff;
+}
+.project-close:focus-visible,
+.image-close:focus-visible {
+	outline: 2px solid #60a5fa;
+	outline-offset: 2px;
+}
+.project-close svg,
+.image-close svg {
+	width: 22px;
+	height: 22px;
+}
 .project-image-dialog {
 	max-width: 95vw;
 	max-height: 95vh;
@@ -104,8 +139,8 @@ function enlarge(url: string) {
 	max-height: 80vh;
 	max-width: 100%;
 }
-.project-image-dialog button {
-	display: block;
+.project-image-dialog .image-close {
+	display: flex;
 	margin: 0 0 16px auto;
 }
 </style>

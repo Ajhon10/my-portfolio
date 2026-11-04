@@ -1,10 +1,15 @@
 import { getToken } from '@/composables/provider/api.provider'
 import { io, type Socket } from 'socket.io-client'
+import { readonly, ref } from 'vue'
 import { restoreSubscriptions } from './socket-subscriptions'
 
 let adminSocket: Socket | null = null
 let visitorSocket: Socket | null = null
 let clientSocket: Socket | null = null
+let visitorSessionId = ''
+let presenceRetainers = 0
+const viewerCount = ref<number | null>(null)
+const viewerConnected = ref(false)
 
 const getSocketBase = () => {
 	const apiBase = (import.meta.env.VITE_API_ENDPOINT as string) || '/api'
@@ -63,23 +68,55 @@ export const getClientSocket = (): Socket | null => clientSocket
 
 /** Connect (or return existing) visitor socket — requires sessionId */
 export const connectVisitorSocket = (sessionId: string): Socket => {
-	if (visitorSocket) return visitorSocket
+	if (visitorSocket && visitorSessionId === sessionId) {
+		if (!visitorSocket.connected) visitorSocket.connect()
+		return visitorSocket
+	}
+	if (visitorSocket) visitorSocket.disconnect()
 
+	visitorSessionId = sessionId
 	visitorSocket = io(getSocketBase(), {
 		transports: ['websocket'],
 		auth: { sessionId },
 		autoConnect: true,
 	})
 	restoreSubscriptions(visitorSocket, 'visitor')
+	visitorSocket.on('connect', () => {
+		viewerConnected.value = true
+	})
+	visitorSocket.on('disconnect', () => {
+		viewerConnected.value = false
+	})
+	visitorSocket.on('viewer:count', ({ count }: { count: number }) => {
+		viewerCount.value = Number.isInteger(count) && count >= 0 ? count : null
+	})
 
 	return visitorSocket
 }
 
 export const disconnectVisitorSocket = () => {
-	if (visitorSocket) {
+	if (visitorSocket && presenceRetainers === 0) {
 		visitorSocket.disconnect()
 		visitorSocket = null
+		visitorSessionId = ''
+		viewerConnected.value = false
+		viewerCount.value = null
 	}
 }
+
+export const retainVisitorPresence = (sessionId: string) => {
+	presenceRetainers += 1
+	return connectVisitorSocket(sessionId)
+}
+
+export const releaseVisitorPresence = () => {
+	presenceRetainers = Math.max(0, presenceRetainers - 1)
+	disconnectVisitorSocket()
+}
+
+export const useViewerPresenceState = () => ({
+	viewerCount: readonly(viewerCount),
+	viewerConnected: readonly(viewerConnected),
+})
 
 export const getVisitorSocket = (): Socket | null => visitorSocket

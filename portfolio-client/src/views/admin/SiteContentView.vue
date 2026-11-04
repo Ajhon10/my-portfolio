@@ -1,16 +1,45 @@
 <script setup lang="ts">
 import ParticlePortrait from '@/components/ParticlePortrait.vue'
+import InteractivePortrait from '@/components/InteractivePortrait.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import Modal from '@/components/Modal.vue'
 import { useProjectProvider } from '@/composables/provider/project.provider'
 import { useSiteContentProvider } from '@/composables/provider/site-content.provider'
 import { useSiteBranding } from '@/composables/useSiteBranding'
 import type { SiteContent } from '@/types'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { toast } from 'vue3-toastify'
 
 const provider = useSiteContentProvider()
 const uploadProvider = useProjectProvider()
 const { refreshBranding, resolveAssetUrl } = useSiteBranding()
+
+type PortraitDirection =
+	| 'center'
+	| 'up'
+	| 'down'
+	| 'left'
+	| 'right'
+	| 'up-left'
+	| 'up-right'
+	| 'down-left'
+	| 'down-right'
+type PortraitAdjustment = { scale: number; x: number; y: number }
+
+const PORTRAIT_DIRECTIONS: { direction: PortraitDirection; key: string; label: string }[] = [
+	{ direction: 'up-left', key: 'hero_portrait_up_left_url', label: 'Up left' },
+	{ direction: 'up', key: 'hero_portrait_up_url', label: 'Up' },
+	{ direction: 'up-right', key: 'hero_portrait_up_right_url', label: 'Up right' },
+	{ direction: 'left', key: 'hero_portrait_left_url', label: 'Left' },
+	{ direction: 'center', key: 'hero_portrait_center_url', label: 'Center' },
+	{ direction: 'right', key: 'hero_portrait_right_url', label: 'Right' },
+	{ direction: 'down-left', key: 'hero_portrait_down_left_url', label: 'Down left' },
+	{ direction: 'down', key: 'hero_portrait_down_url', label: 'Down' },
+	{ direction: 'down-right', key: 'hero_portrait_down_right_url', label: 'Down right' },
+]
+const PORTRAIT_KEYS = new Set(PORTRAIT_DIRECTIONS.map((item) => item.key))
+const PORTRAIT_ADJUSTMENTS_KEY = 'hero_portrait_adjustments'
+const defaultPortraitAdjustment = (): PortraitAdjustment => ({ scale: 1, x: 50, y: 50 })
 
 const defaultItems: SiteContent[] = [
 	{
@@ -62,7 +91,19 @@ const defaultItems: SiteContent[] = [
 	{ id: 'default-hero_stat_2_label', key: 'hero_stat_2_label', label: 'Hero Stat 2 Label', value: 'Projects shipped' },
 	{ id: 'default-hero_stat_3_value', key: 'hero_stat_3_value', label: 'Hero Stat 3 Value', value: 'infinity' },
 	{ id: 'default-hero_stat_3_label', key: 'hero_stat_3_label', label: 'Hero Stat 3 Label', value: 'Cups of coffee' },
-	{ id: 'default-hero_photo_url', key: 'hero_photo_url', label: 'Hero Photo', value: '' },
+	{ id: 'default-hero_photo_url', key: 'hero_photo_url', label: 'Particle Portrait Source', value: '' },
+	...PORTRAIT_DIRECTIONS.map(({ direction, key, label }) => ({
+		id: `default-${key}`,
+		key,
+		label: `${label} Portrait`,
+		value: '',
+	})),
+	{
+		id: 'default-hero_portrait_adjustments',
+		key: PORTRAIT_ADJUSTMENTS_KEY,
+		label: 'Portrait Display Adjustments',
+		value: '{}',
+	},
 	{
 		id: 'default-about_short',
 		key: 'about_short',
@@ -149,6 +190,47 @@ const loadFailed = ref(false)
 const drafts = ref<Record<string, string>>({})
 const saving = ref<Record<string, boolean>>({})
 const uploading = ref<Record<string, boolean>>({})
+const portraitEditorOpen = ref(false)
+const portraitEditorFile = ref<File>()
+const portraitEditorUrl = ref('')
+const portraitEditorDirection = ref<PortraitDirection>('center')
+const portraitEditorAdjustment = ref<PortraitAdjustment>(defaultPortraitAdjustment())
+
+const parsePortraitAdjustments = (): Partial<Record<PortraitDirection, PortraitAdjustment>> => {
+	try {
+		return JSON.parse(drafts.value[PORTRAIT_ADJUSTMENTS_KEY] || '{}')
+	} catch {
+		return {}
+	}
+}
+
+const portraitImages = computed<Partial<Record<PortraitDirection, string>>>(() => {
+	const result: Partial<Record<PortraitDirection, string>> = {}
+	for (const item of PORTRAIT_DIRECTIONS) result[item.direction] = drafts.value[item.key]
+	result.center = result.center || drafts.value.hero_photo_url
+	return result
+})
+const portraitAdjustments = computed(() => parsePortraitAdjustments())
+const portraitSourceFor = (direction: PortraitDirection) => {
+	const key = PORTRAIT_DIRECTIONS.find((item) => item.direction === direction)?.key || ''
+	return drafts.value[key] || (direction === 'center' ? drafts.value.hero_photo_url : '')
+}
+const portraitStyleFor = (direction: PortraitDirection) => {
+	const adjustment = { ...defaultPortraitAdjustment(), ...portraitAdjustments.value[direction] }
+	return {
+		objectPosition: `${adjustment.x}% ${adjustment.y}%`,
+		transform: `scale(${adjustment.scale})`,
+		transformOrigin: `${adjustment.x}% ${adjustment.y}%`,
+	}
+}
+const portraitEditorStyle = computed(() => {
+	const { scale, x, y } = portraitEditorAdjustment.value
+	return {
+		objectPosition: `${x}% ${y}%`,
+		transform: `scale(${scale})`,
+		transformOrigin: `${x}% ${y}%`,
+	}
+})
 
 const mergeDefaults = (loadedItems: SiteContent[]) => {
 	const byKey = new Map(defaultItems.map((item) => [item.key, { ...item }]))
@@ -168,6 +250,8 @@ const otherItems = computed(() =>
 			!item.key.startsWith('hero_stat_') &&
 			!BRAND_KEYS.includes(item.key) &&
 			!HERO_KEYS.includes(item.key) &&
+			!PORTRAIT_KEYS.has(item.key) &&
+			item.key !== PORTRAIT_ADJUSTMENTS_KEY &&
 			!SOCIAL_KEYS.includes(item.key),
 	),
 )
@@ -206,6 +290,10 @@ const load = async () => {
 
 onMounted(load)
 
+onBeforeUnmount(() => {
+	if (portraitEditorUrl.value) URL.revokeObjectURL(portraitEditorUrl.value)
+})
+
 const isDirty = (item: SiteContent) => drafts.value[item.key] !== item.value
 const hasDirty = (list: SiteContent[]) => list.some((item) => isDirty(item))
 const isBrandItem = (item: SiteContent) => BRAND_KEYS.includes(item.key)
@@ -233,6 +321,84 @@ const saveAll = async (list: SiteContent[], successMessage: string) => {
 	}
 	if (failed) toast.error('Some changes could not be saved. Please retry.')
 	else if (saved) toast.success(successMessage)
+}
+
+const portraitItemFor = (direction: PortraitDirection) => {
+	const key = PORTRAIT_DIRECTIONS.find((item) => item.direction === direction)?.key
+	return items.value.find((item) => item.key === key)
+}
+
+const closePortraitEditor = () => {
+	const item = portraitItemFor(portraitEditorDirection.value)
+	if (item && uploading.value[item.key]) return
+	if (portraitEditorUrl.value) URL.revokeObjectURL(portraitEditorUrl.value)
+	portraitEditorOpen.value = false
+	portraitEditorFile.value = undefined
+	portraitEditorUrl.value = ''
+}
+
+const beginPortraitUpload = (direction: PortraitDirection, event: Event) => {
+	const input = event.target as HTMLInputElement
+	const file = input.files?.[0]
+	input.value = ''
+	if (!file) return
+	if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 8 * 1024 * 1024) {
+		toast.error('Choose a JPG, PNG, or WebP image up to 8 MB.')
+		return
+	}
+	if (portraitEditorUrl.value) URL.revokeObjectURL(portraitEditorUrl.value)
+	portraitEditorDirection.value = direction
+	portraitEditorFile.value = file
+	portraitEditorUrl.value = URL.createObjectURL(file)
+	portraitEditorAdjustment.value = { ...defaultPortraitAdjustment(), ...parsePortraitAdjustments()[direction] }
+	portraitEditorOpen.value = true
+}
+
+const savePortraitUpload = async () => {
+	const file = portraitEditorFile.value
+	const direction = portraitEditorDirection.value
+	const item = portraitItemFor(direction)
+	const adjustmentsItem = items.value.find((entry) => entry.key === PORTRAIT_ADJUSTMENTS_KEY)
+	if (!file || !item || !adjustmentsItem) return
+
+	uploading.value[item.key] = true
+	const result = await uploadProvider.uploadImage(file)
+	uploading.value[item.key] = false
+	if (!result.success || !result.url) {
+		toast.error(result.message || 'Portrait upload failed')
+		return
+	}
+
+	drafts.value[item.key] = result.url
+	const adjustments = parsePortraitAdjustments()
+	adjustments[direction] = { ...portraitEditorAdjustment.value }
+	drafts.value[PORTRAIT_ADJUSTMENTS_KEY] = JSON.stringify(adjustments)
+	const [imageSaved, adjustmentsSaved] = await Promise.all([
+		save(item, { silent: true }),
+		save(adjustmentsItem, { silent: true }),
+	])
+	if (imageSaved && adjustmentsSaved) {
+		toast.success(`${item.label} saved`)
+		closePortraitEditor()
+	} else {
+		toast.error('Image uploaded, but its portrait settings could not be fully saved. Please retry.')
+	}
+}
+
+const clearPortraitAngle = async (direction: PortraitDirection) => {
+	const item = portraitItemFor(direction)
+	const adjustmentsItem = items.value.find((entry) => entry.key === PORTRAIT_ADJUSTMENTS_KEY)
+	if (!item || !adjustmentsItem) return
+	drafts.value[item.key] = ''
+	const adjustments = parsePortraitAdjustments()
+	delete adjustments[direction]
+	drafts.value[PORTRAIT_ADJUSTMENTS_KEY] = JSON.stringify(adjustments)
+	const [imageSaved, adjustmentsSaved] = await Promise.all([
+		save(item, { silent: true }),
+		save(adjustmentsItem, { silent: true }),
+	])
+	if (imageSaved && adjustmentsSaved) toast.success(`${item.label} cleared`)
+	else toast.error(`Unable to clear ${item.label.toLowerCase()}`)
 }
 
 const fileAccept = (item: SiteContent) => {
@@ -325,13 +491,80 @@ const toggleBoolean = (item: SiteContent) => {
 				</button>
 			</div>
 
-			<div v-if="group.id === 'hero'" class="my-6 p-4 rounded-xl border border-brand-blue/30 bg-[#090f1b] max-w-md">
-				<p class="text-sm text-blue-200">Live portrait preview / move your mouse over the figure</p>
-				<ParticlePortrait
-					:src="drafts.hero_photo_url"
-					:density="Number(drafts.hero_particle_density) || 6"
-					:strength="Number(drafts.hero_particle_strength) || 5"
-				/>
+			<div v-if="group.id === 'hero'" class="my-6 grid xl:grid-cols-[minmax(280px,0.85fr)_minmax(440px,1.15fr)] gap-5">
+				<div class="p-4 rounded-xl border border-brand-blue/30 bg-[#090f1b]">
+					<div class="flex items-start justify-between gap-3 mb-2">
+						<div>
+							<p class="text-sm font-semibold text-blue-100">Interactive portrait preview</p>
+							<p class="text-xs text-brand-gray-500 mt-1">Move your cursor around the portrait to test each angle.</p>
+						</div>
+						<span class="font-mono text-[10px] text-brand-blueLight">9-WAY</span>
+					</div>
+					<InteractivePortrait :images="portraitImages" :adjustments="portraitAdjustments" />
+					<div class="mt-3 pt-3 border-t border-white/5">
+						<p class="text-[11px] text-brand-gray-500 mb-2">
+							Particle mode still uses the separate source photo below.
+						</p>
+						<div class="w-full rounded-lg border border-white/5 bg-[#07101d]">
+							<ParticlePortrait
+								:src="drafts.hero_photo_url || drafts.hero_portrait_center_url"
+								:density="Number(drafts.hero_particle_density) || 6"
+								:strength="Number(drafts.hero_particle_strength) || 5"
+							/>
+						</div>
+					</div>
+				</div>
+
+				<div class="p-4 rounded-xl border border-white/10 bg-white/[0.025]">
+					<div class="mb-4">
+						<p class="text-sm font-semibold text-white">Portrait angles</p>
+						<p class="text-xs text-brand-gray-500 mt-1">
+							Upload each look direction. Images stay uncropped and each one can be positioned before it is saved.
+						</p>
+					</div>
+					<div class="grid grid-cols-3 gap-2.5">
+						<div
+							v-for="angle in PORTRAIT_DIRECTIONS"
+							:key="angle.direction"
+							class="relative min-w-0 rounded-lg border border-white/10 bg-[#0b1423] overflow-hidden"
+						>
+							<div class="aspect-[4/5] grid place-items-center overflow-hidden checkerboard">
+								<img
+									v-if="portraitSourceFor(angle.direction)"
+									:src="resolveAssetUrl(portraitSourceFor(angle.direction))"
+									:alt="`${angle.label} portrait preview`"
+									:style="portraitStyleFor(angle.direction)"
+									class="w-full h-full object-contain"
+								/>
+								<span v-else class="text-[10px] text-brand-gray-600">Not set</span>
+							</div>
+							<div class="p-2 border-t border-white/5">
+								<div class="text-[10px] font-mono text-blue-200 truncate mb-2">{{ angle.label }}</div>
+								<div class="flex items-center gap-1.5">
+									<label class="btn btn-ghost !px-2 !py-1 text-[10px] cursor-pointer flex-1 text-center">
+										{{ drafts[angle.key] ? 'Replace' : 'Upload' }}
+										<input
+											type="file"
+											accept="image/jpeg,image/png,image/webp"
+											class="sr-only"
+											:aria-label="`Upload ${angle.label} portrait`"
+											@change="beginPortraitUpload(angle.direction, $event)"
+										/>
+									</label>
+									<button
+										v-if="drafts[angle.key]"
+										type="button"
+										class="w-7 h-7 grid place-items-center rounded border border-white/10 text-brand-gray-400 hover:text-white"
+										:aria-label="`Clear ${angle.label} portrait`"
+										@click="clearPortraitAngle(angle.direction)"
+									>
+										&times;
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
 			</div>
 			<div v-if="!group.items.length" class="pt-5 text-sm text-brand-gray-500">No content items in this group.</div>
 
@@ -506,5 +739,105 @@ const toggleBoolean = (item: SiteContent) => {
 				</div>
 			</div>
 		</section>
+
+		<Modal :open="portraitEditorOpen" title="Adjust portrait before upload" size="lg" @close="closePortraitEditor">
+			<div class="grid md:grid-cols-[minmax(240px,1fr)_240px] gap-6">
+				<div class="portrait-editor-preview checkerboard">
+					<img
+						v-if="portraitEditorUrl"
+						:src="portraitEditorUrl"
+						:style="portraitEditorStyle"
+						alt="New portrait preview"
+						class="block max-w-full max-h-[60vh] w-auto h-auto"
+					/>
+				</div>
+				<div class="space-y-5">
+					<div>
+						<div class="text-[10px] uppercase tracking-widest font-mono text-brand-blueLight">Look direction</div>
+						<div class="font-display font-semibold mt-1 capitalize">
+							{{ portraitEditorDirection.replace('-', ' ') }}
+						</div>
+						<p class="text-xs text-brand-gray-500 mt-2">
+							The original file is preserved. At 100% the complete portrait remains visible without cropping.
+						</p>
+					</div>
+					<label class="block">
+						<span class="label flex justify-between"
+							><span>Portrait size</span><span>{{ Math.round(portraitEditorAdjustment.scale * 100) }}%</span></span
+						>
+						<input
+							v-model.number="portraitEditorAdjustment.scale"
+							type="range"
+							min="0.7"
+							max="1"
+							step="0.01"
+							class="w-full"
+						/>
+					</label>
+					<label class="block">
+						<span class="label flex justify-between"
+							><span>Horizontal position</span><span>{{ portraitEditorAdjustment.x }}%</span></span
+						>
+						<input v-model.number="portraitEditorAdjustment.x" type="range" min="0" max="100" step="1" class="w-full" />
+					</label>
+					<label class="block">
+						<span class="label flex justify-between"
+							><span>Vertical position</span><span>{{ portraitEditorAdjustment.y }}%</span></span
+						>
+						<input v-model.number="portraitEditorAdjustment.y" type="range" min="0" max="100" step="1" class="w-full" />
+					</label>
+					<button
+						type="button"
+						class="text-xs text-brand-gray-400 hover:text-white"
+						@click="portraitEditorAdjustment = defaultPortraitAdjustment()"
+					>
+						Reset positioning
+					</button>
+				</div>
+			</div>
+			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-6 pt-5 border-t border-white/5">
+				<button
+					type="button"
+					class="btn btn-ghost"
+					:disabled="Object.values(uploading).some(Boolean)"
+					@click="closePortraitEditor"
+				>
+					Cancel
+				</button>
+				<button
+					type="button"
+					class="btn btn-primary"
+					:disabled="Object.values(uploading).some(Boolean)"
+					@click="savePortraitUpload"
+				>
+					{{ Object.values(uploading).some(Boolean) ? 'Uploading...' : 'Upload and save' }}
+				</button>
+			</div>
+		</Modal>
 	</div>
 </template>
+
+<style scoped>
+.checkerboard {
+	background:
+		linear-gradient(45deg, rgb(255 255 255 / 0.035) 25%, transparent 25%),
+		linear-gradient(-45deg, rgb(255 255 255 / 0.035) 25%, transparent 25%),
+		linear-gradient(45deg, transparent 75%, rgb(255 255 255 / 0.035) 75%),
+		linear-gradient(-45deg, transparent 75%, rgb(255 255 255 / 0.035) 75%), #0b1423;
+	background-position:
+		0 0,
+		0 8px,
+		8px -8px,
+		-8px 0;
+	background-size: 16px 16px;
+}
+.portrait-editor-preview {
+	display: grid;
+	place-items: center;
+	min-height: 320px;
+	padding: 16px;
+	overflow: visible;
+	border: 1px solid rgb(255 255 255 / 0.1);
+	border-radius: 12px;
+}
+</style>

@@ -1,0 +1,9 @@
+model GameScore {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @db.VarChar(24)
+  score     Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([score(sort: Desc), createdAt(sort: Asc)])
+  @@map("game_score")
+}

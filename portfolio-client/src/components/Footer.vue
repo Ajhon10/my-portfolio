@@ -14,7 +14,7 @@ onMounted(async () => {
 	}
 })
 
-const email = computed(() => raw.value.hero_email || 'itsajhon@gmail.com')
+const email = computed(() => raw.value.hero_email || 'no email was set')
 
 const socialLinks = computed(() => [
 	{ key: 'social_github',    label: 'GitHub',    icon: 'github'    },

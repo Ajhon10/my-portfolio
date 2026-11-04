@@ -55,81 +55,95 @@ const scrollToBottom = async () => {
 	if (listEl.value) listEl.value.scrollTop = listEl.value.scrollHeight
 }
 
+const onSocketDisconnect = () => {
+	adminOnline.value = false
+	adminTyping.value = false
+}
+const onSocketConnect = () => socket?.emit('chat:sync')
+const onChatState = (state: { messages: ChatbotMessage[]; takeover: boolean; admin: any }) => {
+	adminTakenOver.value = state.takeover
+	adminInfo.value = state.admin
+	for (const message of state.messages) {
+		if (message.role !== ChatbotMessageRole.ADMIN || store.messages.some((item) => item.id === message.id)) continue
+		store.messages.push(message)
+	}
+	store.messages.sort((a, b) => Date.parse(a.createdAt || '') - Date.parse(b.createdAt || ''))
+	void scrollToBottom()
+}
+const onAdminPresence = ({ online }: { online: boolean }) => {
+	adminOnline.value = online
+}
+const onAdminTakeover = ({ takeover, admin }: { takeover: boolean; admin: any }) => {
+	adminTakenOver.value = takeover
+	adminInfo.value = takeover ? admin : null
+}
+const onChatMessage = (msg: any) => {
+	// Skip messages we already have (by id)
+	if (store.messages.find((m) => m.id === msg.id)) return
+
+	// USER messages we sent ourselves: just stamp the local copy with the server id.
+	if (msg.role === 'USER') {
+		const localUnsent = [...store.messages]
+			.reverse()
+			.find((m) => m.role === ChatbotMessageRole.USER && !m.id && m.content === msg.content)
+		if (localUnsent) {
+			localUnsent.id = msg.id
+			return
+		}
+	}
+
+	// Only push ADMIN messages from the socket. Bot replies (ASSISTANT) are added
+	// via the HTTP response in send() — pushing them here too would double up because
+	// content-based dedup is unreliable for repeated fallback strings.
+	if (msg.role === 'ADMIN') {
+		store.messages.push({
+			id: msg.id,
+			role: ChatbotMessageRole.ADMIN,
+			content: msg.content,
+			senderName: msg.senderName,
+			senderAvatar: msg.senderAvatar,
+			createdAt: msg.createdAt,
+		})
+		scrollToBottom()
+	}
+}
+const onChatTyping = ({ sender, typing }: { sender: 'admin' | 'visitor'; typing: boolean }) => {
+	if (sender === 'admin') {
+		adminTyping.value = typing
+		scrollToBottom()
+	}
+}
+const onAdminLeft = () => {
+	adminTakenOver.value = false
+	adminInfo.value = null
+	adminTyping.value = false
+}
+
 const connectSocket = () => {
 	const sid = store.ensureSession()
 	if (socket) return
 	socket = connectVisitorSocket(sid)
-	socket.on('disconnect', () => {
-		adminOnline.value = false
-		adminTyping.value = false
-	})
-	socket.on('chat:state', (state: { messages: ChatbotMessage[]; takeover: boolean; admin: any }) => {
-		adminTakenOver.value = state.takeover
-		adminInfo.value = state.admin
-		for (const message of state.messages) {
-			if (message.role !== ChatbotMessageRole.ADMIN || store.messages.some((item) => item.id === message.id)) continue
-			store.messages.push(message)
-		}
-		store.messages.sort((a, b) => Date.parse(a.createdAt || '') - Date.parse(b.createdAt || ''))
-		void scrollToBottom()
-	})
-
-	socket.on('admin:presence', ({ online }: { online: boolean }) => {
-		adminOnline.value = online
-	})
-
-	socket.on('chat:admin-takeover', ({ takeover, admin }: { takeover: boolean; admin: any }) => {
-		adminTakenOver.value = takeover
-		adminInfo.value = takeover ? admin : null
-	})
-
-	socket.on('chat:message', (msg: any) => {
-		// Skip messages we already have (by id)
-		if (store.messages.find((m) => m.id === msg.id)) return
-
-		// USER messages we sent ourselves: just stamp the local copy with the server id.
-		if (msg.role === 'USER') {
-			const localUnsent = [...store.messages]
-				.reverse()
-				.find((m) => m.role === ChatbotMessageRole.USER && !m.id && m.content === msg.content)
-			if (localUnsent) {
-				localUnsent.id = msg.id
-				return
-			}
-		}
-
-		// Only push ADMIN messages from the socket. Bot replies (ASSISTANT) are added
-		// via the HTTP response in send() — pushing them here too would double up because
-		// content-based dedup is unreliable for repeated fallback strings.
-		if (msg.role === 'ADMIN') {
-			store.messages.push({
-				id: msg.id,
-				role: ChatbotMessageRole.ADMIN,
-				content: msg.content,
-				senderName: msg.senderName,
-				senderAvatar: msg.senderAvatar,
-				createdAt: msg.createdAt,
-			})
-			scrollToBottom()
-		}
-	})
-
-	socket.on('chat:typing', ({ sender, typing }: { sender: 'admin' | 'visitor'; typing: boolean }) => {
-		if (sender === 'admin') {
-			adminTyping.value = typing
-			scrollToBottom()
-		}
-	})
-
-	socket.on('chat:admin-left', () => {
-		adminTakenOver.value = false
-		adminInfo.value = null
-		adminTyping.value = false
-	})
+	socket.on('connect', onSocketConnect)
+	socket.on('disconnect', onSocketDisconnect)
+	socket.on('chat:state', onChatState)
+	socket.on('admin:presence', onAdminPresence)
+	socket.on('chat:admin-takeover', onAdminTakeover)
+	socket.on('chat:message', onChatMessage)
+	socket.on('chat:typing', onChatTyping)
+	socket.on('chat:admin-left', onAdminLeft)
+	if (socket.connected) socket.emit('chat:sync')
 }
 
 const disconnectSocket = () => {
 	if (typingTimeout) clearTimeout(typingTimeout)
+	socket?.off('connect', onSocketConnect)
+	socket?.off('disconnect', onSocketDisconnect)
+	socket?.off('chat:state', onChatState)
+	socket?.off('admin:presence', onAdminPresence)
+	socket?.off('chat:admin-takeover', onAdminTakeover)
+	socket?.off('chat:message', onChatMessage)
+	socket?.off('chat:typing', onChatTyping)
+	socket?.off('chat:admin-left', onAdminLeft)
 	disconnectVisitorSocket()
 	socket = null
 }

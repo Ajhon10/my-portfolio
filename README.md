@@ -167,6 +167,10 @@ Socket.IO is used for:
 
 ## Deployment
 
+To host the Vue frontend on Cloudflare while keeping the NestJS API on its
+existing Node-compatible host, follow the
+[step-by-step Cloudflare Workers guide](docs/cloudflare-deployment.md).
+
 Start with the [step-by-step Vercel + Neon walkthrough](docs/vercel-step-by-step.md)
 for a free PostgreSQL alternative to Render, account setup, environment variables
 and database initialization. Current free-plan limits and Vercel eligibility are

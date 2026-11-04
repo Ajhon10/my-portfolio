@@ -8,10 +8,15 @@ export function restoreSubscriptions(socket: Socket, role: 'admin' | 'client' | 
 	socket.onAnyOutgoing((event: string, body?: any) => {
 		if (typeof body?.sessionId === 'string') {
 			if (event === 'chat:admin-watch') watched.add(body.sessionId)
-			if (event === 'chat:admin-unwatch') { watched.delete(body.sessionId); takeovers.delete(body.sessionId) }
+			if (event === 'chat:admin-unwatch') {
+				watched.delete(body.sessionId)
+				takeovers.delete(body.sessionId)
+			}
 			if (event === 'chat:admin-takeover') {
-				if (body.takeover) { watched.add(body.sessionId); takeovers.add(body.sessionId) }
-				else takeovers.delete(body.sessionId)
+				if (body.takeover) {
+					watched.add(body.sessionId)
+					takeovers.add(body.sessionId)
+				} else takeovers.delete(body.sessionId)
 			}
 		}
 		if (typeof body?.requestId === 'string') {
@@ -24,6 +29,5 @@ export function restoreSubscriptions(socket: Socket, role: 'admin' | 'client' | 
 		for (const sessionId of takeovers) socket.emit('chat:admin-takeover', { sessionId, takeover: true })
 		for (const requestId of projects) socket.emit('project-chat:join', { requestId })
 		if (role === 'admin') socket.emit('visitor:list-request')
-		if (role === 'visitor') socket.emit('chat:sync')
 	})
 }
