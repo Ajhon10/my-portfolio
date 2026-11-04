@@ -6,7 +6,9 @@ import { computed } from 'vue'
 const props = defineProps<{ project: Project }>()
 
 const { resolveAssetUrl } = useSiteBranding()
-const imgSrc = computed(() => resolveAssetUrl(props.project.thumbnailUrl || ''))
+const imgSrc = computed(() =>
+	resolveAssetUrl(props.project.thumbnailUrl || props.project.images?.[0]?.url || ''),
+)
 </script>
 
 <template>

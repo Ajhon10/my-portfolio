@@ -170,7 +170,7 @@ export interface ChatbotTag {
 }
 
 export interface ChatbotMessage {
- references?: Array<{ title: string; href: string }>
+	references?: Array<{ title: string; href: string }>
 	id?: string
 	role: ChatbotMessageRole
 	content: string
@@ -193,6 +193,30 @@ export interface SiteContent {
 	key: string
 	label: string
 	value: string
+	createdAt?: string
+	updatedAt?: string
+}
+
+export interface GameScore {
+	id: string
+	name: string
+	score: number
+	createdAt: string
+}
+
+export interface Gear {
+	id: string
+	name: string
+	brand: string
+	category: string
+	description: string
+	specifications: string
+	imageUrl: string
+	altText: string
+	productUrl: string
+	featured: boolean
+	published: boolean
+	sortOrder: number
 	createdAt?: string
 	updatedAt?: string
 }
