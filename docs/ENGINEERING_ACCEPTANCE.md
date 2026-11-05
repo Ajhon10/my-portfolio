@@ -157,3 +157,20 @@ Private evidence: .wrangler/private/import-recovery-2026-11-05.private.json.
 This verifies remote database restoration, not application deployment or traffic
 capacity. One imported owner still requires password reset. The full Worker and
 secret deployment remains a separate setup step.
+
+## Owner password prompt repair: 5 November 2026
+
+The former CLI closed its email reader and opened a second invisible password
+reader. The helper now keeps one input reader, renders asterisks for the password,
+asks for confirmation and disables readline history. It restores terminal mode
+on completion/cancellation, rejects interactive secret entry on a non-terminal,
+and preserves the existing environment-variable automation path. Password
+validation, PBKDF2 work factor and account/session database operations are unchanged.
+
+Seven targeted input tests passed: email-to-password transition, masking,
+backspace, confirmation mismatch, cancellation, history isolation, automation
+and noninteractive failure behavior. A Windows PowerShell PTY probe completed
+email, masked password and confirmation using fake credentials and exited
+successfully without accessing a database. No real owner password was entered,
+displayed, reset or recorded by this repair. The owner's uncommitted D1 ID is
+preserved when applying the fix to the local setup branch.

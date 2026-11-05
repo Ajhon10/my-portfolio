@@ -248,8 +248,15 @@ npm.cmd run owner:create -- --remote --reset
 ```
 
 Enter the existing owner email and choose a new password of 12–128 characters.
-Entry is hidden. This updates that account and revokes sessions; it does not
-create a duplicate owner.
+Press Enter after the email. At **New password**, type or paste your password;
+the updated prompt displays asterisks instead of the actual characters. Press
+Enter, then enter the same password at **Confirm password** and press Enter again.
+This updates that account and revokes sessions; it does not create another owner.
+
+If an older prompt is stuck, press Ctrl+C and rerun after updating the helper.
+Run it directly in PowerShell or the VS Code terminal; do not pipe input into
+the interactive password prompt. A confirmation mismatch or Ctrl+C cancels input
+before the database update. Keep your password in the terminal, not chat/GitHub.
 
 The old Argon2 credential cannot authenticate in this runtime, so copying records
 does not preserve the old login password. Authenticator setup was explicitly

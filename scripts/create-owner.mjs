@@ -1,29 +1,8 @@
-import { createInterface } from 'node:readline/promises'
-import { Writable } from 'node:stream'
 import { pbkdf2Sync, randomBytes, randomUUID } from 'node:crypto'
 import { executeSql, insertSql, literal, queryD1 } from './lib.mjs'
-const terminal = createInterface({ input: process.stdin, output: process.stdout })
-const email = (process.env.OWNER_EMAIL || (await terminal.question('Owner email: '))).trim().toLowerCase()
+import { readOwnerInput } from './owner-prompt.mjs'
 const reset = process.argv.includes('--reset')
-const firstName = reset ? 'existing' : process.env.OWNER_FIRST_NAME || (await terminal.question('First name: '))
-const lastName = reset ? 'existing' : process.env.OWNER_LAST_NAME || (await terminal.question('Last name: '))
-let password = process.env.OWNER_PASSWORD
-if (!password) {
-	terminal.close()
-	process.stdout.write('Password (hidden): ')
-	const hidden = createInterface({
-		input: process.stdin,
-		output: new Writable({
-			write(_chunk, _encoding, callback) {
-				callback()
-			},
-		}),
-		terminal: true,
-	})
-	password = await hidden.question('')
-	hidden.close()
-	process.stdout.write('\n')
-} else terminal.close()
+let { email, firstName, lastName, password } = await readOwnerInput({ reset })
 if (
 	!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
 	!firstName.trim() ||
