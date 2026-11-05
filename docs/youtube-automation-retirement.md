@@ -1,3 +1,5 @@
+Current platform: integrated Vue + Workers + D1. Original design notes below describe earlier implementation history; see cloudflare-unified-architecture.md for the approved migration.
+
 # YouTube automation removal
 
 AI YouTube Automation was removed from the portfolio on 2026-09-28. Its admin page, navigation, API endpoints, machine callbacks, background scheduler, providers, types, and feature-specific configuration declarations are no longer part of the application. The portfolio chatbot and YouTube social profile link remain independent features.

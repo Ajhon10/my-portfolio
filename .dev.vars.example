@@ -1,0 +1,7 @@
+# Generate a private local value with: node scripts/setup-local.mjs
+AUTH_SECRET=replace-with-a-random-32-byte-secret
+# Optional integrations; leave empty to use grounded chatbot fallback and queued mail.
+OPENAI_API_KEY=
+MAIL_API_TOKEN=
+MAIL_FROM=
+MAIL_TO=

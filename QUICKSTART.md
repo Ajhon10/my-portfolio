@@ -1,149 +1,17 @@
-# Quick Start - MY PORTFOLIO
+# Quick start
 
-Use this when setting up the project locally.
+Run commands from the repository root with Node 22.14+:
 
-## 1. Backend
-
-```bash
-cd portfolio-server
-npm install
-cp .env.example .env
-```
-
-Update `.env`, especially:
-
-```env
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
-APP_DOMAIN=http://localhost:5173
-ACCESS_TOKEN_SECRET=change-me
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-5.6-luna
-MAIL_HOST=
-MAIL_PORT=
-MAIL_USER=
-MAIL_PASS=
-```
-
-Create the key in the OpenAI Platform and keep it in the backend `.env` only. See [OpenAI API setup](docs/openai-api-setup.md) for key creation, model choices, pricing, testing, and troubleshooting.
-
-Run migrations and seed data:
-
-```bash
-npx prisma migrate dev --schema ./src/database/schema
-npm run migrate:seed
-```
-
-Start the API:
-
-```bash
-npm run start:dev
-```
-
-Backend: `http://localhost:3000/api`
-
-Swagger: `http://localhost:3000/docs`
-
-## 2. Frontend
-
-```bash
-cd portfolio-client
-npm install
-```
-
-Create `.env.local`:
-
-```env
-VITE_API_ENDPOINT=http://localhost:3000/api
-```
-
-Start the app:
-
-```bash
+```sh
+npm ci
+npm run setup
+npm run owner:create
 npm run dev
 ```
 
-Frontend: `http://localhost:5173`
+For this workstation's restored database, use `npm run owner:create -- --reset`
+with the existing owner email instead of creating another account. Choose a new
+password and enroll an authenticator on login. Keep `.dev.vars` private.
 
-## 3. Login
-
-```text
-Email: admin@portfolio.local
-Password: Admin@123456
-```
-
-## 4. First Admin Tasks
-
-1. Go to Admin > Site Content.
-2. Update Branding: logo, favicon, browser title, meta description.
-3. Update Hero Section content.
-4. Add social links.
-5. Review tech stack seed data in Admin > Tech Stack.
-6. Add projects, experience, and certifications.
-7. Test the public inquiry form.
-8. In Admin > Client Requests, create a client account for an inquiry if project chat is needed.
-
-## 5. Useful Checks
-
-```bash
-cd portfolio-client
-npm run build
-
-cd ../portfolio-server
-npm run build
-```
-
-## 6. Deployment Notes
-
-Vercel:
-
-```text
-Root directory: portfolio-client
-Build command: npm run build
-Output directory: client-dist
-VITE_API_ENDPOINT=https://your-backend.onrender.com/api
-```
-
-Render:
-
-```text
-Root directory: portfolio-server
-Build command: npm install && npx prisma generate --schema ./src/database/schema && npm run build
-Start command: npx prisma migrate deploy --schema ./src/database/schema && npm run start:prod
-```
-
-After deployment, run or trigger:
-
-```bash
-npm run migrate:seed
-```
-
-This ensures baseline tech stack, site content, chatbot tags, and admin user data exist.
-
-## Troubleshooting
-
-### Watch mode reports zero errors but cannot find `dist/main`
-
-Keep `compilerOptions.tsBuildInfoFile` set to `./dist/tsconfig.build.tsbuildinfo` in `portfolio-server/tsconfig.build.json`. Nest clears `dist` before compiling; the incremental cache must be cleared with it so TypeScript emits the application files again. After changing this setting, stop the old watcher with `Ctrl+C` and run `npm run start:dev` again.
-
-### Missing database columns
-
-Run:
-
-```bash
-cd portfolio-server
-npx prisma migrate deploy --schema ./src/database/schema
-```
-
-### Logo, favicon, or uploads not loading in production
-
-Check:
-- `VITE_API_ENDPOINT` points to the Render API URL.
-- Render serves `/uploads`.
-- Uploaded file URL exists in Site Content.
-
-### Socket/realtime not working
-
-Check:
-- Backend is restarted after gateway changes.
-- Frontend `VITE_API_ENDPOINT` uses the same backend host.
-- The logged-in user has the right role.
+[Cloudflare deployment and restoration instructions](docs/cloudflare-deployment.md)
+include remote D1 setup, private data import and account provisioning.

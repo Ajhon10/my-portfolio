@@ -1,87 +1,101 @@
-# Deployment engineering acceptance
+# Unified portfolio verification
 
-Date: 20 October 2026 (Asia/Manila).
-Source: working-tree changes over `1c5ad5dfb45dae528765ba7d9dc8e10c8ef56923`;
-not committed or deployed by this task.
-Scope: adapt MY_PORTFOLIO for separate Vue/Vite and NestJS Vercel projects.
-Stack: existing TypeScript, Vue 3, NestJS 10, Prisma 5, PostgreSQL.
-Local runtime: Windows, Node.js 22.21.0. Added Blob SDK 2.8.2, Socket.IO Redis
-adapter 8.3.0 and ioredis 6.0.0 with checked-in npm lockfiles.
-Architecture: see `vercel-architecture.md`.
-Users: public visitors, CLIENT accounts, ADMIN and OWNER CMS accounts.
-Data: account credentials, inquiries and chat are private database records;
-portfolio images and certificates uploaded to public Blob storage are public.
-Operator/reviewer: user; external services and domain choices remain open.
-Workload/latency/cost/RPO/RTO objectives: not supplied; no capacity claim is made.
+Recorded 5 November 2026. Branch: `feat/cloudflare-unified`. Original source
+commit: `f0af8e64d204031748b6293083e2166ada341049`.
 
-| Area | Implementation | Local evidence | Deployment / acceptance |
-| --- | --- | --- | --- |
-| Vercel app configuration | Separate roots, locked installs, native NestJS/Vite settings, frontend SPA rewrite | Both npm builds pass; actual Vercel builder/account untested | Not deployed |
-| Durable uploads and upload authorization | Direct browser-to-Blob uploads; scoped 5-minute tokens; owner/admin guards; project/metadata verification; local development fallback | HTTP authorization and local multipart tests pass; real SDK token signing tested offline; Blob metadata mocked | Live Blob checks and existing-file transfer pending |
-| Distributed realtime and reconnect | Redis adapter; global room queries; shared notification routing; WebSocket transport; client subscription/history recovery | Actual local NestJS/Socket.IO handshake, takeover/disconnect and history tests pass; remote-instance query results tested with adapter stubs; frontend replay tests pass | Live Redis and multi-instance Vercel checks pending; WebSocket support is beta |
-| PostgreSQL generation and release migrations | Explicit generation/build and direct-connection migration command; no automatic preview migration | Prisma 5.22 generation and backend build pass; migration wrapper passes Node syntax check | No cloud database connection or migration executed; backup/restore pending |
-| Security and dependency checks | Upload token role/scope enforcement; live socket role lookup; credential-free environment errors; production seed requires supplied owner credentials | Anonymous/client upload denial, deleted socket account and stale token role tests pass; runtime audits compared with original lockfiles | Pre-existing dependency findings unresolved; production release not accepted |
-| Existing application regressions | Existing stack retained | Existing chatbot/context/photography suites pass; frontend type-check and bundle pass | Full browser/device/mail/cloud acceptance pending |
+## Release state
 
-## Executed checks
+| State | Evidence |
+| --- | --- |
+| Implemented | One Vue/Workers root package, same-origin API/uploads/WebSocket, D1 SQL schema and SQLite Durable Object. Original Vue design and CMS/client features retained. |
+| Locally verified | TypeScript checks, build, 3 subscription tests, 79 Worker integration checks, browser flows and read-only production preview passed. |
+| Data restored locally | 184 PostgreSQL records across 20 models and 14 media files restored to local D1. Original PostgreSQL was read only. |
+| Deploy package checked | Wrangler dry run: 389.10 KiB raw, 84.77 KiB gzip; D1, SQLite DO and Assets bindings only. No remote write or deployment. |
+| Deployed | Not performed. Real D1 ID, runtime AUTH_SECRET and remote database import/provisioning remain account setup steps. |
+| Workload accepted | Not established. Remote CPU, traffic/connection capacity, quota consumption, latency, retention, RPO/RTO and recovery timing require account/workload evidence. |
 
-- Backend `npm.cmd run build:vercel`: PASS (Prisma generation and Nest build).
-- Backend `npm.cmd test -- --runInBand`: PASS, 8 suites / 44 tests.
-- Frontend `npm.cmd run build`: PASS (Vue type-check and Vite production bundle).
-- Frontend `npm.cmd test`: PASS, 3 subscription-recovery tests.
-- `node --check scripts/migrate.cjs`: PASS; no database mutation performed.
-- `git diff --check`: PASS. Git reports existing LF/CRLF conversion warnings.
-- Both Vercel configuration files parse as JSON. Full validation against the live
-  Vercel JSON Schema is inconclusive: its draft-04 declaration conflicts with
-  numeric `exclusiveMinimum` in unused experimental-trigger definitions. The
-  standalone Vercel build remains a required cloud check.
+## Full user flow
 
-The HTTP tests use synthetic owner/client JWTs and a fake database. Local
-WebSocket integration uses the actual Nest gateway, Socket.IO server/client and
-the adapter's single-process development mode. It does not connect to Redis.
-Distributed room tests inject remote socket results; they do not prove Redis
-Pub/Sub delivery, Vercel upgrade routing or behavior under production traffic.
-Visitor reconnect sync recovers stored administrator replies; project and admin
-views reload their selected stored conversations. No capacity tests were run.
+The portfolio visitor loads the Vue page, reads published D1 content and uploaded
+assets, submits an inquiry or question to its own Worker, and receives persisted
+responses. An authenticated owner manages the CMS and responds to visitor/client
+chat through the same deployment.
 
-Initial checks exposed an optional timestamp type error (fixed), missing
-reflection metadata in a test fixture (fixed), and a test transpilation target
-that could not iterate Sets (corrected to ES2021). The sandbox initially denied
-esbuild's ancestor-directory lookup; the normal frontend build passed when run
-with the required filesystem access. Final check results are listed above.
+| Boundary | Local evidence |
+| --- | --- |
+| UI renders | Desktop 1440×1000 and mobile 390×844 screenshots; restored portrait and live viewer indicator render; no horizontal overflow. |
+| UI → API | Actual inquiry, chatbot and login forms submit successfully; all 11 admin routes load with zero API failures. |
+| API → D1 | Inquiry and both chat turns counted in isolated D1; a CMS-created technology survives page reload. |
+| Data → response | Role/ownership, draft privacy, safe account projections, bound input validation and response envelopes exercised by integration checks. |
+| Response → UI | Chat answer appears, inquiry succeeds, owner reaches dashboard, saved CMS row renders after reload. |
+| Built deployment | Wrangler preview serves the actual compiled app against restored local data; 3 published projects and 3 project media reads succeed with no local HTTP errors or browser exceptions. |
 
-## Dependency audit remains open
+Browser fixture evidence: `.test-artifacts/browser-f2637e3e-0135-4d72-b942-783ee52a25b0/`.
+Built/restored preview evidence: `.test-artifacts/production-preview/`.
+These local artifacts and database files are deliberately ignored by Git.
 
-Runtime-only npm audits were compared against the original Git lockfiles:
+## Integration and security evidence
 
-| App | Original | Updated | New vulnerable package names |
-| --- | --- | --- | --- |
-| Backend | 26: 1 low, 12 moderate, 12 high, 1 critical | Same | None |
-| Frontend | 10: 1 moderate, 9 high | Same | None |
+`npm test` passes three subscription tests and 79 isolated workerd/D1/DO checks:
+owner/admin/client boundaries; public registration rejection; safe profiles;
+last-owner protection; draft isolation; client request/chat ownership; private
+notification isolation; initial authenticator enrollment, credential binding,
+challenge single use and TOTP replay rejection; password changes and logout
+revoking sessions and live sockets; atomic rollback on invalid relationships;
+live visitor lookup, takeover/suppression and administrator reply delivery;
+authenticated project room delivery; file signature/type checks, cross-chunk
+range reads, upload roles and reference-protected media deletion; cross-origin
+write rejection; idempotent public seeding and local chatbot fallback.
 
-The backend critical finding names `proxy-addr`; the audit reports a fix is
-available. These counts describe npm advisory results, not an exploitability
-assessment. The dependency remediation and associated regression checks are
-unresolved release work; no exception or production approval is claimed.
+Strong PBKDF2-SHA256 (600,000 iterations) and QR generation run inside the Durable
+Object. Opaque session hashes are stored in D1. Sessions and live authorization
+recheck current user/account state. MFA secrets use AES-GCM; challenge claims
+also bind to the current credential. Last-owner triggers and D1 batches preserve
+database invariants independently of UI checks. Uploads are bounded and committed
+atomically, with 512 KiB chunks and a 256 MiB media budget. Unused media cleanup
+refuses any reference in content, galleries, avatars or chat history.
 
-## Dependency and source identity
+The complete npm audit reported zero known vulnerabilities after updating Zod
+and aligning Miniflare with the patched Wrangler runtime. The final production
+build succeeds. Rollup removes two misplaced PURE comments inside upstream Zod;
+these are annotation warnings, not build failures.
 
-SHA-256 of the tested lockfiles:
+## Recovery evidence
 
-- `portfolio-client/package-lock.json`: `914972d11ce5905bcc5094d077ac57cad78d1684c7e657e7263dd16e01d73f2c`
-- `portfolio-server/package-lock.json`: `3a2fe6b2fba19f61ba0c84db19de6fdc692be0708fa31ba0484011fc0dbea3ea`
+A repeatable-read, read-only PostgreSQL export captured all 20 source models.
+`scripts/test-migration.mjs` rehearsed the prepared SQL in isolated D1 and verified
+all table counts, foreign keys, every imported file's SHA-256 and reset flags.
+The same SQL was applied locally; it was not applied remotely. One already-missing
+thumbnail reference uses an available gallery image, recorded in the private
+report. JSON site-content image lists were rewritten with their imported URLs.
 
-The source state is an uncommitted working tree, not a signed release artifact.
-Combined source SHA-256: `e98f7a65886d637fe078570e4e467a12cb9ab6df30c36ea5fe6d88a331da0d04`
-(225 unique files: both `src` trees, both package manifests/lockfiles and Vercel
-configs, the migration wrapper, and the frontend reconnect test; sorted normalized
-paths, each path and its bytes separated by NUL).
+The original Git bundle cloned successfully at the recorded source commit and
+passed `git fsck --full` (an existing dangling commit is informational). Every
+original environment/upload ZIP entry matched its recorded hash. The prepared
+Cloudflare restore ZIP passed CRC checks; snapshot/archive SHA-256 values are in
+the private backup manifest. Original source folders, including their local
+configuration and dependencies, are preserved intact under the private backup's
+`retired-source/` directory. No source folder was irreversibly deleted.
 
-Provisioning, production migration, existing-file transfer, live smoke checks,
-rollback rehearsal, backup restoration and workload acceptance remain explicit
-operator steps. Local builds and synthetic tests do not establish those states.
+The backup is `BACKUPS/MY_PORTFOLIO-before-cloudflare-2026-11-05` in this workspace,
+outside the repository. It contains private records/configuration and must never
+be uploaded to public Git. It is on the same disk; independent-device recovery
+has not been established.
 
-Release state: implemented and locally verified for the stated scope; **not
-deployed and not accepted under production workload**. Production release also
-requires dependency remediation. No cloud resource, production migration or
-existing-upload transfer was executed.
+## Remaining deployment/acceptance steps
+
+Follow [Cloudflare setup and recovery](cloudflare-deployment.md). Replace the
+placeholder D1 ID, apply remote schema/import, configure a unique runtime secret,
+reset imported passwords, enroll authenticators and verify remote behavior before
+traffic cutover. Legacy Argon2 accounts intentionally cannot sign in until reset.
+The original PostgreSQL database remains available for rollback.
+
+Core functionality was verified without external AI/email credentials. Live
+OpenAI requests, Resend delivery, provider billing/limits and scheduled production
+execution were not tested. Saved/queued email is distinguished from delivered
+email. Free hosting does not include a promise of free optional provider usage.
+
+Local tests do not measure the Free Worker's 10 ms CPU allowance or prove traffic
+capacity. Observe production CPU, D1 read/write/storage quotas and Durable Object
+requests/connections. Confirm retention, maintenance and backup objectives with
+real workload evidence. No paid product was provisioned.

@@ -1,4 +1,0 @@
-.env*
-client-dist/
-coverage/
-.git/

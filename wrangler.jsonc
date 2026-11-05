@@ -1,0 +1,26 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "my-portfolio",
+	"main": "worker/index.ts",
+	"compatibility_date": "2026-07-30",
+	"compatibility_flags": ["nodejs_compat"],
+	"assets": {
+		"directory": "./dist/client",
+		"binding": "ASSETS",
+		"not_found_handling": "single-page-application",
+		"run_worker_first": ["/api/*", "/uploads/*", "/socket"],
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "portfolio",
+			"database_id": "00000000-0000-0000-0000-000000000000",
+			"migrations_dir": "migrations",
+		},
+	],
+	"durable_objects": { "bindings": [{ "name": "PORTFOLIO_HUB", "class_name": "PortfolioHub" }] },
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["PortfolioHub"] }],
+	"vars": { "SESSION_HOURS": "8", "OPENAI_MODEL": "gpt-4o-mini" },
+	"triggers": { "crons": ["*/15 * * * *"] },
+	"observability": { "enabled": true, "head_sampling_rate": 0.1 },
+}
