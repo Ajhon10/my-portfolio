@@ -1,0 +1,68 @@
+Historical pre-conversion document. Current setup: ../cloudflare-deployment.md.
+
+MY PORTFOLIO - DELIVERY SUMMARY
+===============================
+
+Project: Full-stack portfolio CMS and client portal
+Date: 2026-05-04
+Status: Full-stack implementation active and buildable
+
+Delivered
+---------
+
+Frontend:
+- Vue 3 public portfolio site.
+- Home page with hero, about, tech stack, projects, experience, certifications, and inquiry form.
+- Projects listing and detail views.
+- Admin CMS for projects, tech stack, experience, certifications, client requests, chatbot, site content, users, and profile.
+- Site Content editor grouped into Branding, Hero Section, Other Site Content, and Social Media Links.
+- Dynamic logo, favicon, browser title, and meta description.
+- Client portal with inquiry management and realtime project chat.
+- Chatbot widget and admin live conversation tools.
+
+Backend:
+- NestJS API with Prisma/PostgreSQL.
+- Auth with OWNER, ADMIN, and CLIENT roles.
+- Projects, tech stack, experience, certifications, site content, users, notifications, chatbot, and client request modules.
+- Client account creation from inquiries.
+- Project chat message storage and access control.
+- Socket.IO gateway for notifications, live chatbot, new inquiry events, project chat, and typing indicators.
+- Upload endpoints for images, site assets, certifications, and project images.
+- Prisma migrations and seed data.
+
+Deployment Targets
+------------------
+
+Frontend:
+- Vercel
+- Root directory: portfolio-client
+- Build command: npm run build
+- Output directory: client-dist
+- Required env: VITE_API_ENDPOINT
+
+Backend:
+- Render
+- Root directory: portfolio-server
+- Build: npm install, Prisma generate, Nest build
+- Start: Prisma migrate deploy, then npm run start:prod
+
+Verification
+------------
+
+The latest client and server builds passed:
+
+cd portfolio-client
+npm run build
+
+cd portfolio-server
+npm run build
+
+Recommended Next Steps
+----------------------
+
+1. Restart backend after server changes.
+2. Apply migrations in production.
+3. Run seed data after deployment.
+4. Configure production environment variables.
+5. Replace the default admin password.
+6. Add E2E tests for inquiry, client portal, and realtime chat.

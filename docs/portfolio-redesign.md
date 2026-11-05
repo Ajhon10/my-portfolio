@@ -1,3 +1,5 @@
+Current platform: integrated Vue + Workers + D1. Original design notes below describe earlier implementation history; see cloudflare-unified-architecture.md for the approved migration.
+
 # Portfolio redesign
 
 Reference: https://www.gazijarin.com/ / character portrait interaction and personal editorial presentation, implemented with original blue styling.

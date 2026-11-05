@@ -1,0 +1,12 @@
+CREATE TRIGGER keep_last_owner_update BEFORE UPDATE OF role,deleted ON "user"
+WHEN OLD.role='OWNER' AND OLD.deleted=0 AND (NEW.role<>'OWNER' OR NEW.deleted<>0)
+BEGIN
+ SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM "user" WHERE role='OWNER' AND deleted=0 AND id<>OLD.id)
+ THEN RAISE(ABORT,'LAST_OWNER') END;
+END;
+CREATE TRIGGER keep_last_owner_delete BEFORE DELETE ON "user"
+WHEN OLD.role='OWNER' AND OLD.deleted=0
+BEGIN
+ SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM "user" WHERE role='OWNER' AND deleted=0 AND id<>OLD.id)
+ THEN RAISE(ABORT,'LAST_OWNER') END;
+END;

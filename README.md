@@ -1,208 +1,40 @@
-# MY PORTFOLIO
+# Jhon's portfolio
 
-A full-stack portfolio system for Jhon Lisley Jeresano with a public portfolio site, admin CMS, AI chatbot, certifications, client inquiry flow, and realtime project chat.
+One integrated Vue 3 + TypeScript application deployed to Cloudflare Workers
+with D1 and a SQLite Durable Object. The public design, admin CMS, owner/admin/
+client roles, authenticator login, project inquiries/chat, chatbot with live
+takeover, photography, gears, certifications and portfolio game are retained.
 
-## Features
+There are no separately deployed client/server applications. Run commands at
+the repository root; Vue lives in `src/`, HTTP/live backend code in `worker/`,
+and database migrations in `migrations/`.
 
-### Public Site
-- Home page with hero, about, tech stack, featured projects, experience, certifications, and contact inquiry form.
-- Project listing and project detail pages.
-- Certifications section on the home page, managed from the admin CMS.
-- AI chatbot widget with knowledge base and portfolio context.
-- Dynamic branding from Site Content: logo, logo text, favicon, browser title, and meta description.
-
-### Admin CMS
-- Dashboard for portfolio overview.
-- Projects CMS with images and tech stack assignments.
-- Tech Stack CMS with icons, categories, proficiency, and sort order.
-- Experience CMS.
-- Certifications CMS with image/PDF certificate upload.
-- Client Requests CMS with status management, email replies, client account creation, realtime inquiry notifications, and realtime project chat.
-- Chatbot knowledge base and live conversation tools.
-- Site Content CMS grouped into Branding, Hero Section, Other Site Content, and Social Media Links.
-- Owner-only user management and profile/security settings.
-- Backend OpenAI API setup and model guidance. See `docs/openai-api-setup.md`.
-
-### Client Portal
-- Clients can sign in after an admin creates their client account.
-- Clients can submit project inquiries from their portal.
-- Clients can chat with the admin in real time, including typing indicators.
-
-## Tech Stack
-
-### Frontend
-- Vue 3, TypeScript, Vite
-- Tailwind CSS
-- Pinia
-- Vue Router
-- Axios
-- Socket.IO client
-
-### Backend
-- NestJS, TypeScript
-- PostgreSQL
-- Prisma
-- JWT authentication
-- Socket.IO gateway
-- Nodemailer
-- OpenAI integration
-
-## Project Structure
-
-```text
-MY_PORTFOLIO/
-  portfolio-client/      Vue 3 frontend, intended for Vercel
-  portfolio-server/      NestJS backend, supports Vercel Functions or Render
-  AGENTS.md              Agent/developer workflow guidance
-  README.md              Main project documentation
-  QUICKSTART.md          Local setup guide
-  CLAUDE.md              Architecture notes
-  COMPLETED.md           Current completion/status summary
-  INDEX.md               File and module index
-```
-
-## Local Setup
-
-### Backend
-
-```bash
-cd portfolio-server
-npm install
-cp .env.example .env
-npx prisma migrate dev --schema ./src/database/schema
-npm run migrate:seed
-npm run start:dev
-```
-
-API: `http://localhost:3000/api`
-
-Swagger: `http://localhost:3000/docs`
-
-### Frontend
-
-```bash
-cd portfolio-client
-npm install
-```
-
-Create `.env.local`:
-
-```env
-VITE_API_ENDPOINT=http://localhost:3000/api
-```
-
-Start the client:
-
-```bash
+```sh
+npm ci
+npm run setup
+npm run owner:create
 npm run dev
 ```
 
-Frontend: `http://localhost:5173`
+On this workstation the existing portfolio has already been restored to local
+D1. Reset the existing owner's password with `npm run owner:create -- --reset`
+instead of creating a new owner, then enroll the authenticator on sign-in.
 
-## Default Admin
-
-```text
-Email: admin@portfolio.local
-Password: Admin@123456
+```sh
+npm test
+npm run test:browser
+npm run build
+npm run deploy:check
 ```
 
-Change this password before deploying publicly.
+See [local setup, Cloudflare deployment and data restoration](docs/cloudflare-deployment.md),
+[architecture decisions](docs/cloudflare-unified-architecture.md), and
+[verification evidence and release limits](docs/ENGINEERING_ACCEPTANCE.md).
 
-## Important Commands
+Cloudflare account setup and a real D1 binding are still required before remote
+deployment. Core hosting targets the Free plan. Optional AI and email providers
+are separate integrations; the app works without their credentials. Private
+records, secrets, uploads, local database state and backup archives stay out of Git.
 
-```bash
-# Frontend build/type-check
-cd portfolio-client
-npm run build
-
-# Backend build
-cd portfolio-server
-npm run build
-
-# Apply production migrations
-cd portfolio-server
-npx prisma migrate deploy --schema ./src/database/schema
-
-# Seed/update baseline content
-cd portfolio-server
-npm run migrate:seed
-```
-
-## Key API Areas
-
-### Public
-- `GET /api/projects`
-- `GET /api/projects/slug/:slug`
-- `GET /api/tech-stack`
-- `GET /api/experiences`
-- `GET /api/certifications`
-- `GET /api/site-content`
-- `POST /api/client-requests/submit`
-- `POST /api/chatbot/chat`
-
-### Client
-- `POST /api/client-requests/my/submit`
-- `GET /api/client-requests/my`
-- `GET /api/client-requests/:id/chat`
-- `POST /api/client-requests/:id/chat`
-
-### Admin
-- Projects, tech stack, experience, certifications, site content, chatbot knowledge, users, and client requests CRUD.
-- `POST /api/client-requests/:id/client-account`
-- `POST /api/client-requests/:id/reply`
-- Upload endpoints:
-  - `POST /api/upload/image`
-  - `POST /api/upload/site-asset`
-  - `POST /api/upload/certification`
-  - `POST /api/upload/project-images/:projectId`
-
-## Realtime Events
-
-Socket.IO is used for:
-- Admin notifications.
-- Live chatbot conversations.
-- New client inquiry events: `client-request:new`.
-- Project chat messages: `project-chat:message`.
-- Project chat typing indicators: `project-chat:typing`.
-
-## Deployment
-
-To host the Vue frontend on Cloudflare while keeping the NestJS API on its
-existing Node-compatible host, follow the
-[step-by-step Cloudflare Workers guide](docs/cloudflare-deployment.md).
-
-Start with the [step-by-step Vercel + Neon walkthrough](docs/vercel-step-by-step.md)
-for a free PostgreSQL alternative to Render, account setup, environment variables
-and database initialization. Current free-plan limits and Vercel eligibility are
-included in that guide.
-
-For both applications on Vercel, follow [Vercel deployment](docs/vercel-deployment.md).
-Use separate Vercel projects for `portfolio-client` and `portfolio-server`, managed
-PostgreSQL through Marketplace, Vercel Blob uploads and Redis for realtime state.
-See [architecture](docs/vercel-architecture.md) and [verification](docs/ENGINEERING_ACCEPTANCE.md)
-for decisions and remaining production checks. The existing Vue/NestJS stack is retained.
-
-### Vercel Frontend
-- Root directory: `portfolio-client`
-- Build command: `npm run build`
-- Output directory: `client-dist`
-- Environment variable:
-  - `VITE_API_ENDPOINT=https://your-render-api.onrender.com/api`
-
-### Render Backend
-The existing Render deployment remains an alternative. Durable uploads must use
-Blob or a correctly configured persistent disk; an ephemeral filesystem is insufficient.
-- Root directory: `portfolio-server`
-- Build command: `npm install && npx prisma generate --schema ./src/database/schema && npm run build`
-- Start command: `npx prisma migrate deploy --schema ./src/database/schema && npm run start:prod`
-- Configure all server environment variables in Render.
-
-## Environment Notes
-
-Backend `.env` must include database, JWT, mail, OpenAI, and app domain settings. Frontend `.env.local` only needs `VITE_API_ENDPOINT` for normal use. Keep `OPENAI_API_KEY` exclusively on the backend; setup details are in `docs/openai-api-setup.md`.
-
-## Status
-
-Current status: full-stack implementation active and buildable. Client and server builds pass with `npm run build`.
-
-Last updated: 2026-05-04.
+Historical NestJS/Vercel documents are under `docs/legacy/`; the original source
+is recoverable from Git and the private pre-conversion backup.

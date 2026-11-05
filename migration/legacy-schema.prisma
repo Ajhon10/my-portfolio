@@ -1,0 +1,371 @@
+model Auth {
+    id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt       DateTime  @default(now()) @map("created_at")
+    updatedAt       DateTime  @updatedAt @map("updated_at")
+    deletedAt       DateTime? @map("deleted_at")
+    deleted         Boolean   @default(false)
+    email           String    @unique
+    password        String
+    verified        Boolean   @default(false)
+    lastLogin       DateTime? @map("last_login")
+    loginAttempts   Int       @default(0) @map("login_attempts")
+    lastFailedLogin DateTime? @map("last_failed_login")
+    user            User?
+
+    @@map("auth")
+}
+
+model Certification {
+    id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt      DateTime  @default(now()) @map("created_at")
+    updatedAt      DateTime  @updatedAt @map("updated_at")
+    deletedAt      DateTime? @map("deleted_at")
+    deleted        Boolean   @default(false)
+    title          String    @db.VarChar(200)
+    issuer         String    @db.VarChar(200)
+    description    String?
+    credentialId   String?   @map("credential_id") @db.VarChar(200)
+    credentialUrl  String?   @map("credential_url") @db.VarChar(500)
+    certificateUrl String?   @map("certificate_url")
+    issuedAt       DateTime  @map("issued_at")
+    expiresAt      DateTime? @map("expires_at")
+    featured       Boolean   @default(false)
+    published      Boolean   @default(true)
+    sortOrder      Int       @default(0) @map("sort_order")
+
+    @@map("certification")
+}
+
+model ChatbotKnowledge {
+    id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime  @updatedAt @map("updated_at")
+    deletedAt DateTime? @map("deleted_at")
+    deleted   Boolean   @default(false)
+    topic     String    @db.VarChar(200)
+    question  String
+    answer    String
+    tags      String?   @db.VarChar(500)
+    enabled   Boolean   @default(true)
+
+    @@map("chatbot_knowledge")
+}
+
+model ChatbotTag {
+    id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime  @updatedAt @map("updated_at")
+    deletedAt DateTime? @map("deleted_at")
+    deleted   Boolean   @default(false)
+    name      String    @unique @db.VarChar(80)
+    label     String    @db.VarChar(120)
+    sortOrder Int       @default(0) @map("sort_order")
+
+    @@map("chatbot_tag")
+}
+
+model ChatbotConversation {
+    id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt  DateTime          @default(now()) @map("created_at")
+    updatedAt  DateTime          @updatedAt @map("updated_at")
+    deletedAt  DateTime?         @map("deleted_at")
+    deleted    Boolean           @default(false)
+    sessionId  String            @map("session_id") @db.VarChar(100)
+    visitor    String?           @db.VarChar(200)
+    messages   ChatbotMessage[]
+
+    @@map("chatbot_conversation")
+}
+
+model ChatbotMessage {
+    id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt       DateTime            @default(now()) @map("created_at")
+    role            ChatbotMessageRole
+    content         String
+    senderName      String?             @map("sender_name") @db.VarChar(200)
+    senderAvatar    String?             @map("sender_avatar") @db.VarChar(500)
+    conversation    ChatbotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+    conversationId  String              @map("conversation_id") @db.Uuid
+
+    @@map("chatbot_message")
+}
+
+enum ChatbotMessageRole {
+    USER
+    ASSISTANT
+    ADMIN
+    SYSTEM
+}
+
+model ClientRequest {
+    id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt       DateTime             @default(now()) @map("created_at")
+    updatedAt       DateTime             @updatedAt @map("updated_at")
+    deletedAt       DateTime?            @map("deleted_at")
+    deleted         Boolean              @default(false)
+    fullName        String               @map("full_name") @db.VarChar(200)
+    email           String               @db.VarChar(200)
+    company         String?              @db.VarChar(200)
+    phone           String?              @db.VarChar(50)
+    projectType     String               @map("project_type") @db.VarChar(100)
+    budget          String?              @db.VarChar(100)
+    timeline        String?              @db.VarChar(100)
+    description     String
+    referenceLinks  String?              @map("reference_links")
+    status          ClientRequestStatus  @default(PENDING)
+    clientUserId    String?              @map("client_user_id") @db.Uuid
+    clientUser      User?                @relation("ClientRequests", fields: [clientUserId], references: [id], onDelete: SetNull)
+    replies         ClientRequestReply[]
+    messages        ClientRequestMessage[]
+
+    @@map("client_request")
+}
+
+enum ClientRequestStatus {
+    PENDING
+    REVIEWING
+    REPLIED
+    ACCEPTED
+    DECLINED
+    ARCHIVED
+}
+
+model ClientRequestReply {
+    id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt    DateTime      @default(now()) @map("created_at")
+    updatedAt    DateTime      @updatedAt @map("updated_at")
+    deletedAt    DateTime?     @map("deleted_at")
+    deleted      Boolean       @default(false)
+    message      String
+    request      ClientRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+    requestId    String        @map("request_id") @db.Uuid
+    repliedBy    User          @relation("AdminReplies", fields: [repliedById], references: [id], onDelete: Restrict)
+    repliedById  String        @map("replied_by_id") @db.Uuid
+
+    @@map("client_request_reply")
+}
+
+model ClientRequestMessage {
+    id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt DateTime      @default(now()) @map("created_at")
+    updatedAt DateTime      @updatedAt @map("updated_at")
+    deletedAt DateTime?     @map("deleted_at")
+    deleted   Boolean       @default(false)
+    message   String
+    request   ClientRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+    requestId String        @map("request_id") @db.Uuid
+    sender    User          @relation("ClientRequestMessageSender", fields: [senderId], references: [id], onDelete: Restrict)
+    senderId  String        @map("sender_id") @db.Uuid
+
+    @@index([requestId, createdAt])
+    @@map("client_request_message")
+}
+
+model Experience {
+    id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt   DateTime  @default(now()) @map("created_at")
+    updatedAt   DateTime  @updatedAt @map("updated_at")
+    deletedAt   DateTime? @map("deleted_at")
+    deleted     Boolean   @default(false)
+    title       String    @db.VarChar(200)
+    company     String    @db.VarChar(200)
+    location    String?   @db.VarChar(200)
+    description String
+    startDate   DateTime  @map("start_date")
+    endDate     DateTime? @map("end_date")
+    current     Boolean   @default(false)
+    sortOrder   Int       @default(0) @map("sort_order")
+
+    @@map("experience")
+}
+
+model GameScore {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @db.VarChar(24)
+  score     Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([score(sort: Desc), createdAt(sort: Asc)])
+  @@map("game_score")
+}
+
+model Gear {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+  deleted        Boolean   @default(false)
+  name           String    @db.VarChar(160)
+  brand          String    @default("") @db.VarChar(120)
+  category       String    @db.VarChar(100)
+  description    String
+  specifications String    @default("") @db.VarChar(1000)
+  imageUrl       String    @default("") @map("image_url")
+  altText        String    @map("alt_text") @db.VarChar(500)
+  productUrl     String    @default("") @map("product_url")
+  featured       Boolean   @default(false)
+  published      Boolean   @default(false)
+  sortOrder      Int       @default(0) @map("sort_order")
+
+  @@index([deleted, published, sortOrder], map: "gear_public_list_idx")
+  @@map("gear")
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["prismaSchemaFolder", "postgresqlExtensions"]
+  extensions      = [pgcrypto]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Notification {
+    id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt   DateTime         @default(now()) @map("created_at")
+    updatedAt   DateTime         @updatedAt @map("updated_at")
+    deletedAt   DateTime?        @map("deleted_at")
+    deleted     Boolean          @default(false)
+
+    type        NotificationType
+    title       String           @db.VarChar(200)
+    message     String
+    link        String?          @db.VarChar(500)
+    metadata    Json?
+    read        Boolean          @default(false)
+    readAt      DateTime?        @map("read_at")
+
+    // null = broadcast to all admins; otherwise targeted at a specific user
+    userId      String?          @map("user_id") @db.Uuid
+
+    @@index([userId, read, createdAt])
+    @@map("notification")
+}
+
+enum NotificationType {
+    CLIENT_REQUEST
+    CLIENT_INQUIRY
+    CHAT_MESSAGE
+    SYSTEM
+}
+
+model Photograph {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deleted Boolean @default(false)
+  deletedAt DateTime? @map("deleted_at")
+  title String @db.VarChar(200)
+  altText String @map("alt_text") @db.VarChar(500)
+  caption String @default("")
+  location String @default("") @db.VarChar(200)
+  category String @default("Personal") @db.VarChar(100)
+  imageUrl String @map("image_url")
+  published Boolean @default(false)
+  sortOrder Int @default(0) @map("sort_order")
+  @@map("photograph")
+}
+
+model Project {
+    id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt     DateTime  @default(now()) @map("created_at")
+    updatedAt     DateTime  @updatedAt @map("updated_at")
+    deletedAt     DateTime? @map("deleted_at")
+    deleted       Boolean   @default(false)
+    title         String    @db.VarChar(200)
+    slug          String    @unique @db.VarChar(220)
+    description   String
+    shortSummary  String?   @map("short_summary") @db.VarChar(300)
+    thumbnailUrl  String?   @map("thumbnail_url")
+    liveUrl       String?   @map("live_url") @db.VarChar(500)
+    repoUrl       String?   @map("repo_url") @db.VarChar(500)
+    category      String?   @db.VarChar(100)
+    featured      Boolean   @default(false)
+    published     Boolean   @default(true)
+    sortOrder     Int       @default(0) @map("sort_order")
+    techStack     ProjectTech[]
+    images        ProjectImage[]
+
+    @@map("project")
+}
+
+model ProjectTech {
+    id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    projectId String   @map("project_id") @db.Uuid
+    techId    String   @map("tech_id") @db.Uuid
+    project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    tech      TechStack @relation(fields: [techId], references: [id], onDelete: Cascade)
+
+    @@unique([projectId, techId])
+    @@map("project_tech")
+}
+
+model ProjectImage {
+    id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt DateTime @default(now()) @map("created_at")
+    projectId String   @map("project_id") @db.Uuid
+    url       String
+    sortOrder Int      @default(0) @map("sort_order")
+    project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+    @@map("project_image")
+}
+
+model SiteContent {
+    id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime  @updatedAt @map("updated_at")
+    deletedAt DateTime? @map("deleted_at")
+    deleted   Boolean   @default(false)
+    key       String    @unique @db.VarChar(120)
+    label     String    @db.VarChar(200)
+    value     String
+
+    @@map("site_content")
+}
+
+model TechStack {
+    id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt   DateTime      @default(now()) @map("created_at")
+    updatedAt   DateTime      @updatedAt @map("updated_at")
+    deletedAt   DateTime?     @map("deleted_at")
+    deleted     Boolean       @default(false)
+    name        String        @unique @db.VarChar(100)
+    category    String?       @db.VarChar(100)
+    iconUrl     String?       @map("icon_url")
+    proficiency Int           @default(50)
+    sortOrder   Int           @default(0) @map("sort_order")
+    projects    ProjectTech[]
+
+    @@map("tech_stack")
+}
+
+model User {
+    id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    createdAt        DateTime  @default(now()) @map("created_at")
+    updatedAt        DateTime  @updatedAt @map("updated_at")
+    deletedAt        DateTime? @map("deleted_at")
+    deleted          Boolean   @default(false)
+    firstName        String    @map("first_name") @db.VarChar(100)
+    lastName         String    @map("last_name") @db.VarChar(100)
+    avatarUrl        String?   @map("avatar_url")
+    role             Role      @default(ADMIN)
+    twoFactorSecret  String?   @map("two_factor_secret") @db.VarChar(100)
+    twoFactorEnabled Boolean   @default(true) @map("two_factor_enabled")
+    auth             Auth      @relation(fields: [authId], references: [id], onDelete: Cascade)
+    authId           String    @unique @map("auth_id") @db.Uuid
+
+    repliedRequests       ClientRequestReply[]    @relation("AdminReplies")
+    clientRequests        ClientRequest[]         @relation("ClientRequests")
+    clientRequestMessages ClientRequestMessage[]  @relation("ClientRequestMessageSender")
+
+    @@map("user")
+}
+
+enum Role {
+    OWNER
+    ADMIN
+    CLIENT
+}

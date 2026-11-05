@@ -1,0 +1,1813 @@
+{
+  "models": {
+    "Auth": {
+      "table": "auth",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "updatedAt": {
+          "column": "updated_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "deletedAt": {
+          "column": "deleted_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "deleted": {
+          "column": "deleted",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "email": {
+          "column": "email",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": true
+        },
+        "password": {
+          "column": "password",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "verified": {
+          "column": "verified",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "lastLogin": {
+          "column": "last_login",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "loginAttempts": {
+          "column": "login_attempts",
+          "type": "Int",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": 0
+        },
+        "lastFailedLogin": {
+          "column": "last_failed_login",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        }
+      },
+      "relations": {
+        "user": {
+          "model": "User",
+          "many": false,
+          "onDelete": "Restrict"
+        }
+      },
+      "uniques": []
+    },
+    "Certification": {
+      "table": "certification",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "updatedAt": {
+          "column": "updated_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "deletedAt": {
+          "column": "deleted_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "deleted": {
+          "column": "deleted",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "title": {
+          "column": "title",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "issuer": {
+          "column": "issuer",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "description": {
+          "column": "description",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "credentialId": {
+          "column": "credential_id",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "credentialUrl": {
+          "column": "credential_url",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "certificateUrl": {
+          "column": "certificate_url",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "issuedAt": {
+          "column": "issued_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "expiresAt": {
+          "column": "expires_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "featured": {
+          "column": "featured",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "published": {
+          "column": "published",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": true
+        },
+        "sortOrder": {
+          "column": "sort_order",
+          "type": "Int",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": 0
+        }
+      },
+      "relations": {},
+      "uniques": []
+    },
+    "ChatbotKnowledge": {
+      "table": "chatbot_knowledge",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "updatedAt": {
+          "column": "updated_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "deletedAt": {
+          "column": "deleted_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "deleted": {
+          "column": "deleted",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "topic": {
+          "column": "topic",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "question": {
+          "column": "question",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "answer": {
+          "column": "answer",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "tags": {
+          "column": "tags",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "enabled": {
+          "column": "enabled",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": true
+        }
+      },
+      "relations": {},
+      "uniques": []
+    },
+    "ChatbotTag": {
+      "table": "chatbot_tag",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "updatedAt": {
+          "column": "updated_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "deletedAt": {
+          "column": "deleted_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "deleted": {
+          "column": "deleted",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "name": {
+          "column": "name",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": true
+        },
+        "label": {
+          "column": "label",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "sortOrder": {
+          "column": "sort_order",
+          "type": "Int",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": 0
+        }
+      },
+      "relations": {},
+      "uniques": []
+    },
+    "ChatbotConversation": {
+      "table": "chatbot_conversation",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "updatedAt": {
+          "column": "updated_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "deletedAt": {
+          "column": "deleted_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "deleted": {
+          "column": "deleted",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "sessionId": {
+          "column": "session_id",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "visitor": {
+          "column": "visitor",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        }
+      },
+      "relations": {
+        "messages": {
+          "model": "ChatbotMessage",
+          "many": true,
+          "onDelete": "Restrict"
+        }
+      },
+      "uniques": []
+    },
+    "ChatbotMessage": {
+      "table": "chatbot_message",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "role": {
+          "column": "role",
+          "type": "ChatbotMessageRole",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "content": {
+          "column": "content",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "senderName": {
+          "column": "sender_name",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "senderAvatar": {
+          "column": "sender_avatar",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "conversationId": {
+          "column": "conversation_id",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        }
+      },
+      "relations": {
+        "conversation": {
+          "model": "ChatbotConversation",
+          "many": false,
+          "field": "conversationId",
+          "onDelete": "Cascade"
+        }
+      },
+      "uniques": []
+    },
+    "ClientRequest": {
+      "table": "client_request",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "updatedAt": {
+          "column": "updated_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "deletedAt": {
+          "column": "deleted_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "deleted": {
+          "column": "deleted",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "fullName": {
+          "column": "full_name",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "email": {
+          "column": "email",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "company": {
+          "column": "company",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "phone": {
+          "column": "phone",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "projectType": {
+          "column": "project_type",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "budget": {
+          "column": "budget",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "timeline": {
+          "column": "timeline",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "description": {
+          "column": "description",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "referenceLinks": {
+          "column": "reference_links",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "status": {
+          "column": "status",
+          "type": "ClientRequestStatus",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": "PENDING"
+        },
+        "clientUserId": {
+          "column": "client_user_id",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        }
+      },
+      "relations": {
+        "clientUser": {
+          "model": "User",
+          "many": false,
+          "field": "clientUserId",
+          "name": "ClientRequests",
+          "onDelete": "SetNull"
+        },
+        "replies": {
+          "model": "ClientRequestReply",
+          "many": true,
+          "onDelete": "Restrict"
+        },
+        "messages": {
+          "model": "ClientRequestMessage",
+          "many": true,
+          "onDelete": "Restrict"
+        }
+      },
+      "uniques": []
+    },
+    "ClientRequestReply": {
+      "table": "client_request_reply",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "updatedAt": {
+          "column": "updated_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "deletedAt": {
+          "column": "deleted_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "deleted": {
+          "column": "deleted",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "message": {
+          "column": "message",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "requestId": {
+          "column": "request_id",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "repliedById": {
+          "column": "replied_by_id",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        }
+      },
+      "relations": {
+        "request": {
+          "model": "ClientRequest",
+          "many": false,
+          "field": "requestId",
+          "onDelete": "Cascade"
+        },
+        "repliedBy": {
+          "model": "User",
+          "many": false,
+          "field": "repliedById",
+          "name": "AdminReplies",
+          "onDelete": "Restrict"
+        }
+      },
+      "uniques": []
+    },
+    "ClientRequestMessage": {
+      "table": "client_request_message",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "updatedAt": {
+          "column": "updated_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "deletedAt": {
+          "column": "deleted_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "deleted": {
+          "column": "deleted",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "message": {
+          "column": "message",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "requestId": {
+          "column": "request_id",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "senderId": {
+          "column": "sender_id",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        }
+      },
+      "relations": {
+        "request": {
+          "model": "ClientRequest",
+          "many": false,
+          "field": "requestId",
+          "onDelete": "Cascade"
+        },
+        "sender": {
+          "model": "User",
+          "many": false,
+          "field": "senderId",
+          "name": "ClientRequestMessageSender",
+          "onDelete": "Restrict"
+        }
+      },
+      "uniques": []
+    },
+    "Experience": {
+      "table": "experience",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "updatedAt": {
+          "column": "updated_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "deletedAt": {
+          "column": "deleted_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "deleted": {
+          "column": "deleted",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "title": {
+          "column": "title",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "company": {
+          "column": "company",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "location": {
+          "column": "location",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "description": {
+          "column": "description",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "startDate": {
+          "column": "start_date",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "endDate": {
+          "column": "end_date",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "current": {
+          "column": "current",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "sortOrder": {
+          "column": "sort_order",
+          "type": "Int",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": 0
+        }
+      },
+      "relations": {},
+      "uniques": []
+    },
+    "GameScore": {
+      "table": "game_score",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "name": {
+          "column": "name",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "score": {
+          "column": "score",
+          "type": "Int",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        }
+      },
+      "relations": {},
+      "uniques": []
+    },
+    "Gear": {
+      "table": "gear",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "updatedAt": {
+          "column": "updated_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "deletedAt": {
+          "column": "deleted_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "deleted": {
+          "column": "deleted",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "name": {
+          "column": "name",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "brand": {
+          "column": "brand",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": ""
+        },
+        "category": {
+          "column": "category",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "description": {
+          "column": "description",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "specifications": {
+          "column": "specifications",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": ""
+        },
+        "imageUrl": {
+          "column": "image_url",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": ""
+        },
+        "altText": {
+          "column": "alt_text",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "productUrl": {
+          "column": "product_url",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": ""
+        },
+        "featured": {
+          "column": "featured",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "published": {
+          "column": "published",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "sortOrder": {
+          "column": "sort_order",
+          "type": "Int",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": 0
+        }
+      },
+      "relations": {},
+      "uniques": []
+    },
+    "Notification": {
+      "table": "notification",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "updatedAt": {
+          "column": "updated_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "deletedAt": {
+          "column": "deleted_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "deleted": {
+          "column": "deleted",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "type": {
+          "column": "type",
+          "type": "NotificationType",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "title": {
+          "column": "title",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "message": {
+          "column": "message",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "link": {
+          "column": "link",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "metadata": {
+          "column": "metadata",
+          "type": "Json",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "read": {
+          "column": "read",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "readAt": {
+          "column": "read_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "userId": {
+          "column": "user_id",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        }
+      },
+      "relations": {},
+      "uniques": []
+    },
+    "Photograph": {
+      "table": "photograph",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "updatedAt": {
+          "column": "updated_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "deleted": {
+          "column": "deleted",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "deletedAt": {
+          "column": "deleted_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "title": {
+          "column": "title",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "altText": {
+          "column": "alt_text",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "caption": {
+          "column": "caption",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": ""
+        },
+        "location": {
+          "column": "location",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": ""
+        },
+        "category": {
+          "column": "category",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": "Personal"
+        },
+        "imageUrl": {
+          "column": "image_url",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "published": {
+          "column": "published",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "sortOrder": {
+          "column": "sort_order",
+          "type": "Int",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": 0
+        }
+      },
+      "relations": {},
+      "uniques": []
+    },
+    "Project": {
+      "table": "project",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "updatedAt": {
+          "column": "updated_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "deletedAt": {
+          "column": "deleted_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "deleted": {
+          "column": "deleted",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "title": {
+          "column": "title",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "slug": {
+          "column": "slug",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": true
+        },
+        "description": {
+          "column": "description",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "shortSummary": {
+          "column": "short_summary",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "thumbnailUrl": {
+          "column": "thumbnail_url",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "liveUrl": {
+          "column": "live_url",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "repoUrl": {
+          "column": "repo_url",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "category": {
+          "column": "category",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "featured": {
+          "column": "featured",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "published": {
+          "column": "published",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": true
+        },
+        "sortOrder": {
+          "column": "sort_order",
+          "type": "Int",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": 0
+        }
+      },
+      "relations": {
+        "techStack": {
+          "model": "ProjectTech",
+          "many": true,
+          "onDelete": "Restrict"
+        },
+        "images": {
+          "model": "ProjectImage",
+          "many": true,
+          "onDelete": "Restrict"
+        }
+      },
+      "uniques": []
+    },
+    "ProjectTech": {
+      "table": "project_tech",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "projectId": {
+          "column": "project_id",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "techId": {
+          "column": "tech_id",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        }
+      },
+      "relations": {
+        "project": {
+          "model": "Project",
+          "many": false,
+          "field": "projectId",
+          "onDelete": "Cascade"
+        },
+        "tech": {
+          "model": "TechStack",
+          "many": false,
+          "field": "techId",
+          "onDelete": "Cascade"
+        }
+      },
+      "uniques": [
+        [
+          "projectId",
+          "techId"
+        ]
+      ]
+    },
+    "ProjectImage": {
+      "table": "project_image",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "projectId": {
+          "column": "project_id",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "url": {
+          "column": "url",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "sortOrder": {
+          "column": "sort_order",
+          "type": "Int",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": 0
+        }
+      },
+      "relations": {
+        "project": {
+          "model": "Project",
+          "many": false,
+          "field": "projectId",
+          "onDelete": "Cascade"
+        }
+      },
+      "uniques": []
+    },
+    "SiteContent": {
+      "table": "site_content",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "updatedAt": {
+          "column": "updated_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "deletedAt": {
+          "column": "deleted_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "deleted": {
+          "column": "deleted",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "key": {
+          "column": "key",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": true
+        },
+        "label": {
+          "column": "label",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "value": {
+          "column": "value",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        }
+      },
+      "relations": {},
+      "uniques": []
+    },
+    "TechStack": {
+      "table": "tech_stack",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "updatedAt": {
+          "column": "updated_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "deletedAt": {
+          "column": "deleted_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "deleted": {
+          "column": "deleted",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "name": {
+          "column": "name",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": true
+        },
+        "category": {
+          "column": "category",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "iconUrl": {
+          "column": "icon_url",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "proficiency": {
+          "column": "proficiency",
+          "type": "Int",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": 50
+        },
+        "sortOrder": {
+          "column": "sort_order",
+          "type": "Int",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": 0
+        }
+      },
+      "relations": {
+        "projects": {
+          "model": "ProjectTech",
+          "many": true,
+          "onDelete": "Restrict"
+        }
+      },
+      "uniques": []
+    },
+    "User": {
+      "table": "user",
+      "fields": {
+        "id": {
+          "column": "id",
+          "type": "String",
+          "nullable": false,
+          "primary": true,
+          "unique": false
+        },
+        "createdAt": {
+          "column": "created_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "updatedAt": {
+          "column": "updated_at",
+          "type": "DateTime",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "now": true
+        },
+        "deletedAt": {
+          "column": "deleted_at",
+          "type": "DateTime",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "deleted": {
+          "column": "deleted",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": false
+        },
+        "firstName": {
+          "column": "first_name",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "lastName": {
+          "column": "last_name",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": false
+        },
+        "avatarUrl": {
+          "column": "avatar_url",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "role": {
+          "column": "role",
+          "type": "Role",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": "ADMIN"
+        },
+        "twoFactorSecret": {
+          "column": "two_factor_secret",
+          "type": "String",
+          "nullable": true,
+          "primary": false,
+          "unique": false
+        },
+        "twoFactorEnabled": {
+          "column": "two_factor_enabled",
+          "type": "Boolean",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "default": true
+        },
+        "authId": {
+          "column": "auth_id",
+          "type": "String",
+          "nullable": false,
+          "primary": false,
+          "unique": true
+        }
+      },
+      "relations": {
+        "auth": {
+          "model": "Auth",
+          "many": false,
+          "field": "authId",
+          "onDelete": "Cascade"
+        },
+        "repliedRequests": {
+          "model": "ClientRequestReply",
+          "many": true,
+          "name": "AdminReplies",
+          "onDelete": "Restrict"
+        },
+        "clientRequests": {
+          "model": "ClientRequest",
+          "many": true,
+          "name": "ClientRequests",
+          "onDelete": "Restrict"
+        },
+        "clientRequestMessages": {
+          "model": "ClientRequestMessage",
+          "many": true,
+          "name": "ClientRequestMessageSender",
+          "onDelete": "Restrict"
+        }
+      },
+      "uniques": []
+    }
+  },
+  "enums": {
+    "ChatbotMessageRole": [
+      "USER",
+      "ASSISTANT",
+      "ADMIN",
+      "SYSTEM"
+    ],
+    "ClientRequestStatus": [
+      "PENDING",
+      "REVIEWING",
+      "REPLIED",
+      "ACCEPTED",
+      "DECLINED",
+      "ARCHIVED"
+    ],
+    "NotificationType": [
+      "CLIENT_REQUEST",
+      "CLIENT_INQUIRY",
+      "CHAT_MESSAGE",
+      "SYSTEM"
+    ],
+    "Role": [
+      "OWNER",
+      "ADMIN",
+      "CLIENT"
+    ]
+  }
+}

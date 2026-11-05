@@ -1,3 +1,5 @@
+Current platform: integrated Vue + Workers + D1. Original design notes below describe earlier implementation history; see cloudflare-unified-architecture.md for the approved migration.
+
 # Portfolio game mode
 
 Implemented: 28 October 2026. This document records the source design; it is not deployment or workload acceptance evidence.
