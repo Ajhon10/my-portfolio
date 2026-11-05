@@ -38,9 +38,12 @@ a browser adapter rather than retaining a Node WebSocket server.
 
 The pre-migration source bundle and verified private environment/upload ZIP are
 in BACKUPS/MY_PORTFOLIO-before-cloudflare-2026-11-05 outside this repository.
-That backup does not claim a PostgreSQL database export. Production records
-must be explicitly exported/imported using a reviewed migration procedure;
-never point local tests at production or copy records/secrets into Git.
+The initial source/environment backup was subsequently expanded with a
+read-only PostgreSQL snapshot and prepared D1 recovery archive. Its 184 records
+and 14 referenced media files were restored locally and verified. This does
+not establish a remote import; follow cloudflare-deployment.md for the explicit
+production procedure. Never point local tests at production or copy private
+records/secrets into Git.
 
 Preserve IDs, dates, soft deletes, relationships, published status and media
 URLs during import. PostgreSQL UUID defaults/enums become application-created

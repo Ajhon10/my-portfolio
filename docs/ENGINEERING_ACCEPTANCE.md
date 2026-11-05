@@ -5,14 +5,14 @@ commit: `f0af8e64d204031748b6293083e2166ada341049`.
 
 ## Release state
 
-| State | Evidence |
-| --- | --- |
-| Implemented | One Vue/Workers root package, same-origin API/uploads/WebSocket, D1 SQL schema and SQLite Durable Object. Original Vue design and CMS/client features retained. |
-| Locally verified | TypeScript checks, build, 3 subscription tests, 79 Worker integration checks, browser flows and read-only production preview passed. |
-| Data restored locally | 184 PostgreSQL records across 20 models and 14 media files restored to local D1. Original PostgreSQL was read only. |
-| Deploy package checked | Wrangler dry run: 389.10 KiB raw, 84.77 KiB gzip; D1, SQLite DO and Assets bindings only. No remote write or deployment. |
-| Deployed | Not performed. Real D1 ID, runtime AUTH_SECRET and remote database import/provisioning remain account setup steps. |
-| Workload accepted | Not established. Remote CPU, traffic/connection capacity, quota consumption, latency, retention, RPO/RTO and recovery timing require account/workload evidence. |
+| State                  | Evidence                                                                                                                                                        |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Implemented            | One Vue/Workers root package, same-origin API/uploads/WebSocket, D1 SQL schema and SQLite Durable Object. Original Vue design and CMS/client features retained. |
+| Locally verified       | TypeScript checks, build, 3 subscription tests, 79 Worker integration checks, browser flows and read-only production preview passed.                            |
+| Data restored locally  | 184 PostgreSQL records across 20 models and 14 media files restored to local D1. Original PostgreSQL was read only.                                             |
+| Deploy package checked | Wrangler dry run: 389.10 KiB raw, 84.77 KiB gzip; D1, SQLite DO and Assets bindings only. No remote write or deployment.                                        |
+| Deployed               | Not performed. Real D1 ID, runtime AUTH_SECRET and remote database import/provisioning remain account setup steps.                                              |
+| Workload accepted      | Not established. Remote CPU, traffic/connection capacity, quota consumption, latency, retention, RPO/RTO and recovery timing require account/workload evidence. |
 
 ## Full user flow
 
@@ -21,13 +21,13 @@ assets, submits an inquiry or question to its own Worker, and receives persisted
 responses. An authenticated owner manages the CMS and responds to visitor/client
 chat through the same deployment.
 
-| Boundary | Local evidence |
-| --- | --- |
-| UI renders | Desktop 1440×1000 and mobile 390×844 screenshots; restored portrait and live viewer indicator render; no horizontal overflow. |
-| UI → API | Actual inquiry, chatbot and login forms submit successfully; all 11 admin routes load with zero API failures. |
-| API → D1 | Inquiry and both chat turns counted in isolated D1; a CMS-created technology survives page reload. |
-| Data → response | Role/ownership, draft privacy, safe account projections, bound input validation and response envelopes exercised by integration checks. |
-| Response → UI | Chat answer appears, inquiry succeeds, owner reaches dashboard, saved CMS row renders after reload. |
+| Boundary         | Local evidence                                                                                                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| UI renders       | Desktop 1440×1000 and mobile 390×844 screenshots; restored portrait and live viewer indicator render; no horizontal overflow.                                                        |
+| UI → API         | Actual inquiry, chatbot and login forms submit successfully; all 11 admin routes load with zero API failures.                                                                        |
+| API → D1         | Inquiry and both chat turns counted in isolated D1; a CMS-created technology survives page reload.                                                                                   |
+| Data → response  | Role/ownership, draft privacy, safe account projections, bound input validation and response envelopes exercised by integration checks.                                              |
+| Response → UI    | Chat answer appears, inquiry succeeds, owner reaches dashboard, saved CMS row renders after reload.                                                                                  |
 | Built deployment | Wrangler preview serves the actual compiled app against restored local data; 3 published projects and 3 project media reads succeed with no local HTTP errors or browser exceptions. |
 
 Browser fixture evidence: `.test-artifacts/browser-f2637e3e-0135-4d72-b942-783ee52a25b0/`.
@@ -99,3 +99,21 @@ Local tests do not measure the Free Worker's 10 ms CPU allowance or prove traffi
 capacity. Observe production CPU, D1 read/write/storage quotas and Durable Object
 requests/connections. Confirm retention, maintenance and backup objectives with
 real workload evidence. No paid product was provisioned.
+
+## Setup guide revision: 5 November 2026
+
+PR #6 was confirmed merged into main at `2c28da4`. The expanded setup guide on
+`docs/cloudflare-setup-guide` documents the existing Worker, production build
+settings, D1 provisioning/configuration, rebuilding generated configuration,
+runtime secrets, private remote import, owner reset, deployment and acceptance.
+Preview bindings/secrets and staging data are explicitly separate from production.
+
+Documentation checks passed for 38 local links/script references, code fences,
+10 setup steps and required production/preview settings. The private archive's
+structure and report matched the documented 15 import parts, 184 records and
+14 media files/22,829,795 bytes. Installed Wrangler help confirmed migration,
+export and Preview Base secret command syntax. Documentation formatting and
+Git whitespace checks passed. No runtime code changed, so the earlier runtime
+test evidence was not repeated or promoted to remote acceptance. No Cloudflare
+login, provisioning, migration, secret update or deployment was performed by
+this documentation revision.

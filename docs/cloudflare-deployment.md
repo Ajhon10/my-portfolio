@@ -1,173 +1,463 @@
-# Deploy the integrated portfolio on Cloudflare Free
+# Complete Cloudflare setup for this portfolio
 
-The application now has one repository root, npm install, build and deployment.
-Vue is in `src/`; the TypeScript API is in `worker/`. D1 and a SQLite Durable
-Object are Cloudflare bindings. Laravel, NestJS, PostgreSQL, Redis and R2 are
-not required by this application. See [architecture](cloudflare-unified-architecture.md).
+Updated: 5 November 2026 (Asia/Manila).
 
-## Local use
+Finish the existing **my-portfolio** Worker; keep its current workers.dev address.
+The Vue interface, API and live chat deploy together from this repository root.
+Core hosting uses Cloudflare Workers, D1 and a SQLite Durable Object on Workers
+Free, within service quotas. Optional AI/mail providers have separate accounts.
 
-Use Node 22.14+ and run commands from this repository root. In PowerShell use
-`npm.cmd`/`npx.cmd` if script execution policy blocks the `.ps1` launchers.
+PR #6 is now merged into `main` at `2c28da4`. That commit contains the root
+package.json. The November 4 build at `7c95f1b` used the retired layout; retrying
+that old revision will still fail to find package.json.
 
-```sh
-npm ci
-npm run setup
-npm run owner:create
-npm run dev
+## Starting point
+
+| Item                           | State when this guide was updated                                                |
+| ------------------------------ | -------------------------------------------------------------------------------- |
+| Application source             | Migrated, locally verified, pushed and merged into main.                         |
+| Existing Cloudflare Worker     | Keep `my-portfolio`.                                                             |
+| Production D1 ID               | Still an all-zero placeholder in wrangler.jsonc.                                 |
+| Portfolio data                 | Restored locally; no remote import performed by the migration work.              |
+| Private restore files          | Present on this workstation and in the private backup.                           |
+| Production secret/login        | Must be configured below. Local secrets are not uploaded by Git.                 |
+| Deployment/workload acceptance | Requires remote verification; local checks do not establish production capacity. |
+
+Follow steps 1–9 in order. Run terminal commands individually and continue only
+after each succeeds. **Cloudflare dashboard** means your browser; **PowerShell**
+means the VS Code terminal or Windows Terminal on your PC.
+
+## 1. Confirm the existing Worker's Git/build settings
+
+**Cloudflare dashboard:** select the account containing the portfolio, then
+**Workers & Pages → my-portfolio → Settings → Builds**. The section may be
+labelled **Build** in your dashboard.
+
+| Setting                   | Value                                                                              |
+| ------------------------- | ---------------------------------------------------------------------------------- |
+| Worker name               | `my-portfolio`                                                                     |
+| Git repository            | `Ajhon10/my-portfolio`                                                             |
+| Production branch         | `main`                                                                             |
+| Root directory            | `/` (repository root)                                                              |
+| Build command             | `npm run build`                                                                    |
+| Production deploy command | `npx wrangler deploy`                                                              |
+| Build variable            | `NODE_VERSION` = `22`                                                              |
+| Preview builds            | Leave disabled for initial production setup; configure them separately in step 10. |
+
+Keep a correct existing Git connection. If missing, use **Connect** and select
+that repository. The Worker name must match `name` in wrangler.jsonc.
+
+Leave automatic dependency installation enabled. The root package-lock.json
+selects npm. Build tools are devDependencies, so do not install with `--omit=dev`.
+There is no separate Pages output-directory setting: Wrangler deploys the
+generated Worker configuration and `dist/client` assets together.
+
+The build token authenticates Cloudflare's deployment system; it is separate
+from AUTH_SECRET. Keep a valid token for the intended account. See troubleshooting
+below if Cloudflare reports an account/permission error.
+
+Sources: [existing Worker connection](https://developers.cloudflare.com/workers/ci-cd/builds/),
+[build settings](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/),
+[Node version and dependency installation](https://developers.cloudflare.com/workers/ci-cd/builds/build-image/).
+
+## 2. Prepare the repository and sign in from your PC
+
+**PowerShell:**
+
+```powershell
+Set-Location 'C:\Users\Lenovo\Desktop\PROJECTS\PERSONAL\MY_PORTFOLIO'
+git status --short
 ```
 
-`setup` creates `.dev.vars` with a random local AUTH_SECRET, applies local
-migrations and adds public seed content without overwriting existing records.
-Keep `.dev.vars` private and stable: it encrypts authenticator secrets.
-`owner:create` prompts for a new owner and hidden password (12–128 characters).
-There is no default administrator password. The first login enrolls an
-authenticator. Enrollment codes cannot be reused for login; use the next code.
+Preserve any unfinished Git changes before switching branches. With a clean
+working tree, get the merged app and make a branch for the production binding:
 
-This workstation already has a restored local D1 database. Do not create another
-owner for it. Run `npm run owner:create -- --reset`, supply the existing email
-and a new password, and enroll the authenticator on login. PostgreSQL remains unchanged.
-
-```sh
-npm test
-npm run test:browser
-npm run build
-npm run deploy:check
-npm run preview
+```powershell
+git fetch origin
+git switch main
+git pull --ff-only origin main
+git switch -c setup/cloudflare-production
+node --version
+npm.cmd ci
+npx.cmd wrangler login
+npx.cmd wrangler whoami
 ```
 
-The browser suite uses a separate disposable local database and installed Chrome
-(`PLAYWRIGHT_CHANNEL=msedge` also works). It never tests with private portfolio
-records. Preview serves the built application at port 8787; dev uses port 5173.
+Node must be 22.14 or newer. Login opens a browser; authorize the account that
+owns my-portfolio and return to the terminal. Confirm that whoami lists that
+account. If the setup branch already exists from a previous attempt, switch to
+it with `git switch setup/cloudflare-production` instead of creating it again.
 
-## Cloudflare account setup
+Use `npm.cmd`/`npx.cmd` in PowerShell to avoid the blocked `.ps1` launchers.
+Changing Windows execution policy is unnecessary.
 
-No remote database or deployment was created as part of the local conversion.
-Keep the account on Workers Free. The all-zero D1 ID in `wrangler.jsonc` is a
-placeholder that must be replaced before deploying.
+## 3. Create or identify the production D1 database
 
-```sh
-npx wrangler login
-npx wrangler d1 create portfolio
+**Cloudflare dashboard:** search for **D1 SQL Database**, select **Create database**
+and name it **portfolio** in the same account as the Worker. If it already
+exists, open it instead of creating a duplicate.
+
+Copy the **Database ID** from its details page. This is not your account ID,
+password or API token. The database identifier can be committed in configuration.
+
+The terminal alternative is `npx.cmd wrangler d1 create portfolio`; use one
+creation method once. If Wrangler offers to edit your file, review the result
+and keep binding name `DB`.
+
+[D1 creation and binding instructions](https://developers.cloudflare.com/d1/get-started/).
+
+## 4. Replace the placeholder ID and build locally
+
+**VS Code:** edit wrangler.jsonc and replace the all-zero database_id with the
+actual ID from step 3. Keep binding, name and migrations directory unchanged:
+
+```jsonc
+"d1_databases": [
+  {
+    "binding": "DB",
+    "database_name": "portfolio",
+    "database_id": "PASTE-YOUR-REAL-DATABASE-ID-HERE",
+    "migrations_dir": "migrations"
+  }
+]
 ```
 
-Copy the returned database ID into `wrangler.jsonc` under `d1_databases[0]`.
-Keep binding `DB`, database name `portfolio`, and the SQLite Durable Object
-migration. Create/apply the database schema before serving traffic:
+The PASTE text above is an example, not a usable ID. Save your real value.
+Adding only a dashboard binding is insufficient: the repository's Wrangler
+configuration must point to the correct database too.
 
-```sh
-npm run db:migrate:remote
+**PowerShell:**
+
+```powershell
+npm.cmd run build
+npm.cmd run deploy:check
 ```
 
-For a fresh public portfolio, seed with `npm run db:seed -- --remote` and create
-the owner with `npm run owner:create -- --remote`. For the existing portfolio,
-use the private import procedure below **before seeding or creating accounts**.
+These commands do not publish the site. Build after changing the ID: Vite
+generates configuration under dist/, and Wrangler can redirect later commands
+to that generated file. Rebuilding keeps the generated ID current. A successful
+dry run does not create database tables or prove remote permissions.
 
-Configure a unique random AUTH_SECRET of at least 32 characters as an encrypted
-Worker runtime secret (dashboard or `npx wrangler secret put AUTH_SECRET`). Do
-not reuse the example placeholder or expose it as a VITE variable. Preserve this
-secret in your private backup; changing it makes existing 2FA secrets unreadable.
+## 5. Add AUTH_SECRET as a production runtime secret
 
-```sh
-npm run deploy
+**Cloudflare dashboard:** open **my-portfolio → Settings → Variables and Secrets**
+with **Production** selected.
+
+Keep a valid AUTH_SECRET if already configured for this app. For first setup,
+generate a new value in PowerShell:
+
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
 ```
 
-For Cloudflare Git builds, use the repository root (blank or `/`), install
-`npm ci`, build `npm run build`, and deploy `npx wrangler deploy`. Remove old
-`portfolio-client`/`portfolio-server` root settings. This is a Workers project;
-the generated Vite configuration deploys the Worker and Vue assets together.
-Do not configure a second backend URL or database host.
+Copy the generated value. In Variables and Secrets, select **Add**:
 
-After deployment check `/api/health`, owner enrollment/login, CMS edits and
-uploads, a public inquiry, chatbot history/takeover, client project chat, and
-direct navigation to SPA routes. Inspect actual Worker CPU, D1 reads/storage,
-DO requests and errors before considering the intended workload accepted.
+| Field         | Value                      |
+| ------------- | -------------------------- |
+| Type          | Secret                     |
+| Variable name | `AUTH_SECRET`              |
+| Value         | The generated random value |
 
-## Existing PostgreSQL data and uploads
+Save/deploy the secret using the dashboard action. This can update the existing
+Worker version; the new application code is published in step 8. Save the secret
+in your private password manager or recovery backup too.
 
-The private pre-conversion backup is outside Git at
-`BACKUPS/MY_PORTFOLIO-before-cloudflare-2026-11-05` in the PROJECTS workspace.
-It includes the original source bundle, environment/upload ZIP, PostgreSQL
-snapshot, and a D1 import archive. These contain private records and must never
-be uploaded to the public repository.
+AUTH_SECRET encrypts authenticator enrollment. It is separate from your owner
+password, Cloudflare login and build token. Keep it stable after enrollment.
+Do not put it in chat, GitHub, VITE variables or public configuration. A build-only
+variable is not available to the running Worker.
 
-The snapshot contains 184 records across 20 models. The prepared D1 import
-preserves IDs, dates, soft deletes, relationships, publication states and
-rewrites local upload URLs, including JSON site-content image lists. Fourteen
-files (22,829,795 bytes) are included. One already-missing project thumbnail is
-replaced with an available gallery image; the original reference and replacement
-are recorded in the private report. Unreferenced original files remain in the
-original private ZIP.
+The CLI alternative is `npx.cmd wrangler secret put AUTH_SECRET`; enter the value
+at its prompt. Use one setup method. SESSION_HOURS=`8` and OPENAI_MODEL=`gpt-4o-mini`
+are already non-secret Wrangler variables. Leave optional AI/mail secrets absent
+for the first deployment.
 
-To make a new snapshot, supply DATABASE_URL privately in the shell, then run:
+[Runtime secret instructions](https://developers.cloudflare.com/workers/configuration/secrets/).
 
-```sh
-npm run legacy:export -- --out=legacy-export.private.json
-npm run legacy:import -- --file=legacy-export.private.json --uploads=path/to/uploads --reset-2fa
+## 6. Apply remote migrations and restore your portfolio
+
+**PowerShell:** check that your prepared private import exists:
+
+```powershell
+Test-Path '.wrangler/private/legacy-import/records.private.sql'
+Test-Path '.wrangler/private/legacy-import/report.private.json'
 ```
 
-The exporter uses a repeatable, read-only PostgreSQL transaction. The importer
-only generates private SQL; it does not modify either database. By default it
-refuses missing uploads and incompatible legacy MFA state. The explicit
-`--fallback-missing-thumbnails` option replaces only missing project thumbnails
-with their available gallery image or null and records this in the report.
-Use a new `--out=directory` when regenerating to avoid overwriting evidence.
+Both should return True on the existing workstation. For a fresh clone, restore
+the private archive as described under Recovery before continuing.
 
-Rehearse the generated files first:
+Apply the database schema:
 
-```sh
-node scripts/test-migration.mjs --dir=.wrangler/private/legacy-import
-node scripts/migration/apply-legacy.mjs --dir=.wrangler/private/legacy-import
+```powershell
+npm.cmd run db:migrate:remote
 ```
 
-The apply command defaults to local and refuses an already populated database.
-For remote restoration, extract the prepared archive privately, apply migrations
-to an **empty** D1 database, then run the apply command with `--remote`. It imports
-records first, media next, and checks foreign keys. SQL import files are separate
-recovery steps, not one transaction across all files: an interrupted import must
-be resumed deliberately or restarted in a new empty database. Never wipe a live
-database to satisfy the empty-database guard.
+Review the database name and migration prompt. Five migrations create the
+application/auth/media tables and integrity rules. Re-running applies only
+unapplied migrations; it should report none remaining after success.
+[D1 migration commands](https://developers.cloudflare.com/d1/wrangler-commands/).
 
-Check counts against `report.private.json`, verify the imported media, then reset
-each imported account's password (`owner:create -- --reset`, plus `--remote` for
-remote). Legacy Argon2 hashes are preserved in the private snapshot but cannot
-authenticate in this runtime. Imported accounts are flagged for reset. Legacy
-authenticator enrollment is cleared only with the explicit import option. No
-old sessions are imported. The owner can then reset other accounts through Users.
+Import the prepared records and uploads into the empty migrated database:
 
-Keep the original PostgreSQL service and private backup until remote acceptance.
-Rollback is to restore the source bundle at its recorded commit and original
-environment/upload files, then use the unchanged original PostgreSQL database.
+```powershell
+node scripts/migration/apply-legacy.mjs --remote
+```
 
-## Optional integrations and finite free quotas
+Keep `--remote`; without it, the helper writes locally. The helper refuses a
+populated target and imports records before media. For this snapshot, expect
+**15 import parts, 184 records and 14 media files**.
 
-Without external credentials, inquiries/replies persist and the chatbot uses
-grounded local portfolio/knowledge answers. Optional OPENAI_API_KEY enables
-Chat Completions with the existing OPENAI_MODEL (default gpt-4o-mini), store:false
-and a bounded timeout. This optional provider has its own billing.
+Do not run public seeds or create a new owner before this import; they populate
+the target and cause its empty-database guard to reject it. If restoration
+already completed, verify the counts and skip importing again. If it stopped
+midway, inspect its private log/report before deciding how to resume. Do not
+clear a database containing real records to bypass the guard.
 
-Optional email uses Resend's HTTP API because the old SMTP transport is removed.
-Set MAIL_API_TOKEN, MAIL_FROM and MAIL_TO as runtime secrets only if desired.
-The durable outbox retries up to five times, with idempotency keys and a scheduled
-15-minute retry. The API reports whether email was queued or not configured;
-it does not claim delivery. Failed entries are retained for operator review in
-`mail_outbox`. Do not enable optional integrations until their credentials,
-sender identity and provider limits are verified. Live AI/email calls were not
-made during local testing.
+Verify baseline counts and relationships with read-only queries:
 
-Uploads are public portfolio assets. They use D1 in 512 KiB chunks, with 8 MiB
-image and 12 MiB certificate limits and a 256 MiB total media budget. This avoids
-R2 billing enrollment but is intended for a small portfolio. Free database/CPU/
-request quotas still apply. The hub accepts at most 128 concurrent connections.
-Password hashing and QR generation run in the Durable Object with strong PBKDF2
-work factors. Local tests and a small bundle do not prove the Free Worker's 10 ms
-CPU limit at production traffic; inspect real deployment metrics before launch.
+```powershell
+npx.cmd wrangler d1 execute portfolio --remote --command 'SELECT (SELECT COUNT(*) FROM project) AS projects, (SELECT COUNT(*) FROM site_content) AS site_content, (SELECT COUNT(*) FROM media_files) AS media_files, (SELECT SUM(bytes) FROM media_files) AS media_bytes;'
+npx.cmd wrangler d1 execute portfolio --remote --command 'PRAGMA foreign_key_check;'
+```
 
-Use the [current Cloudflare limits](https://developers.cloudflare.com/workers/platform/limits/),
+Expect projects=`4`, site_content=`38`, media_files=`14`, media_bytes=`22829795`
+and no foreign-key violations. These counts change after later CMS edits.
+
+## 7. Reset the imported owner's password
+
+**PowerShell:**
+
+```powershell
+npm.cmd run owner:create -- --remote --reset
+```
+
+Enter the existing owner email and choose a new password of 12–128 characters.
+Entry is hidden. This updates that account and revokes sessions; it does not
+create a duplicate owner.
+
+The old Argon2 credential cannot authenticate in this runtime, so copying records
+does not preserve the old login password. Authenticator setup was explicitly
+cleared for this import; enrollment happens after deployment. There is no default
+administrator password.
+
+## 8. Upload the production binding and deploy main
+
+**PowerShell:** review and upload the database configuration change:
+
+```powershell
+git diff -- wrangler.jsonc
+git add wrangler.jsonc
+git diff --cached --name-only
+git commit -m "Configure production Cloudflare D1 database"
+git push -u origin setup/cloudflare-production
+```
+
+The staged list should show only the intended public configuration. Do not stage
+.dev.vars, .wrangler, snapshots or private SQL.
+
+Create a pull request from setup/cloudflare-production into main, review the
+database ID and merge it. In **Cloudflare → my-portfolio → Deployments/Builds**,
+select the new main build and confirm its commit matches that merge. Watch
+installation, building and deployment. If it does not start, trigger a build for
+latest main; retrying an old revision will not update its source code.
+
+Successful Wrangler deployment configures these resources:
+
+| Resource                         | Expected configuration                          | Manual work                                  |
+| -------------------------------- | ----------------------------------------------- | -------------------------------------------- |
+| D1                               | `DB` → production portfolio database ID         | Created/migrated/imported in steps 3–6.      |
+| Durable Object                   | `PORTFOLIO_HUB` → `PortfolioHub`, SQLite-backed | Class migration provisions it automatically. |
+| Static assets                    | `ASSETS` → generated dist/client                | Deployed with the Worker.                    |
+| Scheduled maintenance/mail retry | `*/15 * * * *`                                  | Already declared in Wrangler.                |
+| Runtime configuration            | AUTH_SECRET plus declared non-secret vars       | Secret configured in step 5.                 |
+
+Keep the existing `new_sqlite_classes` migration. SQLite Durable Objects are
+available on Workers Free; this class handles live presence/chat and password
+work. [Durable Object limits](https://developers.cloudflare.com/durable-objects/platform/limits/).
+
+For manual deployment of the same prepared source, `npm.cmd run deploy` builds
+and publishes using your Wrangler login. Git builds are the normal path here;
+you do not need to run both deployment methods.
+
+## 9. Verify the site and enroll an authenticator
+
+**Browser:** select the Worker's **Visit** button. Its current expected address
+is `https://my-portfolio.itsajhon.workers.dev`.
+
+Open `/api/health`. A successful response contains:
+
+```json
+{ "success": true, "message": "OK", "data": { "status": "ok", "database": "d1" } }
+```
+
+This checks database connectivity, not every table or user flow. Then:
+
+1. Confirm the home page, portrait, uploaded images and projects appear. The
+   snapshot has four project records but only three are public.
+2. Open `/login`; enter the existing owner email and newly reset password.
+3. Scan the enrollment QR in your authenticator and verify a code. Sign in again
+   with the next code afterward; a consumed code cannot be reused.
+4. Confirm CMS pages load. Save an intentional small edit, reload and check it
+   persists. Test an image upload and its public URL.
+5. Submit an identifiable test inquiry and verify receipt in the admin. Check
+   chatbot replies, live presence/takeover and any client project chat you use.
+6. Inspect **Observability → Logs** and Worker/D1/DO usage before accepting the
+   deployment for your intended traffic.
+
+Core functionality works without AI/email credentials. A saved CMS reply does
+not prove an email was delivered.
+
+## 10. Configure previews separately, after production works
+
+Your earlier GitHub check was a branch preview. Its settings and log are separate
+from an older production build. Leave previews off during initial setup.
+
+To enable them later, use **Settings → Builds**, with Preview command
+`npx wrangler preview`. Configure a Wrangler `previews` block with a separate
+staging D1 database, the PORTFOLIO_HUB binding and required variables. If using
+the dashboard's **Previews Base** editor, copy its generated configuration back
+into wrangler.jsonc. Apply schema/public seed to staging and give it its own
+AUTH_SECRET. Use fixture accounts/data.
+
+Current source has no previews block; production bindings/secrets must not be
+assumed to carry over. Cloudflare isolates Preview Durable Object storage, but
+D1 data is shared whenever bindings use the same database ID. Bind a different
+staging ID before enabling preview writes. `wrangler versions upload` does not
+provide database isolation.
+
+Keep class migrations at the top level. Put the staging D1 binding under
+`previews.d1_databases`, the live hub binding under
+`previews.durable_objects.bindings`, and SESSION_HOURS/OPENAI_MODEL under
+`previews.vars`. To set a generated preview-only secret in Previews Base, use
+`npx.cmd wrangler preview base-config secret put AUTH_SECRET`. Existing previews
+may need their individual secret updated or a new preview created; Base secret
+changes apply to newly created previews. Production is unaffected by that command.
+
+Sources: [Preview configuration](https://developers.cloudflare.com/workers/previews/configuration/),
+[resource isolation](https://developers.cloudflare.com/workers/previews/resources/).
+
+## Troubleshooting an incomplete setup
+
+| Error/symptom                                 | Check and next action                                                                                                                                                                                                       |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ENOENT ... /opt/buildhome/repo/package.json` | Check source commit and root. Use the merged migration or later main with root `/`. November 4's old revision lacks that file.                                                                                              |
+| No dependencies detected                      | Confirm root package.json/package-lock.json exist in that build revision and installation is enabled.                                                                                                                       |
+| Vite/vue-tsc missing                          | Install devDependencies; remove any `--omit=dev` installation override.                                                                                                                                                     |
+| npm rejects the lockfile                      | Compare npm versions. Cloudflare supports an exact packageManager pin in package.json; do not delete the lockfile to hide a failure.                                                                                        |
+| Database not found / all-zero ID              | Check real ID and account; rebuild after editing configuration.                                                                                                                                                             |
+| `no such table`                               | Apply remote migrations to the database bound to this Worker. Local migrations do not initialize remote tables.                                                                                                             |
+| Previous content/images absent                | Confirm private remote import completed. Git does not transfer local database contents.                                                                                                                                     |
+| Authentication not configured                 | Add AUTH_SECRET as a runtime Secret in the correct environment.                                                                                                                                                             |
+| Invalid credentials / reset required          | Use the existing email and `owner:create -- --remote --reset`.                                                                                                                                                              |
+| TOTP code already used                        | Wait for a new code and use an automatically synchronized phone clock. Keep AUTH_SECRET stable.                                                                                                                             |
+| Live service unavailable / missing binding    | Verify PORTFOLIO_HUB/class migration deployed. Previews need their own declared binding.                                                                                                                                    |
+| Account/token permission error                | Verify account/build token. Worker upload needs Workers Scripts access; database lookup/management needs corresponding D1 access. A CI job running migrations/import needs D1 write access. Local steps use Wrangler OAuth. |
+| Old Vercel check remains red                  | Old results are historical. If new Vercel builds continue, check for another project still linked to this repository.                                                                                                       |
+| Static page loads but API fails               | Check `/api/health` and runtime logs; a previous static-only deployment can serve a page without the new backend.                                                                                                           |
+
+For a new error, capture that build's **commit SHA, environment/branch and first
+actual error lines**. A failure badge or a different build's log is insufficient.
+
+## Recovery, backups and a future clone
+
+Private backup location on this workstation:
+
+```text
+C:\Users\Lenovo\Desktop\PROJECTS\BACKUPS\MY_PORTFOLIO-before-cloudflare-2026-11-05
+```
+
+| Backup                                | Contents                                                                      |
+| ------------------------------------- | ----------------------------------------------------------------------------- |
+| portfolio-before-cloudflare.gitbundle | Original source/history.                                                      |
+| private-config-and-uploads.zip        | Original environment files and all local uploads.                             |
+| legacy-postgres.private.json          | Consistent read-only PostgreSQL snapshot: 184 records across 20 models.       |
+| cloudflare-private-restore.zip        | Prepared legacy-import SQL/report and the local development secret.           |
+| manifest.json / RESTORE.md            | Integrity hashes/recovery notes.                                              |
+| retired-source/                       | Preserved original client/server directories, configuration and dependencies. |
+
+Never upload these files to public Git. For a fresh clone, extract the Cloudflare
+restore ZIP into a private directory, preserving its legacy-import subdirectory.
+Install dependencies, configure the intended D1 ID, build and migrate an empty
+target, then use your actual extraction path in:
+
+```powershell
+node scripts/test-migration.mjs --dir='C:\private-restore\legacy-import'
+node scripts/migration/apply-legacy.mjs --dir='C:\private-restore\legacy-import' --remote
+```
+
+The archived secret belongs to the local environment. Keep the separate production
+secret from step 5 for this imported production installation.
+
+The snapshot preserves IDs/dates/soft deletes/relationships and rewrites upload
+URLs, including JSON image lists. Fourteen files totaling 22,829,795 bytes were
+hash-verified. One already-missing thumbnail uses its available gallery image,
+as recorded in the private report. Unreferenced original files remain in the ZIP.
+
+The import is several recovery steps, not one transaction across all SQL files.
+Inspect completed parts/logs before resuming an interrupted import or choosing a
+new empty target. Never erase newer production records to repeat an old import.
+
+After launch, export fresh remote backups; the old snapshot excludes new CMS
+edits. Create/use a real private backup directory and replace the date in:
+
+```powershell
+npx.cmd wrangler d1 export portfolio --remote --output='C:\private-backups\portfolio-YYYY-MM-DD.private.sql'
+```
+
+Keep AUTH_SECRET separately and copy backups to another device for disk-loss
+protection. Preserve the original PostgreSQL database/source until remote
+acceptance. [D1 export documentation](https://developers.cloudflare.com/d1/best-practices/import-export-data/).
+
+## Optional integrations, domain and free limits
+
+The workers.dev address is enough to launch. A custom domain can be added later
+in the Worker's Domains settings. R2, Containers and another backend/database
+host are unnecessary for this implementation.
+
+| Optional runtime secret | Purpose                                                                                 |
+| ----------------------- | --------------------------------------------------------------------------------------- |
+| OPENAI_API_KEY          | Optional AI answers; absent credentials use grounded local portfolio/knowledge answers. |
+| MAIL_API_TOKEN          | Resend HTTP API token.                                                                  |
+| MAIL_FROM               | Sender verified with the mail provider.                                                 |
+| MAIL_TO                 | Owner address for inquiry notifications.                                                |
+
+These providers have their own limits/billing and were not called in local tests.
+Do not copy the retired NestJS/SMTP environment wholesale into Workers. Email
+intent persists in mail_outbox; scheduled retries run every 15 minutes, at most
+five attempts, with failed rows retained for review. Saved/queued is distinct
+from delivered.
+
+Public uploads use D1 chunks: 8 MiB/image, 12 MiB/certificate and a 256 MiB media
+budget. The hub caps live connections at 128. Check real CPU, D1 reads/writes and
+storage: local tests do not prove Free's 10 ms Worker CPU allowance or traffic
+capacity. Consult [Workers limits](https://developers.cloudflare.com/workers/platform/limits/),
 [D1 limits](https://developers.cloudflare.com/d1/platform/limits/) and
-[Durable Object limits](https://developers.cloudflare.com/durable-objects/platform/limits/)
-when planning capacity. No paid products are provisioned by the setup scripts.
+[Durable Object limits](https://developers.cloudflare.com/durable-objects/platform/limits/).
 
-Owners can inspect uploads with authenticated `GET /api/upload/files` and reclaim
-unused files with `DELETE /api/upload/files/:id`. Deletion refuses any reference
-in content, galleries, avatars or chat history and cascades stored chunks.
+## Local development and a new PostgreSQL snapshot
+
+For a fresh local database only, `npm.cmd run setup` creates .dev.vars, applies
+local schema and seeds public content; `npm.cmd run owner:create` creates a local
+owner. These do not configure production. For an existing restored local owner,
+use `npm.cmd run owner:create -- --reset` instead. Changing the D1 ID may select
+different local state; keep the private import available for local restoration.
+
+`npm.cmd run dev` serves port 5173. Local checks are `npm.cmd test`,
+`npm.cmd run test:browser`, `npm.cmd run build` and `npm.cmd run deploy:check`.
+Browser tests use isolated fixture data and installed Chrome; the
+PLAYWRIGHT_CHANNEL environment variable can select msedge. After building,
+`npm.cmd run preview` serves the compiled application at port 8787.
+
+To make a new snapshot, supply DATABASE_URL privately in the shell and run:
+
+```powershell
+npm.cmd run legacy:export -- --out=legacy-export.private.json
+npm.cmd run legacy:import -- --file=legacy-export.private.json --uploads='path-to-restored-uploads' --reset-2fa --out='.wrangler/private/new-import'
+```
+
+Export is read-only. Import generation changes neither database and refuses
+missing uploads by default. The explicit `--fallback-missing-thumbnails` option
+can use gallery images or null for missing project thumbnails and records that
+decision privately. Use a new output directory rather than overwriting recovery
+evidence. See [architecture](cloudflare-unified-architecture.md) and
+[verification evidence](ENGINEERING_ACCEPTANCE.md) for implementation limits.

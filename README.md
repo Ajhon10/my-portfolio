@@ -9,16 +9,21 @@ There are no separately deployed client/server applications. Run commands at
 the repository root; Vue lives in `src/`, HTTP/live backend code in `worker/`,
 and database migrations in `migrations/`.
 
+For the incomplete Cloudflare installation, start with the
+[complete Cloudflare setup guide](docs/cloudflare-deployment.md). It separates
+dashboard settings, PC commands, production restoration and first login.
+
+The commands below are for a **fresh local database**, not production. On this
+workstation the existing portfolio was already restored locally: reset the
+existing owner's password with `npm run owner:create -- --reset` instead of
+creating another owner, then enroll the authenticator on sign-in.
+
 ```sh
 npm ci
 npm run setup
 npm run owner:create
 npm run dev
 ```
-
-On this workstation the existing portfolio has already been restored to local
-D1. Reset the existing owner's password with `npm run owner:create -- --reset`
-instead of creating a new owner, then enroll the authenticator on sign-in.
 
 ```sh
 npm test
