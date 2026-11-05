@@ -138,41 +138,39 @@ generates configuration under dist/, and Wrangler can redirect later commands
 to that generated file. Rebuilding keeps the generated ID current. A successful
 dry run does not create database tables or prove remote permissions.
 
-## 5. Add AUTH_SECRET as a production runtime secret
+## 5. Prepare AUTH_SECRET for the first full Worker deployment
 
-**Cloudflare dashboard:** open **my-portfolio → Settings → Variables and Secrets**
-with **Production** selected.
+If Cloudflare says **Variables/Bindings cannot be added to a Worker that only
+has static assets**, the current deployment has no Worker script. The missing
+Add button is expected. Keep the existing Worker; its full application code and
+secret can be uploaded together in step 8. Do not wait for that dashboard button.
 
-Keep a valid AUTH_SECRET if already configured for this app. For first setup,
-generate a new value in PowerShell:
+For first setup, create a private JSON file in your existing portfolio folder:
 
 ```powershell
-node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
+node -e "const fs=require('node:fs'); fs.mkdirSync('.wrangler/private',{recursive:true}); fs.writeFileSync('.wrangler/private/production-secrets.private.json',JSON.stringify({AUTH_SECRET:require('node:crypto').randomBytes(48).toString('base64url')}),{flag:'wx',mode:0o600}); console.log('Private secret file created; no secret value printed.');"
 ```
 
-Copy the generated value. In Variables and Secrets, select **Add**:
+This stores a random AUTH_SECRET without printing it. The path is ignored by
+Git. If the command reports EEXIST, a file is already present: reuse it after
+checking privately that it is your intended production secret file; do not
+replace an established encryption key. Save the file in your private recovery
+backup too. Never upload it to GitHub or paste its contents into chat.
 
-| Field         | Value                      |
-| ------------- | -------------------------- |
-| Type          | Secret                     |
-| Variable name | `AUTH_SECRET`              |
-| Value         | The generated random value |
+If this app already has a valid production AUTH_SECRET on a script-backed
+Worker, keep it and skip generating a new one. In step 8 use the existing-secret
+deployment alternative. AUTH_SECRET encrypts authenticator enrollment; it is
+separate from your owner password, Cloudflare login and build token.
 
-Save/deploy the secret using the dashboard action. This can update the existing
-Worker version; the new application code is published in step 8. Save the secret
-in your private password manager or recovery backup too.
+After the first full deployment, runtime secrets can be managed under
+**my-portfolio ? Settings ? Variables and Secrets ? Production**, or using
+`npx.cmd wrangler secret put AUTH_SECRET`. Keep the value stable after enrollment.
+Do not set it as a VITE variable or a build-only variable.
 
-AUTH_SECRET encrypts authenticator enrollment. It is separate from your owner
-password, Cloudflare login and build token. Keep it stable after enrollment.
-Do not put it in chat, GitHub, VITE variables or public configuration. A build-only
-variable is not available to the running Worker.
+SESSION_HOURS=`8` and OPENAI_MODEL=`gpt-4o-mini` are already non-secret Wrangler
+variables. Leave optional AI/mail secrets absent for the initial deployment.
 
-The CLI alternative is `npx.cmd wrangler secret put AUTH_SECRET`; enter the value
-at its prompt. Use one setup method. SESSION_HOURS=`8` and OPENAI_MODEL=`gpt-4o-mini`
-are already non-secret Wrangler variables. Leave optional AI/mail secrets absent
-for the first deployment.
-
-[Runtime secret instructions](https://developers.cloudflare.com/workers/configuration/secrets/).
+[Cloudflare supports uploading secrets alongside Worker code](https://developers.cloudflare.com/workers/configuration/secrets/#upload-secrets-alongside-code).
 
 ## 6. Apply remote migrations and restore your portfolio
 
@@ -240,9 +238,33 @@ does not preserve the old login password. Authenticator setup was explicitly
 cleared for this import; enrollment happens after deployment. There is no default
 administrator password.
 
-## 8. Upload the production binding and deploy main
+## 8. Deploy the full Worker with its secret, then connect main
 
-**PowerShell:** review and upload the database configuration change:
+After migrations/import and owner reset have succeeded, run this from the
+portfolio folder containing your real D1 ID and the private file from step 5:
+
+```powershell
+npm.cmd run build
+npx.cmd wrangler deploy --secrets-file .wrangler/private/production-secrets.private.json
+```
+
+This is the first real deployment: it uploads the API script, Vue assets,
+configured bindings and AUTH_SECRET to the existing my-portfolio Worker. It
+replaces the static-only deployment. A dry run does not perform this conversion.
+The source config already declares `main: worker/index.ts`; do not remove it or
+upload only the dist/client directory. No temporary Worker or new project is needed.
+
+If a valid AUTH_SECRET is already installed on a script-backed Worker and you
+skipped the private-file step, use `npm.cmd run deploy` instead. Omitted existing
+secrets are retained by subsequent deployments.
+
+Refresh Cloudflare Settings after deployment. The runtime Variables and Secrets
+and Bindings sections should now be available. Confirm AUTH_SECRET is present as
+an encrypted secret and check `/api/health` before proceeding. If the static-only
+message remains, inspect the specific deploy error and commit/config: successful
+upload of assets alone is insufficient.
+
+**PowerShell:** now review and upload the database configuration change:
 
 ```powershell
 git diff -- wrangler.jsonc
@@ -263,21 +285,21 @@ latest main; retrying an old revision will not update its source code.
 
 Successful Wrangler deployment configures these resources:
 
-| Resource                         | Expected configuration                          | Manual work                                  |
-| -------------------------------- | ----------------------------------------------- | -------------------------------------------- |
-| D1                               | `DB` → production portfolio database ID         | Created/migrated/imported in steps 3–6.      |
-| Durable Object                   | `PORTFOLIO_HUB` → `PortfolioHub`, SQLite-backed | Class migration provisions it automatically. |
-| Static assets                    | `ASSETS` → generated dist/client                | Deployed with the Worker.                    |
-| Scheduled maintenance/mail retry | `*/15 * * * *`                                  | Already declared in Wrangler.                |
-| Runtime configuration            | AUTH_SECRET plus declared non-secret vars       | Secret configured in step 5.                 |
+| Resource                         | Expected configuration                          | Manual work                                       |
+| -------------------------------- | ----------------------------------------------- | ------------------------------------------------- |
+| D1                               | `DB` → production portfolio database ID         | Created/migrated/imported in steps 3–6.           |
+| Durable Object                   | `PORTFOLIO_HUB` → `PortfolioHub`, SQLite-backed | Class migration provisions it automatically.      |
+| Static assets                    | `ASSETS` → generated dist/client                | Deployed with the Worker.                         |
+| Scheduled maintenance/mail retry | `*/15 * * * *`                                  | Already declared in Wrangler.                     |
+| Runtime configuration            | AUTH_SECRET plus declared non-secret vars       | Prepared in step 5; uploaded with code in step 8. |
 
 Keep the existing `new_sqlite_classes` migration. SQLite Durable Objects are
 available on Workers Free; this class handles live presence/chat and password
 work. [Durable Object limits](https://developers.cloudflare.com/durable-objects/platform/limits/).
 
-For manual deployment of the same prepared source, `npm.cmd run deploy` builds
-and publishes using your Wrangler login. Git builds are the normal path here;
-you do not need to run both deployment methods.
+The first CLI deployment above establishes the script and secret. Future pushes
+to main use the normal Git build/deploy commands and retain existing secrets;
+the private JSON file stays on your PC and is not needed in Git or build variables.
 
 ## 9. Verify the site and enroll an authenticator
 
@@ -347,6 +369,7 @@ Sources: [Preview configuration](https://developers.cloudflare.com/workers/previ
 | Database not found / all-zero ID              | Check real ID and account; rebuild after editing configuration.                                                                                                                                                             |
 | `no such table`                               | Apply remote migrations to the database bound to this Worker. Local migrations do not initialize remote tables.                                                                                                             |
 | Previous content/images absent                | Confirm private remote import completed. Git does not transfer local database contents.                                                                                                                                     |
+| No Add button / static-only message           | Complete step 5 privately, then step 8 to upload Worker code and its secret together. Dashboard runtime bindings become available after a full-script deployment.                                                           |
 | Authentication not configured                 | Add AUTH_SECRET as a runtime Secret in the correct environment.                                                                                                                                                             |
 | Invalid credentials / reset required          | Use the existing email and `owner:create -- --remote --reset`.                                                                                                                                                              |
 | TOTP code already used                        | Wait for a new code and use an automatically synchronized phone clock. Keep AUTH_SECRET stable.                                                                                                                             |

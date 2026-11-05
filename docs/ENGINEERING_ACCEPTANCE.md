@@ -117,3 +117,18 @@ Git whitespace checks passed. No runtime code changed, so the earlier runtime
 test evidence was not repeated or promoted to remote acceptance. No Cloudflare
 login, provisioning, migration, secret update or deployment was performed by
 this documentation revision.
+
+## Static-only Worker setup correction: 5 November 2026
+
+The owner's dashboard showed that runtime secrets and bindings cannot be added
+to its current static-assets-only deployment. The setup order now prepares a
+private JSON secret file and uploads it together with the first full Worker code
+using wrangler deploy --secrets-file. Dashboard runtime settings become available
+after a successful script-backed deployment; future Git builds retain secrets.
+No application source or production resource was changed for this correction.
+
+The correction was prepared in a separate worktree to preserve the owner's
+uncommitted real D1 ID on setup/cloudflare-production. Documentation validation
+checks local links, package/script references, code fences and bootstrap command
+syntax. Installed Wrangler help confirms --secrets-file support and preservation
+of existing secrets. No authenticated deployment was performed or claimed.
