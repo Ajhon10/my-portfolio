@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { d1FailureMessage, parseD1Output } from './wrangler-output.mjs'
 export const metadata = JSON.parse(await readFile(new URL('../migration/model-map.json', import.meta.url), 'utf8'))
 export const quote = (value) => '"' + value.replaceAll('"', '""') + '"'
 export function splitSql(sql) {
@@ -88,7 +89,7 @@ export async function executeSql(sql, remote = process.argv.includes('--remote')
 		await unlink(filename)
 	}
 }
-export async function queryD1(args, remote = process.argv.includes('--remote')) {
+export async function queryD1(args, remote = process.argv.includes('--remote'), { readOnly = false } = {}) {
 	const stateArgs =
 		!remote && process.env.PORTFOLIO_LOCAL_STATE ? ['--persist-to', process.env.PORTFOLIO_LOCAL_STATE] : []
 	const child = spawn(
@@ -108,18 +109,24 @@ export async function queryD1(args, remote = process.argv.includes('--remote')) 
 	)
 	let output = '',
 		errors = ''
+	child.stdout.setEncoding('utf8')
+	child.stderr.setEncoding('utf8')
 	child.stdout.on('data', (c) => (output += c))
 	child.stderr.on('data', (c) => (errors += c))
 	const code = await new Promise((resolve, reject) => {
 		child.on('error', reject)
 		child.on('exit', resolve)
 	})
-	if (code !== 0) {
+	let result
+	try {
+		if (code !== 0) throw new Error('Wrangler exited unsuccessfully.')
+		result = parseD1Output(output)
+	} catch {
 		await mkdir('.wrangler/private', { recursive: true })
 		await writeFile('.wrangler/private/last-d1-error.private.json', JSON.stringify({ output, errors }), { mode: 0o600 })
-		throw new Error('D1 command failed; see the private .wrangler/private/last-d1-error.private.json log.')
+		throw new Error(d1FailureMessage(output, { readOnly }))
 	}
-	return JSON.parse(output)
+	return result
 }
 export async function localVars() {
 	const { randomBytes } = await import('node:crypto')

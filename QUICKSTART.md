@@ -2,9 +2,10 @@
 
 For Cloudflare, follow the [complete setup guide](docs/cloudflare-deployment.md)
 from step 1. Keep the existing Worker, configure its root/main build settings,
-create D1 and replace its ID, rebuild, add the production secret, migrate/import
-the private data, reset the imported owner, and publish the configuration through
-a pull request. Previews are configured separately after production works.
+create D1 and replace its ID, rebuild, prepare the private production secret,
+migrate/import data and reset the owner, then deploy Worker code and secret
+together. Publish the database configuration through a pull request afterward.
+This first deployment enables runtime settings on an existing static-only Worker. Previews are configured separately after production works.
 
 For **fresh local development only**, run from the repository root with Node
 22.14+. On PowerShell use `npm.cmd` if npm's `.ps1` launcher is blocked. If using

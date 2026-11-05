@@ -1,4 +1,4 @@
-import type { ClientRequest, ClientRequestMessage, ClientRequestStatus, User } from '@/types'
+import type { ClientRequest, ClientRequestMessage, ClientRequestReply, ClientRequestStatus, User } from '@/types'
 import { useApiProvider } from './api.provider'
 
 export interface ClientRequestInput {
@@ -18,6 +18,11 @@ export interface ClientAccountInput {
 	password: string
 	firstName?: string
 	lastName?: string
+}
+
+export interface EmailServiceStatus {
+	configured: boolean
+	queue: { accepted: number; pending: number; failed: number }
 }
 
 export const useClientRequestProvider = () => {
@@ -40,7 +45,20 @@ export const useClientRequestProvider = () => {
 	const updateStatus = async (id: string, status: ClientRequestStatus) =>
 		api.PUT<ClientRequest>(`/client-requests/${id}/status`, { status })
 	const reply = async (id: string, message: string) =>
-		api.POST(`/client-requests/${id}/reply`, { message })
+		api.POST<ClientRequestReply>(`/client-requests/${id}/reply`, { message })
+	const emailStatus = () => api.GET<EmailServiceStatus>('/client-requests/email/status', {}, { silent: true })
 
-	return { submit, submitMine, list, myRequests, getOne, createClientAccount, listMessages, sendMessage, updateStatus, reply }
+	return {
+		submit,
+		submitMine,
+		list,
+		myRequests,
+		getOne,
+		createClientAccount,
+		listMessages,
+		sendMessage,
+		updateStatus,
+		reply,
+		emailStatus,
+	}
 }

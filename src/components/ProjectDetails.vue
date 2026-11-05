@@ -2,13 +2,14 @@
 import { computed, ref } from 'vue'
 import { useSiteBranding } from '@/composables/useSiteBranding'
 import type { Project } from '@/types'
+import { projectMediaType } from '../../shared/project-media'
 const props = defineProps<{ project: Project }>()
 const { resolveAssetUrl } = useSiteBranding()
 const dialog = ref<HTMLDialogElement>()
 const enlarged = ref('')
-const images = computed(() => [
+const media = computed(() => [
 	...new Set(
-		[props.project.thumbnailUrl, ...(props.project.images || []).map((i) => i.url)].filter(
+		[props.project.thumbnailUrl, ...(props.project.media || props.project.images || []).map((i) => i.url)].filter(
 			(url): url is string => !!url,
 		),
 	),
@@ -37,20 +38,33 @@ function enlarge(url: string) {
 			</router-link>
 		</div>
 		<p v-if="project.shortSummary" class="text-brand-gray-300 mt-5 text-lg">{{ project.shortSummary }}</p>
-		<div v-if="images.length" class="grid sm:grid-cols-2 gap-4 mt-6">
-			<button
-				v-for="(url, index) in images"
-				:key="url"
-				:aria-label="`Enlarge ${project.title} image ${index + 1}`"
-				@click="enlarge(url)"
-			>
-				<img
-					:src="resolveAssetUrl(url)"
-					:alt="`${project.title} image ${index + 1}`"
-					loading="lazy"
-					class="w-full max-h-72 object-contain rounded"
-				/>
-			</button>
+		<div v-if="media.length" class="grid sm:grid-cols-2 gap-4 mt-6" aria-label="Project gallery">
+			<template v-for="(url, index) in media" :key="url">
+				<figure
+					v-if="projectMediaType(url) === 'video'"
+					class="min-w-0 rounded-lg overflow-hidden border border-white/10 bg-black"
+				>
+					<video
+						:src="resolveAssetUrl(url)"
+						controls
+						playsinline
+						preload="metadata"
+						class="w-full max-h-96"
+						:aria-label="`${project.title} video ${index + 1}`"
+					>
+						Your browser cannot play this video. <a :href="resolveAssetUrl(url)">Open the video</a>.
+					</video>
+					<figcaption class="p-3 text-sm text-brand-gray-400">{{ project.title }} — video</figcaption>
+				</figure>
+				<button v-else :key="url" :aria-label="`Enlarge ${project.title} image ${index + 1}`" @click="enlarge(url)">
+					<img
+						:src="resolveAssetUrl(url)"
+						:alt="`${project.title} image ${index + 1}`"
+						loading="lazy"
+						class="w-full max-h-72 object-contain rounded"
+					/>
+				</button>
+			</template>
 		</div>
 		<p class="whitespace-pre-line text-brand-gray-300 leading-relaxed mt-7">{{ project.description }}</p>
 		<div class="flex flex-wrap gap-2 mt-6">

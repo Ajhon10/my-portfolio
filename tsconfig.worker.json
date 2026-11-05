@@ -14,5 +14,5 @@
 		"composite": true,
 		"tsBuildInfoFile": "./node_modules/.tmp/worker.tsbuildinfo"
 	},
-	"include": ["worker/**/*.ts", "migration/model-map.json"]
+	"include": ["worker/**/*.ts", "shared/**/*.ts", "migration/model-map.json"]
 }

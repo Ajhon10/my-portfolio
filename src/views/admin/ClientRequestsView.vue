@@ -2,7 +2,7 @@
 import FormField from '@/components/FormField.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import Modal from '@/components/Modal.vue'
-import { useClientRequestProvider } from '@/composables/provider/client-request.provider'
+import { useClientRequestProvider, type EmailServiceStatus } from '@/composables/provider/client-request.provider'
 import { getAdminSocket } from '@/composables/useSocket'
 import { ClientRequestStatus, Role, type ClientRequest, type ClientRequestMessage } from '@/types'
 import type { Socket } from '@/composables/worker-socket'
@@ -16,6 +16,8 @@ const selectedId = ref<string | null>(null)
 const filter = ref<string>('all')
 const replyText = ref('')
 const sending = ref(false)
+const emailService = ref<EmailServiceStatus | null>(null)
+const replyFeedback = ref('')
 const messages = ref<ClientRequestMessage[]>([])
 const loadingMessages = ref(false)
 const chatText = ref('')
@@ -47,7 +49,8 @@ const statuses = Object.values(ClientRequestStatus)
 
 const load = async () => {
 	loading.value = true
-	const res = await provider.list()
+	const [res, email] = await Promise.all([provider.list(), provider.emailStatus()])
+	emailService.value = email.success && email.data ? email.data : null
 	if (res.success && res.data) {
 		items.value = sortRequests(res.data)
 		if (!selectedId.value && items.value.length) selectedId.value = items.value[0].id
@@ -84,6 +87,7 @@ onBeforeUnmount(() => {
 })
 
 watch(selectedId, async (next, prev) => {
+	replyFeedback.value = ''
 	if (prev) socket?.emit('project-chat:leave', { requestId: prev })
 	clientTyping.value = false
 	messages.value = []
@@ -116,15 +120,28 @@ const updateStatus = async (s: ClientRequestStatus) => {
 }
 
 const sendReply = async () => {
-	if (!selected.value || !replyText.value.trim()) return
+	if (!selected.value || !replyText.value.trim() || sending.value) return
 	sending.value = true
+	replyFeedback.value = ''
 	const res = await provider.reply(selected.value.id, replyText.value.trim())
 	sending.value = false
 	if (res.success) {
+		replyFeedback.value = res.message || 'Reply saved. Email delivery has not been confirmed.'
 		replyText.value = ''
 		await load()
+	} else {
+		replyFeedback.value = res.message || 'Unable to save this reply. Please try again.'
 	}
 }
+
+const deliveryLabel = (status?: string) =>
+	({
+		'not-configured': 'Email not sent: delivery is not set up',
+		queued: 'Email queued; delivery not yet confirmed',
+		accepted: 'Accepted by email provider; inbox delivery not confirmed',
+		failed: 'Email failed after retries; reply is still saved',
+		unknown: 'Email delivery status unavailable for this earlier reply',
+	})[status || 'unknown'] || 'Email delivery status unavailable'
 
 const refreshAfterReconnect = () => {
 	clientTyping.value = false
@@ -164,12 +181,15 @@ const setupSocket = () => {
 		scrollMessages()
 	})
 
-	socket.on('project-chat:typing', ({ requestId, sender, typing }: { requestId: string; sender: string; typing: boolean }) => {
-		if (requestId === selectedId.value && sender === 'client') {
-			clientTyping.value = typing
-			scrollMessages()
-		}
-	})
+	socket.on(
+		'project-chat:typing',
+		({ requestId, sender, typing }: { requestId: string; sender: string; typing: boolean }) => {
+			if (requestId === selectedId.value && sender === 'client') {
+				clientTyping.value = typing
+				scrollMessages()
+			}
+		},
+	)
 }
 
 const teardownSocket = () => {
@@ -247,7 +267,8 @@ const createClientAccount = async () => {
 	if (!accountForm.email.trim()) accountErrors.value.email = 'Email is required'
 	if (!accountForm.firstName.trim()) accountErrors.value.firstName = 'First name is required'
 	if (!accountForm.lastName.trim()) accountErrors.value.lastName = 'Last name is required'
-	if (!accountForm.password || accountForm.password.length < 8) accountErrors.value.password = 'Password must be at least 8 characters'
+	if (!accountForm.password || accountForm.password.length < 8)
+		accountErrors.value.password = 'Password must be at least 8 characters'
 	if (Object.keys(accountErrors.value).length) {
 		toast.error('Please fix the highlighted fields.')
 		return
@@ -268,7 +289,8 @@ const createClientAccount = async () => {
 }
 
 const senderName = (message: ClientRequestMessage) => {
-	if (message.sender?.role === Role.CLIENT) return `${message.sender?.firstName || 'Client'} ${message.sender?.lastName || ''}`.trim()
+	if (message.sender?.role === Role.CLIENT)
+		return `${message.sender?.firstName || 'Client'} ${message.sender?.lastName || ''}`.trim()
 	return 'You'
 }
 </script>
@@ -280,7 +302,9 @@ const senderName = (message: ClientRequestMessage) => {
 			<div class="p-3 border-b border-white/5 flex flex-wrap gap-1">
 				<button
 					class="px-2.5 py-1 text-xs rounded-full border"
-					:class="filter === 'all' ? 'bg-brand-blue text-white border-brand-blue' : 'border-white/10 text-brand-gray-400'"
+					:class="
+						filter === 'all' ? 'bg-brand-blue text-white border-brand-blue' : 'border-white/10 text-brand-gray-400'
+					"
 					@click="filter = 'all'"
 				>
 					All
@@ -331,14 +355,20 @@ const senderName = (message: ClientRequestMessage) => {
 					<div class="flex items-start justify-between gap-3 mb-3">
 						<div>
 							<h3 class="font-display font-semibold text-lg">{{ selected.fullName }}</h3>
-							<a :href="`mailto:${selected.email}`" class="text-sm text-brand-blueLight hover:underline">{{ selected.email }}</a>
+							<a :href="`mailto:${selected.email}`" class="text-sm text-brand-blueLight hover:underline">{{
+								selected.email
+							}}</a>
 						</div>
-						<span :class="['px-2.5 py-1 rounded-full text-xs border', statusColor(selected.status)]">{{ selected.status }}</span>
+						<span :class="['px-2.5 py-1 rounded-full text-xs border', statusColor(selected.status)]">{{
+							selected.status
+						}}</span>
 					</div>
 					<div class="grid grid-cols-2 gap-3 text-sm text-brand-gray-300 mb-3">
 						<div><span class="text-brand-gray-500">Type:</span> {{ selected.projectType }}</div>
 						<div v-if="selected.budget"><span class="text-brand-gray-500">Budget:</span> {{ selected.budget }}</div>
-						<div v-if="selected.timeline"><span class="text-brand-gray-500">Timeline:</span> {{ selected.timeline }}</div>
+						<div v-if="selected.timeline">
+							<span class="text-brand-gray-500">Timeline:</span> {{ selected.timeline }}
+						</div>
 						<div v-if="selected.phone"><span class="text-brand-gray-500">Phone:</span> {{ selected.phone }}</div>
 						<div v-if="selected.company"><span class="text-brand-gray-500">Company:</span> {{ selected.company }}</div>
 					</div>
@@ -347,7 +377,11 @@ const senderName = (message: ClientRequestMessage) => {
 							v-for="s in statuses"
 							:key="s"
 							class="px-2.5 py-1 text-xs rounded-md border transition"
-							:class="selected.status === s ? 'bg-brand-blue text-white border-brand-blue' : 'border-white/10 text-brand-gray-400 hover:border-white/30'"
+							:class="
+								selected.status === s
+									? 'bg-brand-blue text-white border-brand-blue'
+									: 'border-white/10 text-brand-gray-400 hover:border-white/30'
+							"
 							@click="updateStatus(s)"
 						>
 							{{ s }}
@@ -380,8 +414,13 @@ const senderName = (message: ClientRequestMessage) => {
 					<div v-if="selected.replies && selected.replies.length">
 						<h4 class="text-xs uppercase tracking-wider text-brand-gray-500 mb-2">Your replies</h4>
 						<div class="space-y-3">
-							<div v-for="rep in selected.replies" :key="rep.id" class="p-3 rounded-lg bg-brand-blue/10 border border-brand-blue/20">
+							<div
+								v-for="rep in selected.replies"
+								:key="rep.id"
+								class="p-3 rounded-lg bg-brand-blue/10 border border-brand-blue/20"
+							>
 								<div class="text-xs text-brand-gray-500 mb-1">{{ fmt(rep.createdAt) }}</div>
+								<p class="text-xs text-brand-gray-400 mb-2">{{ deliveryLabel(rep.emailDelivery) }}</p>
 								<p class="text-sm text-brand-gray-200 whitespace-pre-line">{{ rep.message }}</p>
 							</div>
 						</div>
@@ -394,7 +433,10 @@ const senderName = (message: ClientRequestMessage) => {
 								Create a client account to let them access this chat.
 							</span>
 						</div>
-						<div ref="messageList" class="rounded-xl border border-white/10 bg-black/20 max-h-72 overflow-y-auto p-3 space-y-3">
+						<div
+							ref="messageList"
+							class="rounded-xl border border-white/10 bg-black/20 max-h-72 overflow-y-auto p-3 space-y-3"
+						>
 							<LoadingSpinner v-if="loadingMessages" />
 							<div v-else-if="!messages.length" class="py-8 text-center text-sm text-brand-gray-500">
 								No project chat messages yet.
@@ -411,9 +453,11 @@ const senderName = (message: ClientRequestMessage) => {
 								</div>
 								<div
 									class="max-w-[82%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap"
-									:class="message.sender?.role === Role.CLIENT
-										? 'bg-white/5 text-brand-gray-200 border border-white/5 rounded-bl-sm'
-										: 'bg-brand-blue text-white rounded-br-sm'"
+									:class="
+										message.sender?.role === Role.CLIENT
+											? 'bg-white/5 text-brand-gray-200 border border-white/5 rounded-bl-sm'
+											: 'bg-brand-blue text-white rounded-br-sm'
+									"
 								>
 									{{ message.message }}
 								</div>
@@ -421,8 +465,14 @@ const senderName = (message: ClientRequestMessage) => {
 							<div v-if="clientTyping" class="flex items-start">
 								<div class="px-3.5 py-2.5 rounded-2xl bg-white/5 border border-white/5 flex items-center gap-1">
 									<span class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft" />
-									<span class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft" style="animation-delay: 0.15s" />
-									<span class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft" style="animation-delay: 0.3s" />
+									<span
+										class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft"
+										style="animation-delay: 0.15s"
+									/>
+									<span
+										class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft"
+										style="animation-delay: 0.3s"
+									/>
 								</div>
 							</div>
 						</div>
@@ -435,23 +485,46 @@ const senderName = (message: ClientRequestMessage) => {
 								:disabled="sendingChat || !selected.clientUserId"
 								@input="onChatInput"
 							/>
-							<button class="btn btn-primary !py-2 !px-4" :disabled="sendingChat || !chatText.trim() || !selected.clientUserId">
+							<button
+								class="btn btn-primary !py-2 !px-4"
+								:disabled="sendingChat || !chatText.trim() || !selected.clientUserId"
+							>
 								Send
 							</button>
 						</form>
 					</div>
 				</div>
 				<div class="p-4 border-t border-white/5 space-y-3">
+					<p
+						v-if="emailService && !emailService.configured"
+						class="rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200"
+						role="status"
+					>
+						Email delivery is not set up. Replies are saved here, but clients will not receive them by email until
+						delivery is configured.
+					</p>
+					<p v-else-if="!emailService" class="text-sm text-brand-gray-400" role="status">
+						Email service status is unavailable. Saving a reply does not confirm email delivery.
+					</p>
+					<p v-else class="text-xs text-brand-gray-400">
+						Replies are queued for email after saving. Provider acceptance does not confirm delivery to the client's
+						inbox.
+						<span v-if="emailService.queue.failed">{{ emailService.queue.failed }} email(s) need delivery review.</span>
+					</p>
+					<label for="inquiry-reply" class="label">Reply to inquiry</label>
 					<textarea
+						id="inquiry-reply"
 						v-model="replyText"
 						rows="3"
 						class="input resize-none"
-						placeholder="Type your reply (will be emailed to the client)..."
+						maxlength="10000"
+						placeholder="Type your reply to this inquiry..."
 					/>
+					<p v-if="replyFeedback" class="text-sm text-brand-gray-300" role="status">{{ replyFeedback }}</p>
 					<div class="flex justify-end">
 						<button class="btn btn-primary" :disabled="sending || !replyText.trim()" @click="sendReply">
 							<span v-if="sending">Sending&hellip;</span>
-							<span v-else>Send reply</span>
+							<span v-else>{{ emailService?.configured ? 'Send reply' : 'Save reply' }}</span>
 						</button>
 					</div>
 				</div>
@@ -471,7 +544,12 @@ const senderName = (message: ClientRequestMessage) => {
 				<FormField label="Email" :error="accountErrors.email" required>
 					<input v-model="accountForm.email" class="input" type="email" />
 				</FormField>
-				<FormField label="Temporary password" :error="accountErrors.password" required hint="Share this securely with the client. They can change it after login.">
+				<FormField
+					label="Temporary password"
+					:error="accountErrors.password"
+					required
+					hint="Share this securely with the client. They can change it after login."
+				>
 					<input v-model="accountForm.password" class="input" type="password" />
 				</FormField>
 				<div class="flex justify-end gap-3">

@@ -1,34 +1,10 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { ApiError, admin, body, idSchema, now, ok, owner, readLimited } from './http'
-import { decode, insert, list, need, update } from './db'
+import { ApiError, admin, body, idSchema, ok, owner } from './http'
+import { list, need, update } from './db'
 import type { AppEnv, Env, Row } from './types'
 
-const chunkBytes = 512 * 1024
-const types: Record<string, string[]> = {
-	'.jpg': ['image/jpeg'],
-	'.jpeg': ['image/jpeg'],
-	'.png': ['image/png'],
-	'.webp': ['image/webp'],
-	'.gif': ['image/gif'],
-	'.pdf': ['application/pdf'],
-	'.svg': ['image/svg+xml'],
-	'.ico': ['image/x-icon', 'image/vnd.microsoft.icon'],
-}
-function validSignature(bytes: Uint8Array, extension: string) {
-	const ascii = (start: number, end: number) => new TextDecoder().decode(bytes.slice(start, end))
-	if (['.jpg', '.jpeg'].includes(extension)) return bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
-	if (extension === '.png') return bytes[0] === 137 && ascii(1, 4) === 'PNG' && bytes[4] === 13 && bytes[5] === 10
-	if (extension === '.gif') return ['GIF87a', 'GIF89a'].includes(ascii(0, 6))
-	if (extension === '.webp') return ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP'
-	if (extension === '.pdf') return ascii(0, 5) === '%PDF-'
-	if (extension === '.ico') return bytes[0] === 0 && bytes[1] === 0 && bytes[2] === 1 && bytes[3] === 0
-	if (extension === '.svg') {
-		const content = new TextDecoder().decode(bytes)
-		return /<svg[\s>]/i.test(content) && !/<!DOCTYPE|<!ENTITY/i.test(content)
-	}
-	return false
-}
+import { MAX_PROJECT_VIDEO_BYTES, MAX_PROJECT_MEDIA, projectMediaType } from '../shared/project-media'
 export const uploadRoutes = new Hono<AppEnv>()
 uploadRoutes.get('/files', async (c) => {
 	owner(c)
@@ -79,90 +55,50 @@ uploadRoutes.get('/config', async (c) => {
 		storage: 'd1',
 		maxImageBytes: 8388608,
 		maxCertificationBytes: 12582912,
+		maxProjectVideoBytes: MAX_PROJECT_VIDEO_BYTES,
+		maxProjectMedia: MAX_PROJECT_MEDIA,
 		budgetBytes: 268435456,
 		usedBytes: usage?.bytes || 0,
 	})
 })
 async function acceptUpload(c: import('hono').Context<AppEnv>, kind: string, projectId?: string) {
 	const user = admin(c)
-	if (projectId) await need(c.env.DB, 'Project', projectId)
-	if (!(c.req.header('Content-Type') || '').startsWith('multipart/form-data'))
-		throw new ApiError(415, 'Use multipart/form-data.')
-	const maximum = (kind === 'certification' ? 12 : 8) * 1024 * 1024
-	const bytes = await readLimited(c.req.raw, maximum + 65536)
-	const data = await new Request(c.req.url, {
-		method: 'POST',
-		headers: { 'Content-Type': c.req.header('Content-Type')! },
-		body: bytes,
-	}).formData()
-	const file = data.get('file')
-	if (!(file instanceof File) || [...data.keys()].length !== 1 || file.size <= 0 || file.size > maximum)
-		throw new ApiError(422, 'Supply one file within the upload size limit.')
-	const extension = /\.[a-z0-9]+$/i.exec(file.name)?.[0].toLowerCase() || ''
-	if (!types[extension]?.includes(file.type)) throw new ApiError(422, 'Unsupported file extension or content type.')
-	if (
-		(kind !== 'certification' && extension === '.pdf') ||
-		(kind !== 'site-asset' && ['.svg', '.ico'].includes(extension))
-	)
-		throw new ApiError(422, 'Unsupported file type for this upload.')
-	const content = new Uint8Array(await file.arrayBuffer())
-	if (!validSignature(content, extension))
-		throw new ApiError(422, 'The file contents do not match its image/document type.')
-	const id = crypto.randomUUID(),
-		filename = id + extension
-	const fingerprint = [...new Uint8Array(await crypto.subtle.digest('SHA-256', content))]
-		.map((n) => n.toString(16).padStart(2, '0'))
-		.join('')
-	const statements = [
-		c.env.DB.prepare(
-			'INSERT INTO media_files(id,filename,content_type,bytes,sha256,owner_id,created_at) VALUES(?,?,?,?,?,?,?)',
-		).bind(id, filename, file.type, file.size, fingerprint, user.id, now()),
-	]
-	for (let position = 0, offset = 0; offset < content.byteLength; position++, offset += chunkBytes) {
-		statements.push(
-			c.env.DB.prepare('INSERT INTO media_chunks(file_id,position,bytes) VALUES(?,?,?)').bind(
-				id,
-				position,
-				content.slice(offset, offset + chunkBytes).buffer,
-			),
-		)
-	}
-	const url = '/uploads/' + filename
-	let projectImage: Row | undefined
-	if (projectId) {
-		const count = await c.env.DB.prepare('SELECT COUNT(*) AS count FROM project_image WHERE project_id=?')
-			.bind(projectId)
-			.first<{ count: number }>()
-		const image = insert(c.env.DB, 'ProjectImage', { projectId, url, sortOrder: count?.count || 0 })
-		statements.push(image.statement)
-		projectImage = image.row
-	}
-	// 12 MiB certificates need 24 chunks: the complete upload remains below
-	// the Free plan's 50-query invocation limit, including auth and metadata.
-	await c.env.DB.batch(statements)
-	return ok(c, projectImage || { url }, projectId ? 'Image added' : 'File uploaded', 201)
+	const url = new URL('https://internal/media/upload')
+	url.searchParams.set('kind', kind)
+	if (projectId) url.searchParams.set('project', projectId)
+	const headers = new Headers({
+		'Content-Type': c.req.header('Content-Type') || '',
+		'X-Portfolio-Upload-User': user.id,
+	})
+	if (c.req.header('Content-Length')) headers.set('Content-Length', c.req.header('Content-Length')!)
+	const stub = c.env.PORTFOLIO_HUB.get(c.env.PORTFOLIO_HUB.idFromName('portfolio-v1'))
+	return stub.fetch(url.toString(), { method: 'POST', headers, body: c.req.raw.body })
 }
 for (const kind of ['image', 'site-asset', 'certification']) uploadRoutes.post('/' + kind, (c) => acceptUpload(c, kind))
-uploadRoutes.get('/project-images/:projectId', async (c) => {
+async function projectGallery(c: import('hono').Context<AppEnv>, imagesOnly = false) {
 	admin(c)
 	const projectId = idSchema.parse(c.req.param('projectId'))
 	await need(c.env.DB, 'Project', projectId)
-	return ok(
-		c,
-		await list(
-			c.env.DB,
-			'ProjectImage',
-			{ projectId },
-			{
-				take: 100,
-				order: [
-					['sortOrder', 'ASC'],
-					['createdAt', 'ASC'],
-				],
-			},
-		),
+	const items = await list(
+		c.env.DB,
+		'ProjectImage',
+		{ projectId },
+		{
+			take: 100,
+			order: [
+				['sortOrder', 'ASC'],
+				['createdAt', 'ASC'],
+			],
+		},
 	)
-})
+	const media = items.map((item) => ({ ...item, mediaType: projectMediaType(item.url) }))
+	return ok(c, imagesOnly ? media.filter((item) => item.mediaType === 'image') : media)
+}
+uploadRoutes.get('/project-images/:projectId', (c) => projectGallery(c, true))
+uploadRoutes.get('/project-media/:projectId', (c) => projectGallery(c))
+uploadRoutes.post('/project-media/:projectId', (c) =>
+	acceptUpload(c, 'project-media', idSchema.parse(c.req.param('projectId'))),
+)
 uploadRoutes.post('/project-images/:projectId', (c) =>
 	acceptUpload(c, 'project-image', idSchema.parse(c.req.param('projectId'))),
 )
@@ -176,10 +112,15 @@ uploadRoutes.put('/project-images/:imageId/sort', async (c) => {
 })
 uploadRoutes.delete('/project-images/:imageId', async (c) => {
 	admin(c)
-	await c.env.DB.prepare('DELETE FROM project_image WHERE id=?')
-		.bind(idSchema.parse(c.req.param('imageId')))
-		.run()
-	return ok(c, undefined, 'Image deleted')
+	const image = await need(c.env.DB, 'ProjectImage', idSchema.parse(c.req.param('imageId')))
+	await c.env.DB.batch([
+		c.env.DB.prepare('UPDATE project SET thumbnail_url=NULL WHERE id=? AND thumbnail_url=?').bind(
+			image.projectId,
+			image.url,
+		),
+		c.env.DB.prepare('DELETE FROM project_image WHERE id=?').bind(image.id),
+	])
+	return ok(c, undefined, 'Gallery item removed')
 })
 // External Blob token/attachment endpoints are intentionally retired. The
 // unified browser uploads to its own Worker, and never receives storage keys.
@@ -194,9 +135,11 @@ uploadRoutes.post('/project-images/:projectId/blob', (c) => {
 
 export async function serveMedia(request: Request, env: Env) {
 	const filename = new URL(request.url).pathname.slice('/uploads/'.length)
-	if (!/^[a-f0-9-]{36}\.(?:jpe?g|png|gif|webp|pdf|svg|ico)$/i.test(filename)) throw new ApiError(404, 'File not found.')
+	if (!/^[a-f0-9-]{36}\.(?:jpe?g|png|gif|webp|pdf|svg|ico|mp4|webm)$/i.test(filename))
+		throw new ApiError(404, 'File not found.')
 	const file = await env.DB.prepare('SELECT * FROM media_files WHERE filename=?').bind(filename).first<Row>()
 	if (!file) throw new ApiError(404, 'File not found.')
+	const chunkBytes = file.chunk_bytes || 524288
 	const etag = '"' + file.sha256 + '"'
 	const headers = new Headers({
 		'Content-Type': file.content_type,
@@ -228,10 +171,15 @@ export async function serveMedia(request: Request, env: Env) {
 		headers.set('Content-Length', String(end - start + 1))
 	}
 	if (request.method === 'HEAD') return new Response(null, { status, headers })
+	let cancelled = false
 	let position = Math.floor(start / chunkBytes)
 	const final = Math.floor(end / chunkBytes)
 	const stream = new ReadableStream<Uint8Array>({
+		cancel() {
+			cancelled = true
+		},
 		async pull(controller) {
+			if (cancelled) return
 			if (position > final) {
 				controller.close()
 				return
@@ -239,6 +187,7 @@ export async function serveMedia(request: Request, env: Env) {
 			const chunk = await env.DB.prepare('SELECT bytes FROM media_chunks WHERE file_id=? AND position=?')
 				.bind(file.id, position)
 				.first<{ bytes: number[] | ArrayBuffer }>()
+			if (cancelled) return
 			if (!chunk) {
 				controller.error(new Error('Stored file is incomplete.'))
 				return

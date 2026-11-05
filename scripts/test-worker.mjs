@@ -127,6 +127,28 @@ try {
 	})
 	status(request, 201)
 	const requestId = request.body.data.id
+	status(await api('/client-requests/email/status'), 401)
+	status(await api('/client-requests/email/status', { token: client }), 403)
+	const emailStatus = await api('/client-requests/email/status', { token: owner })
+	status(emailStatus, 200)
+	assert.equal(emailStatus.body.data.configured, false)
+	const savedReply = await api('/client-requests/' + requestId + '/reply', {
+		token: owner,
+		method: 'POST',
+		data: { message: 'Fixture reply is saved even when email delivery is not configured.' },
+	})
+	status(savedReply, 200)
+	assert.equal(savedReply.body.data.emailDelivery, 'not-configured')
+	assert.match(savedReply.body.message, /not configured/)
+	assert.equal(
+		(await db.prepare('SELECT COUNT(*) AS n FROM mail_outbox WHERE id=?').bind(savedReply.body.data.id).first()).n,
+		1,
+	)
+	const reloadedRequest = await api('/client-requests/' + requestId, { token: owner })
+	status(reloadedRequest, 200)
+	assert.equal(reloadedRequest.body.data.replies[0].emailDelivery, 'not-configured')
+	assert.equal((await api('/client-requests/email/status', { token: owner })).body.data.queue.pending, 1)
+	checks++
 	status(await api('/client-requests/' + requestId, { token: client }), 404)
 	status(await api('/notifications', { token: client }), 200)
 	assert.equal((await api('/notifications', { token: client })).body.data.length, 0)
@@ -207,6 +229,47 @@ try {
 	bad.append('file', new File(['<html>bad</html>'], 'fake.png', { type: 'image/png' }))
 	status(await api('/upload/image', { token: owner, method: 'POST', raw: bad }), 422)
 	status(await api('/upload/image', { token: client, method: 'POST', raw: bad }), 403)
+	const videoData = new Uint8Array(1200000)
+	videoData.set([0, 0, 0, 24, 102, 116, 121, 112, 105, 115, 111, 109])
+	const videoForm = (bytes = videoData) => {
+		const data = new FormData()
+		data.append('file', new File([bytes], 'fixture.mp4', { type: 'video/mp4' }))
+		return data
+	}
+	const galleryPath = '/upload/project-media/' + draft.body.data.id
+	status(await api(galleryPath, { method: 'POST', raw: videoForm(videoData.slice(0, 24)) }), 401)
+	status(await api(galleryPath, { token: client, method: 'POST', raw: videoForm(videoData.slice(0, 24)) }), 403)
+	status(await api('/upload/image', { token: owner, method: 'POST', raw: videoForm() }), 422)
+	const galleryVideo = await api(galleryPath, { token: owner, method: 'POST', raw: videoForm() })
+	status(galleryVideo, 201)
+	assert.equal(galleryVideo.body.data.mediaType, 'video')
+	const videoUrl = galleryVideo.body.data.url
+	const videoHead = await mf.dispatchFetch('http://localhost' + videoUrl, { method: 'HEAD' })
+	assert.equal(videoHead.status, 200)
+	assert.equal(videoHead.headers.get('Content-Type'), 'video/mp4')
+	assert.equal(videoHead.headers.get('Content-Length'), String(videoData.length))
+	const videoRange = await mf.dispatchFetch('http://localhost' + videoUrl, {
+		headers: { Range: 'bytes=1048570-1048590' },
+	})
+	assert.equal(videoRange.status, 206)
+	assert.deepEqual(new Uint8Array(await videoRange.arrayBuffer()), videoData.slice(1048570, 1048591))
+	assert.equal(videoRange.headers.get('Content-Range'), 'bytes 1048570-1048590/1200000')
+	const suffix = await mf.dispatchFetch('http://localhost' + videoUrl, { headers: { Range: 'bytes=-20' } })
+	assert.equal((await suffix.arrayBuffer()).byteLength, 20)
+	const videoGallery = await api(galleryPath, { token: owner })
+	status(videoGallery, 200)
+	assert.equal(videoGallery.body.data[0].mediaType, 'video')
+	assert.equal((await api('/upload/project-images/' + draft.body.data.id, { token: owner })).body.data.length, 0)
+	const mixedProject = await api('/projects/' + draft.body.data.id, { token: owner })
+	assert.equal(mixedProject.body.data.images.length, 0)
+	assert.equal(mixedProject.body.data.media[0].mediaType, 'video')
+	const invalidVideo = new FormData()
+	invalidVideo.append('file', new File(['not a video'], 'fake.mp4', { type: 'video/mp4' }))
+	status(await api(galleryPath, { token: owner, method: 'POST', raw: invalidVideo }), 422)
+	status(await api('/upload/files/' + videoUrl.split('/').pop().split('.')[0], { token: owner, method: 'DELETE' }), 409)
+	status(await api('/upload/project-images/' + galleryVideo.body.data.id, { token: owner, method: 'DELETE' }), 200)
+	status(await api('/upload/files/' + videoUrl.split('/').pop().split('.')[0], { token: owner, method: 'DELETE' }), 200)
+	checks += 8
 	const sessionId = 'test-visitor-session-123456'
 	const chat = await api('/chatbot/chat', { method: 'POST', data: { sessionId, message: 'Hello' } })
 	status(chat, 200)

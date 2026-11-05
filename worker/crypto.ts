@@ -1,4 +1,6 @@
 import qrcode from 'qrcode-generator'
+import { pbkdf2Async } from '@noble/hashes/pbkdf2.js'
+import { sha256 as sha256Digest } from '@noble/hashes/sha2.js'
 import { ApiError } from './http'
 
 const encoder = new TextEncoder()
@@ -22,23 +24,21 @@ export async function sha256(text: string) {
 }
 export async function hashPassword(password: string) {
 	const salt = crypto.getRandomValues(new Uint8Array(16))
-	const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits'])
-	const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, key, 256)
-	return `pbkdf2_sha256$${iterations}$${base64(salt)}$${base64(new Uint8Array(bits))}`
+	const bits = await derivePassword(password, salt, iterations)
+	return `pbkdf2_sha256$${iterations}$${base64(salt)}$${base64(bits)}`
+}
+function derivePassword(password: string, salt: Uint8Array, rounds: number) {
+	// Production Cloudflare caps native PBKDF2 at 100,000 rounds, including in DOs.
+	// Keep the existing hash format/work factor using a portable implementation.
+	// Callers run this expensive work in PortfolioHub, outside the ordinary Worker.
+	return pbkdf2Async(sha256Digest, encoder.encode(password), salt, { c: rounds, dkLen: 32 })
 }
 export async function verifyPassword(password: string, encoded: string) {
 	const [name, count, salt, expected] = encoded.split('$')
 	if (name !== 'pbkdf2_sha256' || !salt || !expected || !/^\d+$/.test(count)) return false
 	const rounds = Number(count)
 	if (rounds < iterations || rounds > 1200000) return false
-	const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits'])
-	const bits = new Uint8Array(
-		await crypto.subtle.deriveBits(
-			{ name: 'PBKDF2', hash: 'SHA-256', salt: unbase64(salt), iterations: rounds },
-			key,
-			256,
-		),
-	)
+	const bits = await derivePassword(password, unbase64(salt), rounds)
 	const wanted = unbase64(expected)
 	if (wanted.length !== bits.length) return false
 	// Use the native HMAC verifier for a constant-time comparison of the derived values.

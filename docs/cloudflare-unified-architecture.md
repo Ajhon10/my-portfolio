@@ -23,9 +23,17 @@ server, PostgreSQL server, Redis service, PHP runtime or Laravel application.
 - A SQLite-backed Durable Object coordinates live presence/chat and performs
   expensive password operations outside the ordinary Free Worker's 10 ms CPU
   allowance. Keep strong password hashing; do not lower work factors for quotas.
+  Password PBKDF2 uses the portable `@noble/hashes` implementation at 600,000
+  SHA-256 iterations. Cloudflare's production native PBKDF2 limit also applies
+  inside Durable Objects; local Web Crypto success does not establish support.
 - Uploads use bounded chunks in D1 by default so R2 billing activation is not a
-  prerequisite. Preserve the current 8 MiB image / 12 MiB certificate limits,
-  use atomic batches, and enforce a media budget below the free database limit.
+  prerequisite. Limits are 8 MiB/image, 12 MiB/certificate and 32 MiB/project
+  video (MP4/WebM), with at most 50 gallery items per project and a shared
+  256 MiB budget. The authenticated API streams uploads to the private Durable
+  Object helper for parsing and incremental hashing. Metadata, chunks and gallery
+  references commit in one atomic D1 batch. Images use 512 KiB chunks; videos
+  use 1 MiB chunks so a complete 32 MiB video read stays within 50 D1 queries.
+  Public media supports HEAD, ETag and byte ranges for playback and seeking.
   This is suitable for a small portfolio, not a large media library. R2 is a
   separate future opt-in, never automatically provisioned.
 

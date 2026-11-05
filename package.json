@@ -8,15 +8,18 @@
 	},
 	"scripts": {
 		"dev": "vite --host 127.0.0.1",
-		"build": "npm run typecheck && vite build",
+		"build": "npm test && npm run typecheck && vite build",
 		"typecheck": "vue-tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.worker.json && tsc --noEmit -p tsconfig.node.json",
 		"preview": "wrangler dev --port 8787",
 		"test": "node --test tests/*.test.cjs && node scripts/test-worker.mjs",
 		"db:migrate": "wrangler d1 migrations apply portfolio --local",
 		"db:migrate:remote": "wrangler d1 migrations apply portfolio --remote",
+		"db:migrate:preview": "wrangler d1 migrations apply PREVIEW_DB --remote --config wrangler.preview-migrations.jsonc",
 		"db:seed": "node scripts/seed.mjs",
 		"owner:create": "node scripts/create-owner.mjs",
 		"deploy": "npm run build && wrangler deploy",
+		"deploy:preview": "npm run build && wrangler preview",
+		"cloudflare:builds:setup": "node scripts/configure-cloudflare-builds.mjs",
 		"deploy:check": "wrangler deploy --dry-run --outdir .deploy-check",
 		"legacy:export": "node scripts/migration/export-postgres.mjs",
 		"legacy:import": "node scripts/migration/import-legacy.mjs",
@@ -24,6 +27,7 @@
 		"test:browser": "node scripts/test-browser.mjs"
 	},
 	"dependencies": {
+		"@noble/hashes": "2.4.0",
 		"@vueuse/core": "^10.9.0",
 		"axios": "^1.13.2",
 		"gsap": "^3.12.5",
