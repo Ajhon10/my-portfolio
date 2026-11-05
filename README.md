@@ -62,6 +62,8 @@ PR branches use Cloudflare Worker Previews with a separate `portfolio-preview`
 database, separate authentication secret and isolated Durable Object namespaces.
 All previews share that staging database; production accounts and media are not
 copied into it. Apply new preview migrations with `npm run db:migrate:preview`.
+The Cloudflare Preview command is `npm run deploy:preview`, which runs the tests
+and build before uploading. It also works locally after Cloudflare sign-in.
 
 ## Environment files
 

@@ -18,6 +18,7 @@
 		"db:seed": "node scripts/seed.mjs",
 		"owner:create": "node scripts/create-owner.mjs",
 		"deploy": "npm run build && wrangler deploy",
+		"deploy:preview": "npm run build && wrangler preview",
 		"deploy:check": "wrangler deploy --dry-run --outdir .deploy-check",
 		"legacy:export": "node scripts/migration/export-postgres.mjs",
 		"legacy:import": "node scripts/migration/import-legacy.mjs",

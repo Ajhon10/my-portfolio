@@ -447,3 +447,11 @@ pushed to the PR branch; merging into `main` and accepting the resulting automat
 production deployment remain separate steps. Private CI release evidence is
 kept in `.wrangler/private/cicd-release.private.json`. Capacity under sustained
 user traffic remains unmeasured.
+
+The initial automatic checks for `ecd9936` passed both GitHub CI jobs. Cloudflare
+Preview build `c2d1a11b-d5d6-414a-addc-f1c7efda94c1` still skipped its build command
+and failed because `dist/client` did not exist. Production and Preview settings
+are distinct; updating the production Build command did not populate the Preview
+build step. Added `npm run deploy:preview` as the explicit Preview command. It
+executes the tested build entry point before `wrangler preview`, covering that
+hosted configuration gap without relying on cached build output.

@@ -41,6 +41,7 @@ labelled **Build** in your dashboard.
 | Root directory            | `/` (repository root)                                                 |
 | Build command             | `npm run build`                                                       |
 | Production deploy command | `npx wrangler deploy`                                                 |
+| Preview command           | `npm run deploy:preview`                                              |
 | Build variable            | `NODE_VERSION` = `22`                                                 |
 | Preview builds            | Enabled with the isolated staging configuration described in step 10. |
 
@@ -72,7 +73,9 @@ are cancelled; deployment is handled by Cloudflare's existing Git integration.
 
 Cloudflare must have **Build command** set to `npm run build`, **Production
 branch** set to `main`, **Deploy command** set to `npx wrangler deploy`, and
-**Preview command** set to `npx wrangler preview`. A merge/push to `main` starts
+**Preview command** set to `npm run deploy:preview`. This versioned npm script
+runs the complete build before `wrangler preview`, even when the separate
+Preview build-command setting is empty. A merge/push to `main` starts
 the production build and deployment automatically. Pushing another branch runs
 GitHub checks and the configured Cloudflare Preview build. Tests are included
 in `npm run build` so the Cloudflare build itself gates deployment on success.
@@ -435,9 +438,11 @@ existing Preview, use `npx.cmd wrangler preview secret put AUTH_SECRET` with
 its name; changing Base alone does not rotate every existing Preview's secret.
 Optional mail/AI credentials are absent from staging.
 
-Build with `npm.cmd run build` before `npx.cmd wrangler preview`. The build
-generates both the Vue assets and Worker configuration. Keep the Cloudflare
-Build command populated even when the Preview command is correct. The preview
+Use `npm.cmd run deploy:preview` locally or as the Cloudflare Preview command.
+It builds and then uploads, generating both the Vue assets and Worker
+configuration. The separate Preview build command can stay empty with this
+wrapper; production still uses Build command `npm run build`. Running the raw
+`npx.cmd wrangler preview` command requires a successful build first. The preview
 URL is separate from the production site. `wrangler versions upload` does not
 provide database isolation and is not the configured Preview command.
 
