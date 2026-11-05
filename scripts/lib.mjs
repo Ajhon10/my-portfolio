@@ -109,6 +109,8 @@ export async function queryD1(args, remote = process.argv.includes('--remote')) 
 	)
 	let output = '',
 		errors = ''
+	child.stdout.setEncoding('utf8')
+	child.stderr.setEncoding('utf8')
 	child.stdout.on('data', (c) => (output += c))
 	child.stderr.on('data', (c) => (errors += c))
 	const code = await new Promise((resolve, reject) => {

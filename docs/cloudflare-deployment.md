@@ -13,15 +13,15 @@ that old revision will still fail to find package.json.
 
 ## Starting point
 
-| Item                           | State when this guide was updated                                                |
-| ------------------------------ | -------------------------------------------------------------------------------- |
-| Application source             | Migrated, locally verified, pushed and merged into main.                         |
-| Existing Cloudflare Worker     | Keep `my-portfolio`.                                                             |
-| Production D1 ID               | Still an all-zero placeholder in wrangler.jsonc.                                 |
-| Portfolio data                 | Restored locally; no remote import performed by the migration work.              |
-| Private restore files          | Present on this workstation and in the private backup.                           |
-| Production secret/login        | Must be configured below. Local secrets are not uploaded by Git.                 |
-| Deployment/workload acceptance | Requires remote verification; local checks do not establish production capacity. |
+| Item                           | State when this guide was updated                                                                                                                |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Application source             | Migrated, locally verified, pushed and merged into main.                                                                                         |
+| Existing Cloudflare Worker     | Keep `my-portfolio`.                                                                                                                             |
+| Production D1 ID               | Still an all-zero placeholder in wrangler.jsonc.                                                                                                 |
+| Portfolio data                 | Restored locally and now verified in the configured remote D1: 184 records and 14 media files. Skip the completed import and continue at step 7. |
+| Private restore files          | Present on this workstation and in the private backup.                                                                                           |
+| Production secret/login        | Must be configured below. Local secrets are not uploaded by Git.                                                                                 |
+| Deployment/workload acceptance | Requires remote verification; local checks do not establish production capacity.                                                                 |
 
 Follow steps 1–9 in order. Run terminal commands individually and continue only
 after each succeeds. **Cloudflare dashboard** means your browser; **PowerShell**
@@ -209,7 +209,25 @@ Do not run public seeds or create a new owner before this import; they populate
 the target and cause its empty-database guard to reject it. If restoration
 already completed, verify the counts and skip importing again. If it stopped
 midway, inspect its private log/report before deciding how to resume. Do not
-clear a database containing real records to bypass the guard.
+clear a database containing real records to bypass the guard. With the updated
+helper, resume this exact snapshot using:
+
+```powershell
+node scripts/migration/apply-legacy.mjs --remote --resume
+```
+
+Resume compares every stored record field in all 20 application tables with the
+private recovery SQL. It verifies existing media metadata and exact chunk bytes,
+skips completed parts and uploads only missing ones. Changed records, unknown
+media or incomplete/corrupted existing files cause it to stop without deleting
+or overwriting them. After resetting passwords or editing content, the snapshot
+no longer matches; resume is not a way to overwrite newer production data.
+
+The helper uses Node's in-memory SQLite support to inspect the recovery SQL.
+Node 22 may print an ExperimentalWarning; this is separate from an import error.
+Wrangler can print upload progress before its JSON response even with --json;
+the updated parser accepts that progress and still requires a valid D1 result.
+Raw failure output is stored privately under .wrangler/private.
 
 Verify baseline counts and relationships with read-only queries:
 
@@ -360,6 +378,10 @@ Sources: [Preview configuration](https://developers.cloudflare.com/workers/previ
 
 ## Troubleshooting an incomplete setup
 
+If `Unexpected token` points at `├ Checking`, Wrangler printed progress before
+JSON. That does not prove the upload failed: a part may already have committed.
+Use the fixed helper with `--remote --resume`; do not restart or delete D1.
+
 | Error/symptom                                 | Check and next action                                                                                                                                                                                                       |
 | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ENOENT ... /opt/buildhome/repo/package.json` | Check source commit and root. Use the merged migration or later main with root `/`. November 4's old revision lacks that file.                                                                                              |
@@ -416,9 +438,11 @@ URLs, including JSON image lists. Fourteen files totaling 22,829,795 bytes were
 hash-verified. One already-missing thumbnail uses its available gallery image,
 as recorded in the private report. Unreferenced original files remain in the ZIP.
 
-The import is several recovery steps, not one transaction across all SQL files.
-Inspect completed parts/logs before resuming an interrupted import or choosing a
-new empty target. Never erase newer production records to repeat an old import.
+Each successful remote SQL-file import is a separate committed recovery step,
+not one transaction across the whole set of files. Use verified --resume for an
+interrupted run of the same snapshot. A lost/undecodable CLI response does not
+prove that the SQL failed. Never erase newer production records to repeat an
+old import.
 
 After launch, export fresh remote backups; the old snapshot excludes new CMS
 edits. Create/use a real private backup directory and replace the date in:

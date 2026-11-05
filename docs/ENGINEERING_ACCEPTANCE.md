@@ -132,3 +132,28 @@ uncommitted real D1 ID on setup/cloudflare-production. Documentation validation
 checks local links, package/script references, code fences and bootstrap command
 syntax. Installed Wrangler help confirms --secrets-file support and preservation
 of existing secrets. No authenticated deployment was performed or claimed.
+
+## D1 import parser repair and remote recovery: 5 November 2026
+
+The records SQL file committed, but Wrangler printed upload progress before its
+JSON response. Parsing all stdout as JSON failed, leaving 184 records and no
+media. The wrapper now frames and validates D1 JSON independently of progress,
+preserves UTF-8, rejects failed/truncated/ambiguous results and saves raw failure
+output privately.
+
+Verified --resume replays trusted recovery SQL in memory, compares all original
+record fields and exact media chunks against D1, skips completed parts and
+applies only missing ones. Mismatched records, unknown media and incomplete
+files stop recovery without deletion or overwrite. Fifteen targeted tests passed
+for framing/progress/failure handling, new imports, populated-target refusal,
+lost responses after commit, repeat resume, changed records and incomplete media.
+
+The local setup branch received the repair without changing its uncommitted D1
+configuration. All 20 remote record tables matched and their part was skipped;
+14 missing media parts were imported and verified byte-for-byte. Final remote
+audit: 184 records, 14 media files, 22,829,795 bytes, no foreign-key violations.
+Private evidence: .wrangler/private/import-recovery-2026-11-05.private.json.
+
+This verifies remote database restoration, not application deployment or traffic
+capacity. One imported owner still requires password reset. The full Worker and
+secret deployment remains a separate setup step.
