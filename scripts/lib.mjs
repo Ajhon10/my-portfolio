@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { parseD1Output } from './wrangler-output.mjs'
 export const metadata = JSON.parse(await readFile(new URL('../migration/model-map.json', import.meta.url), 'utf8'))
 export const quote = (value) => '"' + value.replaceAll('"', '""') + '"'
 export function splitSql(sql) {
@@ -114,12 +115,18 @@ export async function queryD1(args, remote = process.argv.includes('--remote')) 
 		child.on('error', reject)
 		child.on('exit', resolve)
 	})
-	if (code !== 0) {
+	let result
+	try {
+		if (code !== 0) throw new Error('Wrangler exited unsuccessfully.')
+		result = parseD1Output(output)
+	} catch {
 		await mkdir('.wrangler/private', { recursive: true })
 		await writeFile('.wrangler/private/last-d1-error.private.json', JSON.stringify({ output, errors }), { mode: 0o600 })
-		throw new Error('D1 command failed; see the private .wrangler/private/last-d1-error.private.json log.')
+		throw new Error(
+			'D1 command/result check failed; the operation may already have committed. See .wrangler/private/last-d1-error.private.json. Do not blindly repeat writes; use verified import resume when applicable.',
+		)
 	}
-	return JSON.parse(output)
+	return result
 }
 export async function localVars() {
 	const { randomBytes } = await import('node:crypto')
