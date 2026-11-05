@@ -455,3 +455,7 @@ are distinct; updating the production Build command did not populate the Preview
 build step. Added `npm run deploy:preview` as the explicit Preview command. It
 executes the tested build entry point before `wrangler preview`, covering that
 hosted configuration gap without relying on cached build output.
+
+The operator confirmed saving `npm run deploy:preview` as the separate Cloudflare
+Preview command. A fresh push checks this saved configuration rather than relying
+on a build that was already queued before the setting changed.
