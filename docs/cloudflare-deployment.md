@@ -33,16 +33,16 @@ means the VS Code terminal or Windows Terminal on your PC.
 **Workers & Pages → my-portfolio → Settings → Builds**. The section may be
 labelled **Build** in your dashboard.
 
-| Setting                   | Value                                                                              |
-| ------------------------- | ---------------------------------------------------------------------------------- |
-| Worker name               | `my-portfolio`                                                                     |
-| Git repository            | `Ajhon10/my-portfolio`                                                             |
-| Production branch         | `main`                                                                             |
-| Root directory            | `/` (repository root)                                                              |
-| Build command             | `npm run build`                                                                    |
-| Production deploy command | `npx wrangler deploy`                                                              |
-| Build variable            | `NODE_VERSION` = `22`                                                              |
-| Preview builds            | Leave disabled for initial production setup; configure them separately in step 10. |
+| Setting                   | Value                                                                 |
+| ------------------------- | --------------------------------------------------------------------- |
+| Worker name               | `my-portfolio`                                                        |
+| Git repository            | `Ajhon10/my-portfolio`                                                |
+| Production branch         | `main`                                                                |
+| Root directory            | `/` (repository root)                                                 |
+| Build command             | `npm run build`                                                       |
+| Production deploy command | `npx wrangler deploy`                                                 |
+| Build variable            | `NODE_VERSION` = `22`                                                 |
+| Preview builds            | Enabled with the isolated staging configuration described in step 10. |
 
 Keep a correct existing Git connection. If missing, use **Connect** and select
 that repository. The Worker name must match `name` in wrangler.jsonc.
@@ -59,6 +59,34 @@ below if Cloudflare reports an account/permission error.
 Sources: [existing Worker connection](https://developers.cloudflare.com/workers/ci-cd/builds/),
 [build settings](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/),
 [Node version and dependency installation](https://developers.cloudflare.com/workers/ci-cd/builds/build-image/).
+
+## Automatic checks and production deployments
+
+`.github/workflows/ci.yml` runs Portfolio CI on every push and on pull requests
+targeting `main`. It installs from the lockfile using Node 22, runs
+`npm run build` (Node tests, isolated Worker integration tests, TypeScript checks
+and the Vite build), then validates the bundle with `npm run deploy:check`.
+Actions are pinned to reviewed release commits, use read-only repository
+permissions and receive no production secrets. Superseded verification runs
+are cancelled; deployment is handled by Cloudflare's existing Git integration.
+
+Cloudflare must have **Build command** set to `npm run build`, **Production
+branch** set to `main`, **Deploy command** set to `npx wrangler deploy`, and
+**Preview command** set to `npx wrangler preview`. A merge/push to `main` starts
+the production build and deployment automatically. Pushing another branch runs
+GitHub checks and the configured Cloudflare Preview build. Tests are included
+in `npm run build` so the Cloudflare build itself gates deployment on success.
+The root Wrangler configuration preserves dashboard variables with `keep_vars`.
+
+Before merging, verify Portfolio CI and Workers Builds for the latest PR commit.
+After merging, verify the new `main` Workers Builds check and the live site;
+success on a PR preview does not establish a production deployment. Database
+migrations remain explicit operator steps: apply preview migrations to the
+staging target and back up/apply production migrations before releasing code
+that needs them. Neither CI nor the public seed imports private production data.
+
+Sources: [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/),
+[Preview resource isolation](https://developers.cloudflare.com/workers/previews/resources/).
 
 ## 2. Prepare the repository and sign in from your PC
 
@@ -381,31 +409,37 @@ format without calling Cloudflare's capped native PBKDF2. Existing passwords
 continue to work; lowering the iteration count or resetting them is unnecessary.
 The limit is production-specific, so local tests also simulate the native cap.
 
-## 10. Configure previews separately, after production works
+## 10. Preview configuration and staging migrations
 
-Your earlier GitHub check was a branch preview. Its settings and log are separate
-from an older production build. Leave previews off during initial setup.
+The failed PR #8 build ran `npx wrangler preview` without a `previews` block.
+The current root configuration supplies the staging DB, PORTFOLIO_HUB binding
+and required non-secret variables. Keep class migrations at the top level.
+Cloudflare creates an isolated Durable Object namespace for each Preview.
 
-To enable them later, use **Settings → Builds**, with Preview command
-`npx wrangler preview`. Configure a Wrangler `previews` block with a separate
-staging D1 database, the PORTFOLIO_HUB binding and required variables. If using
-the dashboard's **Previews Base** editor, copy its generated configuration back
-into wrangler.jsonc. Apply schema/public seed to staging and give it its own
-AUTH_SECRET. Use fixture accounts/data.
+`portfolio-preview` is a separate D1 database with the six application
+migrations and public-only seed content. Previews share this staging database;
+they never bind to the production `portfolio` database. Production accounts,
+client messages and uploaded media were not copied into staging.
+`wrangler.preview-migrations.jsonc` explicitly selects the same staging ID.
+Apply new staging migrations with:
 
-Current source has no previews block; production bindings/secrets must not be
-assumed to carry over. Cloudflare isolates Preview Durable Object storage, but
-D1 data is shared whenever bindings use the same database ID. Bind a different
-staging ID before enabling preview writes. `wrangler versions upload` does not
-provide database isolation.
+```powershell
+npm.cmd run db:migrate:preview
+```
 
-Keep class migrations at the top level. Put the staging D1 binding under
-`previews.d1_databases`, the live hub binding under
-`previews.durable_objects.bindings`, and SESSION_HOURS/OPENAI_MODEL under
-`previews.vars`. To set a generated preview-only secret in Previews Base, use
-`npx.cmd wrangler preview base-config secret put AUTH_SECRET`. Existing previews
-may need their individual secret updated or a new preview created; Base secret
-changes apply to newly created previews. Production is unaffected by that command.
+A generated preview-only AUTH_SECRET is stored in Cloudflare Previews Base.
+Its private recovery copy is `.wrangler/private/preview-secrets.private.json`;
+do not commit it, copy the production key, or regenerate it for each build.
+New automatic Previews inherit the Base secret. If deliberately updating an
+existing Preview, use `npx.cmd wrangler preview secret put AUTH_SECRET` with
+its name; changing Base alone does not rotate every existing Preview's secret.
+Optional mail/AI credentials are absent from staging.
+
+Build with `npm.cmd run build` before `npx.cmd wrangler preview`. The build
+generates both the Vue assets and Worker configuration. Keep the Cloudflare
+Build command populated even when the Preview command is correct. The preview
+URL is separate from the production site. `wrangler versions upload` does not
+provide database isolation and is not the configured Preview command.
 
 Sources: [Preview configuration](https://developers.cloudflare.com/workers/previews/configuration/),
 [resource isolation](https://developers.cloudflare.com/workers/previews/resources/).

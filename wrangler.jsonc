@@ -4,6 +4,7 @@
 	"main": "worker/index.ts",
 	"compatibility_date": "2026-07-30",
 	"compatibility_flags": ["nodejs_compat"],
+	"keep_vars": true,
 	"assets": {
 		"directory": "./dist/client",
 		"binding": "ASSETS",
@@ -23,4 +24,15 @@
 	"vars": { "SESSION_HOURS": "8", "OPENAI_MODEL": "gpt-4o-mini" },
 	"triggers": { "crons": ["*/15 * * * *"] },
 	"observability": { "enabled": true, "head_sampling_rate": 0.1 },
+	"previews": {
+		"vars": { "SESSION_HOURS": "8", "OPENAI_MODEL": "gpt-4o-mini" },
+		"d1_databases": [
+			{
+				"binding": "DB",
+				"database_name": "portfolio-preview",
+				"database_id": "ec67fc74-caa0-4cd6-aed3-e20488ed2206",
+			},
+		],
+		"durable_objects": { "bindings": [{ "name": "PORTFOLIO_HUB", "class_name": "PortfolioHub" }] },
+	},
 }

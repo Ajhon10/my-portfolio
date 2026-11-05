@@ -44,6 +44,25 @@ records, secrets, uploads, local database state and backup archives stay out of 
 Historical NestJS/Vercel documents are under `docs/legacy/`; the original source
 is recoverable from Git and the private pre-conversion backup.
 
+## Automatic checks and deployment
+
+Every push runs **Portfolio CI** in GitHub Actions: locked dependency install,
+Node/Worker tests, TypeScript checks, production build and a Cloudflare deployment
+dry run. Pull requests targeting `main` run the same checks. No production
+credentials are supplied to these checks.
+
+Cloudflare Workers Builds is the production deployer connected to `main`.
+Merging a passing PR updates `main` and starts its automatic build and deployment.
+`npm run build` includes the regression tests, so the Cloudflare build also stops
+before deployment if tests fail. Check both **Portfolio CI** and **Workers Builds:
+my-portfolio**; a source push alone does not establish a successful deployment.
+See [the deployment guide](docs/cloudflare-deployment.md#automatic-checks-and-production-deployments).
+
+PR branches use Cloudflare Worker Previews with a separate `portfolio-preview`
+database, separate authentication secret and isolated Durable Object namespaces.
+All previews share that staging database; production accounts and media are not
+copied into it. Apply new preview migrations with `npm run db:migrate:preview`.
+
 ## Environment files
 
 The active local environment file is `.dev.vars` in this repository root, with

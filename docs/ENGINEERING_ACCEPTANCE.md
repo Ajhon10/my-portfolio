@@ -404,3 +404,46 @@ Implementation, local checks, remote migration, deployment and targeted live
 verification are complete. This is not a concurrent-user or sustained-bandwidth
 acceptance test. Real client email delivery still requires provider configuration;
 this release neither configures email nor sends test messages to clients.
+
+## GitHub CI and Cloudflare Preview repair: 5 November 2026
+
+The latest PR #8 Cloudflare check failed at `wrangler preview` because the root
+configuration lacked a `previews` block. The supplied build log also showed
+dependency installation followed directly by the Preview command, with no build
+step. The operator confirmed saving `npm run build` as the Cloudflare build
+command for production and previews. The existing integration deploys `main`
+to production and other configured branches to Worker Previews.
+
+Added Portfolio CI for every GitHub push and PR targeting `main`: locked npm
+installation on Node 22, the complete test/type/build entry point, then a
+Cloudflare deployment dry run. Actions are pinned to official release commits,
+repository permissions are read-only and verification receives no production
+credentials. `npm run build` now includes the tests, so the Cloudflare build also
+stops on regression failures. Wrangler preserves dashboard variables.
+
+Provisioned the separate Free D1 database `portfolio-preview`, applied all six
+migrations and seeded only public portfolio content. The root `previews` block
+binds that database, the required variables and PortfolioHub. Each Preview gets
+an isolated Durable Object namespace; previews share the staging D1 database.
+The dedicated migration config selects the same staging database. A generated
+preview-only AUTH_SECRET was uploaded to Preview Base and stored in an ignored
+private recovery file. Production accounts, records, media and secret values
+were not copied into staging. No paid services or external emails were used.
+
+Local verification passed: 44 Node tests, 102 isolated Worker checks, TypeScript,
+production compilation and deployment dry run. A manual Preview deployment
+`8a2c674f-8331-402f-8bb0-6cc409111831` succeeded at
+`https://setup-cloudflare-production-my-portfolio.itsajhon.workers.dev`.
+Live browser checks passed for health, six public projects, desktop/mobile
+layout, WebSocket connection and grounded chat. No site responses failed and
+no page errors occurred. Preview media is empty while production retains the
+four-item Kiko's gallery, consistent with the separate database bindings.
+Evidence: `.test-artifacts/cicd-preview-d3996a4e-5057-414b-9945-f4a6d1257e7b` and
+`.wrangler/private/cicd-preview-verification.private.json`.
+
+Automatic results are tracked by the latest PR commit's Portfolio CI and Workers
+Builds checks, separately from this manual Preview verification. The source is
+pushed to the PR branch; merging into `main` and accepting the resulting automatic
+production deployment remain separate steps. Private CI release evidence is
+kept in `.wrangler/private/cicd-release.private.json`. Capacity under sustained
+user traffic remains unmeasured.
