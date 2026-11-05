@@ -463,6 +463,16 @@ on a build that was already queued before the setting changed.
 Build `7f196c1d-6ef4-4bd6-8381-d77fdf508f7f` still used the existing Preview's old
 `npx wrangler preview` command. Cloudflare copies Base build settings to new
 Previews; Base edits do not update existing Preview settings automatically.
-The disposable PR preview, originally created at 11:34 UTC, was recreated to
-inherit the operator's saved command. Its deployment metadata was retained
-privately; the staging D1 database and production deployment were preserved.
+The disposable PR runtime preview, originally created at 11:34 UTC, was removed
+for recreation. Its deployment metadata was retained privately; the staging D1
+database and production deployment were preserved. Cloudflare Builds retained
+its separate branch build settings, so this did not resolve automatic builds.
+
+Added a one-time masked-token setup command that updates production, Base and
+existing Preview build commands through the documented Builds API. It verifies
+the repository/branch before mutation, patches only command fields, saves a
+private settings backup and reads back every affected Preview. Two isolated
+tests pass for the update/cascade behavior, preservation of unrelated settings,
+wrong-repository rejection and secret-free errors. Actual configuration and
+automatic Preview acceptance still require the user-scoped Builds permission
+that the workstation's Wrangler OAuth session does not provide.

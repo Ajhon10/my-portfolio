@@ -86,6 +86,15 @@ Cloudflare copies Base build settings when creating each Preview. After changing
 the Base build/deploy command, update the existing Preview's build settings too,
 or recreate a disposable test Preview to inherit the new Base. A new push alone
 does not replace an existing Preview's saved commands.
+Use `npm.cmd run cloudflare:builds:setup` for a verified update of both Base and
+all existing Preview build commands. It requires a **user-scoped** API token
+with **Workers Builds Configuration: Edit** for this portfolio's Cloudflare
+account. Enter the token only at the masked terminal prompt; it is not saved.
+The helper checks the repository and production branch, saves a private settings
+backup, patches only build/deploy commands with `patch_existing_previews=true`,
+and reads back both Base and existing Preview settings. Build tokens, variables,
+watch paths and Git settings are retained. Its redacted completion record is
+`.wrangler/private/build-settings-configured.private.json`.
 After merging, verify the new `main` Workers Builds check and the live site;
 success on a PR preview does not establish a production deployment. Database
 migrations remain explicit operator steps: apply preview migrations to the
