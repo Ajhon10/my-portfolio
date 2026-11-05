@@ -459,3 +459,10 @@ hosted configuration gap without relying on cached build output.
 The operator confirmed saving `npm run deploy:preview` as the separate Cloudflare
 Preview command. A fresh push checks this saved configuration rather than relying
 on a build that was already queued before the setting changed.
+
+Build `7f196c1d-6ef4-4bd6-8381-d77fdf508f7f` still used the existing Preview's old
+`npx wrangler preview` command. Cloudflare copies Base build settings to new
+Previews; Base edits do not update existing Preview settings automatically.
+The disposable PR preview, originally created at 11:34 UTC, was recreated to
+inherit the operator's saved command. Its deployment metadata was retained
+privately; the staging D1 database and production deployment were preserved.

@@ -82,6 +82,10 @@ in `npm run build` so the Cloudflare build itself gates deployment on success.
 The root Wrangler configuration preserves dashboard variables with `keep_vars`.
 
 Before merging, verify Portfolio CI and Workers Builds for the latest PR commit.
+Cloudflare copies Base build settings when creating each Preview. After changing
+the Base build/deploy command, update the existing Preview's build settings too,
+or recreate a disposable test Preview to inherit the new Base. A new push alone
+does not replace an existing Preview's saved commands.
 After merging, verify the new `main` Workers Builds check and the live site;
 success on a PR preview does not establish a production deployment. Database
 migrations remain explicit operator steps: apply preview migrations to the
