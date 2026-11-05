@@ -20,7 +20,7 @@ export async function configureBuilds(token, { fetcher = fetch, saveBefore = asy
 		const result = await response.json()
 		if (!response.ok || !result.success) {
 			throw new Error(
-				`Cloudflare Builds request failed (HTTP ${response.status}). Use a user-scoped API token with Workers Builds Configuration: Edit for the portfolio account.`,
+				`Cloudflare Builds request failed (HTTP ${response.status}). Use a user-scoped API token with Account > Workers CI > Edit (Workers Builds Configuration) for the portfolio account.`,
 			)
 		}
 		return result.result
@@ -61,7 +61,9 @@ async function main() {
 	const prompts = createOwnerPrompt()
 	let token
 	try {
-		console.log('Use a user API token with Workers Builds Configuration: Edit for the portfolio account.')
+		console.log(
+			'Use a user API token with Account > Workers CI > Edit (Workers Builds Configuration) for the portfolio account.',
+		)
 		token = process.env.CLOUDFLARE_BUILDS_API_TOKEN || (await prompts.secret('Cloudflare Builds API token (masked): '))
 		await mkdir('.wrangler/private', { recursive: true })
 		const report = await configureBuilds(token, {
