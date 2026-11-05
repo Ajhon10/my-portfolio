@@ -24,6 +24,7 @@
 		"test:browser": "node scripts/test-browser.mjs"
 	},
 	"dependencies": {
+		"@noble/hashes": "2.4.0",
 		"@vueuse/core": "^10.9.0",
 		"axios": "^1.13.2",
 		"gsap": "^3.12.5",

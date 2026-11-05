@@ -17,10 +17,10 @@ that old revision will still fail to find package.json.
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Application source             | Migrated, locally verified, pushed and merged into main.                                                                                         |
 | Existing Cloudflare Worker     | Keep `my-portfolio`.                                                                                                                             |
-| Production D1 ID               | Still an all-zero placeholder in wrangler.jsonc.                                                                                                 |
+| Production D1 ID               | Configured in wrangler.jsonc for the existing portfolio database.                                                                                |
 | Portfolio data                 | Restored locally and now verified in the configured remote D1: 184 records and 14 media files. Skip the completed import and continue at step 7. |
 | Private restore files          | Present on this workstation and in the private backup.                                                                                           |
-| Production secret/login        | Must be configured below. Local secrets are not uploaded by Git.                                                                                 |
+| Production secret/login        | Configured; preserve the established AUTH_SECRET. Local secrets are not uploaded by Git.                                                         |
 | Deployment/workload acceptance | Requires remote verification; local checks do not establish production capacity.                                                                 |
 
 Follow steps 1–9 in order. Run terminal commands individually and continue only
@@ -190,7 +190,7 @@ Apply the database schema:
 npm.cmd run db:migrate:remote
 ```
 
-Review the database name and migration prompt. Five migrations create the
+Review the database name and migration prompt. Six migrations create the
 application/auth/media tables and integrity rules. Re-running applies only
 unapplied migrations; it should report none remaining after success.
 [D1 migration commands](https://developers.cloudflare.com/d1/wrangler-commands/).
@@ -247,8 +247,16 @@ and no foreign-key violations. These counts change after later CMS edits.
 npm.cmd run owner:create -- --remote --reset
 ```
 
-Enter the existing owner email and choose a new password of 12–128 characters.
-Press Enter after the email. At **New password**, type or paste your password;
+Enter the existing owner email. The command checks database access and confirms
+the account exists before requesting a password. A Cloudflare authorization
+failure is separate from password validation and stops before the reset write.
+Use the email stored on the imported account; `--reset` does not change its
+login email or create a new account for a different address.
+
+Choose a new password of 8–128 characters. Uppercase, lowercase, numbers and
+symbols are accepted, but do not replace the minimum length requirement. Short
+or overlong interactive entries display a length message and ask again before
+confirmation. At **New password**, type or paste your password;
 the updated prompt displays asterisks instead of the actual characters. Press
 Enter, then enter the same password at **Confirm password** and press Enter again.
 This updates that account and revokes sessions; it does not create another owner.
@@ -257,6 +265,18 @@ If an older prompt is stuck, press Ctrl+C and rerun after updating the helper.
 Run it directly in PowerShell or the VS Code terminal; do not pipe input into
 the interactive password prompt. A confirmation mismatch or Ctrl+C cancels input
 before the database update. Keep your password in the terminal, not chat/GitHub.
+
+If the preflight reports **Cloudflare denied D1 access (error 7403)**, check
+`npx.cmd wrangler whoami` and verify that the selected account owns the configured
+database and has D1 access. If the login is wrong or expired, run
+`npx.cmd wrangler login` with that account. Review any `CLOUDFLARE_ACCOUNT_ID` or
+`CLOUDFLARE_API_TOKEN` environment overrides as well. Only rerun the reset after
+the read-only check succeeds. A later write/result failure still warns that the
+operation may have committed; do not treat that as a rejected password or
+automatically repeat the write.
+
+See [Wrangler authentication commands](https://developers.cloudflare.com/workers/wrangler/commands/general/)
+and [finding the account ID](https://developers.cloudflare.com/fundamentals/account/find-account-and-zone-ids/).
 
 The old Argon2 credential cannot authenticate in this runtime, so copying records
 does not preserve the old login password. Authenticator setup was explicitly
@@ -353,6 +373,13 @@ This checks database connectivity, not every table or user flow. Then:
 
 Core functionality works without AI/email credentials. A saved CMS reply does
 not prove an email was delivered.
+
+If login returns HTTP 500 and the Durable Object logs report `Pbkdf2 failed:
+iteration counts above 100000 are not supported`, deploy the repaired source
+with `@noble/hashes` in the root lockfile. It retains the 600,000-round hash
+format without calling Cloudflare's capped native PBKDF2. Existing passwords
+continue to work; lowering the iteration count or resetting them is unnecessary.
+The limit is production-specific, so local tests also simulate the native cap.
 
 ## 10. Configure previews separately, after production works
 
@@ -481,12 +508,73 @@ intent persists in mail_outbox; scheduled retries run every 15 minutes, at most
 five attempts, with failed rows retained for review. Saved/queued is distinct
 from delivered.
 
-Public uploads use D1 chunks: 8 MiB/image, 12 MiB/certificate and a 256 MiB media
+### Enable reply emails
+
+Cloudflare hosting does not automatically configure outbound email. This app
+uses Resend's HTTP API; old SMTP settings do not configure this implementation.
+The admin Client Requests page shows whether email sending is configured and
+displays a status on newly saved replies. A saved reply remains available even
+when email is unavailable. Earlier replies without a linked outbox identifier
+show an unavailable delivery status rather than an inferred success.
+
+1. In your Resend account, verify a domain you own and choose a sender address
+   on that domain. Do not use a Gmail address as an unverified Resend sender.
+   Resend's default test sender can only email your Resend account address;
+   sending to a client requires your verified domain.
+2. Create a Resend API key with sending access for that domain. Enter it only in
+   the private terminal prompt, never in chat, source files or VITE variables:
+
+   ```powershell
+   npx.cmd wrangler secret put MAIL_API_TOKEN
+   npx.cmd wrangler secret put MAIL_FROM
+   ```
+
+   The second prompt takes your verified sender, optionally in the format
+   `Portfolio <hello@your-verified-domain>`. Preserve the existing AUTH_SECRET.
+
+3. Reload Client Requests. Check that email sending is configured, then send an
+   intended reply. New replies are attempted immediately in the background;
+   failures retain scheduled retries. Configuration presence alone does not
+   verify the API key, sender domain or inbox delivery.
+4. Check the reply's status after reloading. `Accepted by email provider` means
+   Resend accepted the request, not that the client received it. Confirm delivery
+   in Resend's dashboard and with the recipient. Rejected attempts log only the
+   provider HTTP status, without recipient addresses, content or secret values.
+
+Enabling the sender also enables the existing scheduled queue of earlier replies.
+Review pending email intent before enabling it; do not resubmit the same reply
+just because the previous email has not arrived. MAIL_TO is optional and only
+controls owner notifications about new inquiries, not replies to clients.
+
+Sources: [Resend sender restrictions](https://resend.com/docs/knowledge-base/403-error-resend-dev-domain),
+[provider errors](https://resend.com/docs/api-reference/errors).
+
+Public uploads use D1 chunks: 8 MiB/image, 12 MiB/certificate, 32 MiB/project video and a 256 MiB media
 budget. The hub caps live connections at 128. Check real CPU, D1 reads/writes and
 storage: local tests do not prove Free's 10 ms Worker CPU allowance or traffic
 capacity. Consult [Workers limits](https://developers.cloudflare.com/workers/platform/limits/),
 [D1 limits](https://developers.cloudflare.com/d1/platform/limits/) and
 [Durable Object limits](https://developers.cloudflare.com/durable-objects/platform/limits/).
+
+## Project images and videos
+
+Open **Admin → Projects → Edit → Gallery**. Select multiple images or videos;
+each file uploads separately and the form reports how many succeeded. Save a
+new project before adding gallery files. Use **Use as cover** on an image to
+choose the card cover. Removing the selected image clears that cover. Removing
+a gallery entry preserves its underlying upload for explicit unused-file cleanup.
+
+Images support JPEG, PNG, WebP and GIF up to 8 MiB each. Videos support MP4 and
+WebM up to 32 MiB each; use browser-compatible codecs such as H.264/AAC for MP4.
+Each project allows 50 gallery items. All uploads share the 256 MiB budget;
+uploading videos consumes that budget quickly. Video controls are visible on
+the public detail page, with no autoplay. Images retain the enlarged-image view.
+
+Apply migration `0006_project_video.sql` before deploying this feature. It copies
+existing metadata and binary chunks before replacing both tables, retaining
+their URLs and contents. Export a private backup first and verify legacy media
+afterward. Larger video chunks keep complete-file reads within the Free D1 query
+limit. This implementation does not require R2 or activate paid storage.
 
 ## Local development and a new PostgreSQL snapshot
 

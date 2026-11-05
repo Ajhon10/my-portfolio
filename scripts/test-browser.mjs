@@ -106,6 +106,146 @@ try {
 		await page.goto('http://127.0.0.1:5179/admin/' + route, { waitUntil: 'networkidle' })
 		assert.equal(new URL(page.url()).pathname, '/admin/' + route)
 	}
+	await page.goto('http://127.0.0.1:5179/admin/projects', { waitUntil: 'networkidle' })
+	const projectRow = page.getByRole('row').filter({ hasText: 'Designated Establishment Online Submission (DEOS)' })
+	await projectRow.getByRole('button', { name: 'Edit', exact: true }).click()
+	await page.getByRole('button', { name: 'Gallery', exact: true }).click()
+	const galleryInput = page.getByLabel('Add project images or videos', { exact: true })
+	const galleryImage = {
+		name: 'gallery.png',
+		mimeType: 'image/png',
+		buffer: Buffer.from(
+			'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZC1sAAAAASUVORK5CYII=',
+			'base64',
+		),
+	}
+	await galleryInput.setInputFiles([galleryImage, { ...galleryImage, name: 'gallery-two.png' }])
+	await page.getByText('2 gallery items uploaded', { exact: true }).waitFor()
+	assert.equal(await page.getByRole('button', { name: 'Use as cover', exact: true }).count(), 2)
+	await page.getByRole('button', { name: 'Use as cover', exact: true }).first().click()
+	await page.getByRole('button', { name: 'Cover image', exact: true }).waitFor()
+	const webm = await page.evaluate(async () => {
+		const canvas = document.createElement('canvas')
+		canvas.width = 160
+		canvas.height = 90
+		const ctx = canvas.getContext('2d')
+		ctx.fillStyle = '#234567'
+		ctx.fillRect(0, 0, 160, 90)
+		const stream = canvas.captureStream(5),
+			chunks = []
+		const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' })
+		return await new Promise((resolve) => {
+			let frame = 0
+			const frames = setInterval(() => {
+				ctx.fillStyle = frame++ % 2 ? '#345678' : '#234567'
+				ctx.fillRect(0, 0, 160, 90)
+			}, 200)
+			recorder.ondataavailable = (event) => chunks.push(event.data)
+			recorder.onstop = async () => {
+				clearInterval(frames)
+				stream.getTracks().forEach((track) => track.stop())
+				resolve(Array.from(new Uint8Array(await new Blob(chunks).arrayBuffer())))
+			}
+			recorder.start()
+			setTimeout(() => recorder.stop(), 1500)
+		})
+	})
+	await galleryInput.setInputFiles({ name: 'gallery.webm', mimeType: 'video/webm', buffer: Buffer.from(webm) })
+	await page.getByText('1 gallery item uploaded', { exact: true }).waitFor()
+	await page.locator('video').waitFor()
+	if (process.env.PORTFOLIO_TEST_VIDEO_FILE) {
+		await galleryInput.setInputFiles(process.env.PORTFOLIO_TEST_VIDEO_FILE)
+		await page.waitForFunction(() => document.querySelectorAll('video').length === 2)
+	}
+	const galleryProject = (await (await page.request.get('http://127.0.0.1:5179/api/projects')).json()).data.find(
+		(p) => p.slug === 'designated-establishment-online-submission-deos',
+	)
+	assert.equal(galleryProject.media.length, process.env.PORTFOLIO_TEST_VIDEO_FILE ? 4 : 3)
+	assert.equal(galleryProject.images.length, 2)
+	await page.goto('http://127.0.0.1:5179/?project=designated-establishment-online-submission-deos#projects', {
+		waitUntil: 'networkidle',
+	})
+	const video = page.locator('[aria-label="Project gallery"] video').first()
+	await video.waitFor()
+	await page.waitForFunction(() => document.querySelector('[aria-label="Project gallery"] video')?.readyState >= 1)
+	assert.equal(await video.getAttribute('autoplay'), null)
+	await video.evaluate(async (node) => {
+		await node.play()
+		node.pause()
+	})
+	if (process.env.PORTFOLIO_TEST_VIDEO_FILE) {
+		const promo = page.locator('[aria-label="Project gallery"] video').last()
+		await promo.evaluate(async (node) => {
+			node.muted = true
+			await node.play()
+			node.pause()
+		})
+		await promo.evaluate((node) => (node.currentTime = 40))
+		await page.waitForFunction(() => {
+			const node = [...document.querySelectorAll('[aria-label="Project gallery"] video')].at(-1)
+			return node && !node.seeking && Math.abs(node.currentTime - 40) < 1 && node.readyState >= 2
+		})
+	}
+	await page
+		.getByRole('button', { name: /Enlarge .* image/ })
+		.first()
+		.click()
+	assert.ok(await page.getByRole('dialog', { name: 'Project image', exact: true }).isVisible())
+	await page.keyboard.press('Escape')
+	await page.screenshot({ path: artifact + '/project-media-gallery.png', fullPage: false })
+	await page.goto('http://127.0.0.1:5179/admin/dashboard', { waitUntil: 'networkidle' })
+	// Exercise the sidebar transitions and image forms reported by the operator.
+	const fixtureImage = {
+		name: 'admin-fixture.png',
+		mimeType: 'image/png',
+		buffer: Buffer.from(
+			'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZC1sAAAAASUVORK5CYII=',
+			'base64',
+		),
+	}
+	await page.getByRole('link', { name: 'Gears', exact: true }).click()
+	await page.waitForURL('**/admin/gears')
+	const gearUpload = page.waitForResponse((r) => r.url().endsWith('/api/upload/image'))
+	await page.locator('#gear-file').setInputFiles(fixtureImage)
+	assert.equal((await gearUpload).status(), 201)
+	await page.locator('#gear-name').fill('Browser fixture gear')
+	await page.locator('#gear-brand').fill('Fixture brand')
+	await page.locator('#gear-category').fill('Computer')
+	await page.locator('#gear-alt').fill('A small fixture image for the gear test')
+	await page.locator('#gear-description').fill('Fixture hardware used to verify admin image upload and saving.')
+	const gearCreated = page.waitForResponse((r) => r.url().endsWith('/api/gears') && r.request().method() === 'POST')
+	await page.getByRole('button', { name: 'Add gear', exact: true }).click()
+	assert.equal((await gearCreated).status(), 201)
+	await page.getByRole('heading', { name: 'Browser fixture gear', exact: true }).waitFor()
+	await page.reload({ waitUntil: 'networkidle' })
+	await page.getByRole('heading', { name: 'Browser fixture gear', exact: true }).waitFor()
+	await page.screenshot({ path: artifact + '/admin-gears.png', fullPage: true })
+	await page.getByRole('link', { name: 'Photography', exact: true }).click()
+	await page.waitForURL('**/admin/photography')
+	const photoUpload = page.waitForResponse((r) => r.url().endsWith('/api/upload/image'))
+	await page.locator('#photo-file').setInputFiles(fixtureImage)
+	assert.equal((await photoUpload).status(), 201)
+	await page.locator('#photo-title').fill('Browser fixture photograph')
+	await page.locator('#photo-alt').fill('A small fixture photograph')
+	const photoCreated = page.waitForResponse(
+		(r) => r.url().endsWith('/api/photography') && r.request().method() === 'POST',
+	)
+	await page.getByRole('button', { name: 'Save photograph', exact: true }).click()
+	assert.equal((await photoCreated).status(), 201)
+	await page.getByRole('heading', { name: 'Browser fixture photograph', exact: true }).waitFor()
+	await page.reload({ waitUntil: 'networkidle' })
+	await page.getByRole('heading', { name: 'Browser fixture photograph', exact: true }).waitFor()
+	await page.screenshot({ path: artifact + '/admin-photography.png', fullPage: true })
+	await page.getByRole('link', { name: 'Client Requests', exact: true }).click()
+	await page.waitForURL('**/admin/client-requests')
+	await page.getByText('Email delivery is not set up.', { exact: false }).waitFor()
+	await page.locator('#inquiry-reply').fill('Browser fixture reply; no email provider is configured for these tests.')
+	const replySaved = page.waitForResponse((r) => /\/api\/client-requests\/[^/]+\/reply$/.test(r.url()))
+	await page.getByRole('button', { name: 'Save reply', exact: true }).click()
+	assert.equal((await replySaved).status(), 200)
+	await page.getByText('Email not sent: delivery is not set up', { exact: true }).waitFor()
+	await page.reload({ waitUntil: 'networkidle' })
+	await page.getByText('Email not sent: delivery is not set up', { exact: true }).waitFor()
 	await page.goto('http://127.0.0.1:5179/admin/tech-stack', { waitUntil: 'networkidle' })
 	await page.getByRole('button', { name: '+ New tech', exact: true }).click()
 	await page.locator('form input[type=text]').first().fill('Browser-created technology')
@@ -143,6 +283,9 @@ try {
 					'owner CLI bootstrap',
 					'login',
 					'all 11 admin pages',
+					'multi-image project upload, cover selection, video playback and image lightbox',
+					'Gears/Photography sidebar navigation, image uploads and saved records',
+					'reply saved with visible unconfigured-email status',
 					'CMS create and reload',
 				],
 				apiFailures: failures,
@@ -154,7 +297,7 @@ try {
 		),
 	)
 	console.log(
-		'Browser verification passed: public desktop/mobile, chat, inquiry, owner bootstrap/login, 11 admin pages, CMS persistence. Evidence: ' +
+		'Browser verification passed: public desktop/mobile, chat, inquiry, owner login, 11 admin pages, Gears/Photography uploads, reply email status and CMS persistence. Evidence: ' +
 			artifact,
 	)
 } finally {

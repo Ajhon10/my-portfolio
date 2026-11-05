@@ -3,6 +3,7 @@ import { authenticate } from './auth'
 import { hashPassword, verifyPassword, qrData } from './crypto'
 import { decode, placeholders } from './db'
 import { idSchema, now, sessionSchema } from './http'
+import { storeUpload } from './media-upload'
 import type { Env, Row, User } from './types'
 
 interface Peer {
@@ -143,6 +144,7 @@ export class PortfolioHub extends DurableObject<Env> {
 		// These helper paths have no public Worker route. Only our binding calls
 		// can invoke them; WebSocket event names never dispatch HTTP helpers.
 		if (request.method !== 'POST') return new Response('Not found', { status: 404 })
+		if (path === '/media/upload') return storeUpload(request, this.env)
 		const input = await request.json<any>()
 		if (path === '/password/hash' || path === '/password/verify') {
 			if (typeof input.password !== 'string' || input.password.length > 128 || input.password.length < 1)

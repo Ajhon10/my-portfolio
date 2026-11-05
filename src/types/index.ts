@@ -64,6 +64,10 @@ export interface ProjectImage {
 	createdAt?: string
 }
 
+export interface ProjectMedia extends ProjectImage {
+	mediaType: 'image' | 'video'
+}
+
 export interface Project {
 	id: string
 	title: string
@@ -79,6 +83,7 @@ export interface Project {
 	sortOrder: number
 	techStack?: { id: string; tech: TechStack }[]
 	images?: ProjectImage[]
+	media?: ProjectMedia[]
 	createdAt?: string
 	updatedAt?: string
 }
@@ -117,6 +122,7 @@ export interface ClientRequestReply {
 	message: string
 	createdAt: string
 	repliedBy?: User
+	emailDelivery?: 'not-configured' | 'queued' | 'accepted' | 'failed' | 'unknown'
 }
 
 export interface ClientRequestMessage {

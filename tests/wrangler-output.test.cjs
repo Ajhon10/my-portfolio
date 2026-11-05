@@ -52,3 +52,25 @@ test('rejects false success, truncated JSON, missing results and multiple result
 		)
 	}
 })
+
+test('authorization errors explain D1 access without exposing provider details', async () => {
+	const { d1FailureMessage } = await parser
+	const output = JSON.stringify({ error: { code: 7403, text: 'private query and credentials' } })
+	const message = d1FailureMessage(output, { readOnly: true })
+	assert.match(message, /Cloudflare denied D1 access \(error 7403\)/)
+	assert.match(message, /wrangler whoami/)
+	assert.match(message, /no changes were requested/)
+	assert.ok(!message.includes('may already have committed'))
+	assert.ok(!message.includes('private query and credentials'))
+})
+
+test('unknown read failures and uncertain writes retain different recovery guidance', async () => {
+	const { d1FailureMessage } = await parser
+	for (const output of ['', 'private malformed output', '{"error":{"code":7403}}']) {
+		assert.match(d1FailureMessage(output, { readOnly: true }), /no changes were requested/)
+		const message = d1FailureMessage(output)
+		assert.match(message, /may already have committed/)
+		assert.match(message, /Do not blindly repeat writes/)
+		assert.ok(!message.includes('private malformed output'))
+	}
+})

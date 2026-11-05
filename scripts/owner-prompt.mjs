@@ -22,6 +22,9 @@ export function createOwnerPrompt({ input = process.stdin, output = process.stdo
 		return terminal
 	}
 	return {
+		message(text) {
+			output.write(text + '\n')
+		},
 		ask(label) {
 			return reader().question(label, { signal: controller.signal })
 		},
@@ -57,17 +60,39 @@ export function createOwnerPrompt({ input = process.stdin, output = process.stdo
 	}
 }
 
-export async function readOwnerInput({ reset = false, env = process.env, prompts = createOwnerPrompt() } = {}) {
+export function passwordValidationError(password) {
+	if (typeof password !== 'string' || password.length < 8 || password.length > 128)
+		return 'Password must contain 8-128 characters. Uppercase, lowercase, numbers and symbols do not replace the length requirement.'
+	return null
+}
+
+export async function readOwnerInput({
+	reset = false,
+	env = process.env,
+	prompts = createOwnerPrompt(),
+	beforePassword = async () => {},
+} = {}) {
 	try {
 		const email = (env.OWNER_EMAIL || (await prompts.ask('Owner email: '))).trim().toLowerCase()
+		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter a valid owner email. Nothing was changed.')
 		const firstName = reset ? 'existing' : env.OWNER_FIRST_NAME || (await prompts.ask('First name: '))
 		const lastName = reset ? 'existing' : env.OWNER_LAST_NAME || (await prompts.ask('Last name: '))
+		if (!firstName.trim() || !lastName.trim())
+			throw new Error('First and last names are required. Nothing was changed.')
+		await beforePassword({ email })
 		let password = env.OWNER_PASSWORD
 		if (!password) {
-			password = await prompts.secret('New password (masked; 12-128 characters): ')
+			while (true) {
+				password = await prompts.secret('New password (masked; 8-128 characters): ')
+				const error = passwordValidationError(password)
+				if (!error) break
+				prompts.message(`${error} Please try again.`)
+			}
 			const confirmation = await prompts.secret('Confirm password (masked): ')
 			if (password !== confirmation) throw new Error('Passwords did not match. Nothing was changed.')
 		}
+		const error = passwordValidationError(password)
+		if (error) throw new Error(`${error} Nothing was changed.`)
 		return { email, firstName, lastName, password }
 	} catch (error) {
 		if (error.name === 'AbortError') throw new Error('Input cancelled. No password was changed.')

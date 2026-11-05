@@ -1,4 +1,4 @@
-import type { Project, ProjectImage } from '@/types'
+import type { Project, ProjectImage, ProjectMedia } from '@/types'
 import { useApiProvider } from './api.provider'
 
 export interface ProjectInput {
@@ -52,8 +52,15 @@ export const useProjectProvider = () => {
 	const listProjectImages = async (projectId: string) => {
 		return await api.GET<ProjectImage[]>(`/upload/project-images/${projectId}`, {}, { silent: true })
 	}
+	const listProjectMedia = (projectId: string) =>
+		api.GET<ProjectMedia[]>(`/upload/project-media/${projectId}`, {}, { silent: true })
+	const uploadProjectMedia = (projectId: string, file: File) =>
+		api.UPLOAD<ProjectMedia>(`/upload/project-media/${projectId}`, file, 'file', { silent: true, timeout: 180000 })
 
-	const uploadProjectImage = async (projectId: string, file: File): Promise<{ success: boolean; data?: ProjectImage; message?: string }> => {
+	const uploadProjectImage = async (
+		projectId: string,
+		file: File,
+	): Promise<{ success: boolean; data?: ProjectImage; message?: string }> => {
 		return api.UPLOAD<ProjectImage>(`/upload/project-images/${projectId}`, file, 'file', { silent: true })
 	}
 
@@ -65,5 +72,19 @@ export const useProjectProvider = () => {
 		return await api.PUT(`/upload/project-images/${imageId}/sort`, { sortOrder })
 	}
 
-	return { list, getBySlug, create, update, remove, uploadImage, uploadSiteAsset, listProjectImages, uploadProjectImage, deleteProjectImage, reorderProjectImage }
+	return {
+		list,
+		getBySlug,
+		create,
+		update,
+		remove,
+		uploadImage,
+		uploadSiteAsset,
+		listProjectImages,
+		uploadProjectImage,
+		listProjectMedia,
+		uploadProjectMedia,
+		deleteProjectImage,
+		reorderProjectImage,
+	}
 }

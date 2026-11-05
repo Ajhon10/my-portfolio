@@ -59,3 +59,28 @@ export function parseD1Output(output) {
 	if (frames.length !== 1) throw new Error('Wrangler did not return exactly one valid D1 result.')
 	return frames[0]
 }
+
+/** Report known provider failures without echoing SQL, credentials or private rows. */
+export function d1FailureMessage(output, { readOnly = false } = {}) {
+	let denied = false
+	try {
+		const value = JSON.parse(
+			stripVTControlCharacters(output)
+				.replace(/^\uFEFF/, '')
+				.trim(),
+		)
+		denied = value?.error?.code === 7403
+	} catch {
+		// Unknown or incomplete output must retain the uncertain-write warning.
+	}
+	const reason = denied
+		? 'Cloudflare denied D1 access (error 7403). Run npx.cmd wrangler whoami and check the account, database binding and D1 permissions. If necessary, run npx.cmd wrangler login with the account that owns this database.'
+		: 'D1 command/result check failed.'
+	return (
+		reason +
+		(readOnly
+			? ' The read-only database check failed; no changes were requested.'
+			: ' The operation may already have committed. Do not blindly repeat writes; use verified import resume when applicable.') +
+		' Private diagnostic: .wrangler/private/last-d1-error.private.json.'
+	)
+}

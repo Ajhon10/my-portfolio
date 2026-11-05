@@ -6,7 +6,14 @@ import Modal from '@/components/Modal.vue'
 import SortOrderSelect from '@/components/SortOrderSelect.vue'
 import { useProjectProvider, type ProjectInput } from '@/composables/provider/project.provider'
 import { useTechStackProvider } from '@/composables/provider/tech-stack.provider'
-import type { Project, ProjectImage, TechStack } from '@/types'
+import type { Project, ProjectMedia, TechStack } from '@/types'
+import {
+	MAX_PROJECT_IMAGE_BYTES,
+	MAX_PROJECT_VIDEO_BYTES,
+	MAX_PROJECT_MEDIA,
+	PROJECT_IMAGE_TYPES,
+	PROJECT_VIDEO_TYPES,
+} from '../../../shared/project-media'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { toast } from 'vue3-toastify'
 
@@ -43,8 +50,9 @@ const imageUploading = ref(false)
 const thumbnailPreview = ref<string>('')
 
 // Project gallery images
-const galleryImages = ref<ProjectImage[]>([])
+const galleryImages = ref<ProjectMedia[]>([])
 const galleryUploading = ref(false)
+const galleryProgress = ref('')
 const activeTab = ref<'details' | 'gallery'>('details')
 
 const getImageSrc = (url: string) => {
@@ -81,15 +89,14 @@ const filtered = computed(() => {
 	if (!search.value) return items.value
 	const q = search.value.toLowerCase()
 	return items.value.filter(
-		(p) => p.title.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q) || (p.category?.toLowerCase().includes(q) ?? false),
+		(p) =>
+			p.title.toLowerCase().includes(q) ||
+			p.slug.toLowerCase().includes(q) ||
+			(p.category?.toLowerCase().includes(q) ?? false),
 	)
 })
 
-const takenSortOrders = computed(() =>
-	items.value
-		.filter((p) => p.id !== editingId.value)
-		.map((p) => p.sortOrder),
-)
+const takenSortOrders = computed(() => items.value.filter((p) => p.id !== editingId.value).map((p) => p.sortOrder))
 
 const load = async () => {
 	loading.value = true
@@ -102,7 +109,7 @@ const load = async () => {
 onMounted(load)
 
 const columns: DataTableColumn<Project>[] = [
-	{ key: 'thumbnailUrl', label: 'Image', render: (r) => r.thumbnailUrl ? '🖼' : '—' },
+	{ key: 'thumbnailUrl', label: 'Image', render: (r) => (r.thumbnailUrl ? '🖼' : '—') },
 	{ key: 'title', label: 'Title' },
 	{ key: 'category', label: 'Category', render: (r) => r.category || '—' },
 	{ key: 'featured', label: 'Featured', render: (r) => (r.featured ? '★' : '') },
@@ -110,7 +117,7 @@ const columns: DataTableColumn<Project>[] = [
 ]
 
 const loadGallery = async (projectId: string) => {
-	const res = await provider.listProjectImages(projectId)
+	const res = await provider.listProjectMedia(projectId)
 	if (res.success && res.data) galleryImages.value = res.data
 }
 
@@ -118,26 +125,59 @@ const onGalleryFilesChange = async (event: Event) => {
 	const input = event.target as HTMLInputElement
 	const files = Array.from(input.files || [])
 	if (!files.length || !editingId.value) return
+	if (files.length + galleryImages.value.length > MAX_PROJECT_MEDIA) {
+		toast.error('A project can have up to 50 gallery images and videos.')
+		input.value = ''
+		return
+	}
 	galleryUploading.value = true
 	let uploaded = 0
-	for (const file of files) {
-		const res = await provider.uploadProjectImage(editingId.value, file)
-		if (res.success && res.data) {
-			galleryImages.value.push(res.data)
-			uploaded += 1
-		} else {
-			toast.error(res.message || 'Upload failed')
+	try {
+		for (const file of files) {
+			const video = PROJECT_VIDEO_TYPES.includes(file.type)
+			if (
+				(!video && !PROJECT_IMAGE_TYPES.includes(file.type)) ||
+				file.size > (video ? MAX_PROJECT_VIDEO_BYTES : MAX_PROJECT_IMAGE_BYTES)
+			) {
+				toast.error(`${file.name}: choose a JPEG/PNG/WebP/GIF up to 8 MiB or MP4/WebM up to 32 MiB.`)
+				continue
+			}
+			galleryProgress.value = `Uploading ${files.indexOf(file) + 1} of ${files.length}: ${file.name}`
+			const res = await provider.uploadProjectMedia(editingId.value, file)
+			if (res.success && res.data) {
+				galleryImages.value.push(res.data)
+				uploaded += 1
+			} else {
+				toast.error(res.message || 'Upload failed')
+			}
 		}
+		if (uploaded) {
+			toast.success(`${uploaded} gallery item${uploaded === 1 ? '' : 's'} uploaded`)
+			await load()
+		}
+	} finally {
+		galleryUploading.value = false
+		galleryProgress.value = ''
+		input.value = ''
 	}
-	galleryUploading.value = false
-	if (uploaded) toast.success(`${uploaded} gallery image${uploaded === 1 ? '' : 's'} uploaded`)
-	input.value = ''
 }
 
-const removeGalleryImage = async (img: ProjectImage) => {
+const removeGalleryImage = async (img: ProjectMedia) => {
 	const res = await provider.deleteProjectImage(img.id)
 	if (res.success) {
 		galleryImages.value = galleryImages.value.filter((i) => i.id !== img.id)
+		if (form.thumbnailUrl === img.url) clearThumbnail()
+		await load()
+	}
+}
+
+const setCover = async (media: ProjectMedia) => {
+	if (!editingId.value || media.mediaType !== 'image') return
+	const res = await provider.update(editingId.value, { thumbnailUrl: media.url })
+	if (res.success) {
+		form.thumbnailUrl = media.url
+		thumbnailPreview.value = media.url
+		await load()
 	}
 }
 
@@ -219,9 +259,7 @@ const save = async () => {
 		sortOrder: form.sortOrder,
 		techIds: form.techIds,
 	}
-	const res = editingId.value
-		? await provider.update(editingId.value, payload)
-		: await provider.create(payload)
+	const res = editingId.value ? await provider.update(editingId.value, payload) : await provider.create(payload)
 	if (res.success) {
 		showModal.value = false
 		await load()
@@ -270,31 +308,53 @@ const toggleTech = (id: string) => {
 				<button
 					type="button"
 					class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors"
-					:class="activeTab === 'details' ? 'border-brand-blue text-brand-blueLight' : 'border-transparent text-brand-gray-400 hover:text-white'"
+					:class="
+						activeTab === 'details'
+							? 'border-brand-blue text-brand-blueLight'
+							: 'border-transparent text-brand-gray-400 hover:text-white'
+					"
 					@click="activeTab = 'details'"
-				>Details</button>
+				>
+					Details
+				</button>
 				<button
 					type="button"
 					class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5"
-					:class="activeTab === 'gallery' ? 'border-brand-blue text-brand-blueLight' : 'border-transparent text-brand-gray-400 hover:text-white'"
+					:class="
+						activeTab === 'gallery'
+							? 'border-brand-blue text-brand-blueLight'
+							: 'border-transparent text-brand-gray-400 hover:text-white'
+					"
 					@click="activeTab = 'gallery'"
 				>
 					Gallery
-					<span v-if="galleryImages.length" class="text-xs bg-brand-blue/30 text-brand-blueLight px-1.5 py-0.5 rounded-full">{{ galleryImages.length }}</span>
+					<span
+						v-if="galleryImages.length"
+						class="text-xs bg-brand-blue/30 text-brand-blueLight px-1.5 py-0.5 rounded-full"
+						>{{ galleryImages.length }}</span
+					>
 				</button>
 			</div>
 
 			<!-- Gallery tab -->
 			<div v-if="activeTab === 'gallery'" class="space-y-4">
-				<div class="flex items-center justify-between">
-					<p class="text-sm text-brand-gray-400">Upload multiple images that showcase this project. They appear in the project detail page.</p>
+				<div class="flex flex-wrap items-center justify-between gap-3">
+					<p id="project-gallery-help" class="text-sm text-brand-gray-400">
+						Select multiple images or videos. Images: up to 8 MiB each. MP4/WebM: up to 32 MiB each. Maximum 50 items
+						per project.
+					</p>
 					<label class="cursor-pointer">
-						<span class="btn btn-primary text-sm !py-1.5 !px-4" :class="galleryUploading ? 'opacity-50 pointer-events-none' : ''">
-							{{ galleryUploading ? 'Uploading…' : '+ Add images' }}
+						<span
+							class="btn btn-primary text-sm !py-1.5 !px-4"
+							:class="galleryUploading ? 'opacity-50 pointer-events-none' : ''"
+						>
+							{{ galleryUploading ? 'Uploading…' : '+ Add images or videos' }}
 						</span>
 						<input
 							type="file"
-							accept="image/jpeg,image/png,image/webp,image/gif"
+							accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
+							aria-label="Add project images or videos"
+							aria-describedby="project-gallery-help"
 							multiple
 							class="sr-only"
 							:disabled="galleryUploading"
@@ -302,22 +362,50 @@ const toggleTech = (id: string) => {
 						/>
 					</label>
 				</div>
+				<p v-if="galleryUploading" role="status" class="text-sm text-brand-blueLight">{{ galleryProgress }}</p>
 
-				<div v-if="galleryImages.length === 0" class="border border-dashed border-white/10 rounded-xl p-10 text-center text-brand-gray-500 text-sm">
-					No gallery images yet. Upload some to showcase your project.
+				<div
+					v-if="galleryImages.length === 0"
+					class="border border-dashed border-white/10 rounded-xl p-10 text-center text-brand-gray-500 text-sm"
+				>
+					No gallery images or videos yet. Add some to showcase your project.
 				</div>
 
 				<div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-3">
 					<div
 						v-for="img in galleryImages"
 						:key="img.id"
-						class="relative group rounded-xl overflow-hidden border border-white/10 bg-black aspect-video"
+						class="rounded-xl overflow-hidden border border-white/10 bg-black min-w-0"
 					>
-						<img :src="img.url" class="w-full h-full object-cover" />
-						<div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+						<video
+							v-if="img.mediaType === 'video'"
+							:src="img.url"
+							controls
+							playsinline
+							preload="metadata"
+							class="w-full aspect-video object-contain"
+							:aria-label="`${form.title} gallery video`"
+						/>
+						<img
+							v-else
+							:src="img.url"
+							:alt="`${form.title} gallery preview`"
+							class="w-full aspect-video object-cover"
+						/>
+						<div class="flex flex-wrap gap-2 p-3">
+							<button
+								v-if="img.mediaType === 'image'"
+								type="button"
+								class="btn btn-outline text-xs !px-3"
+								:disabled="galleryUploading || form.thumbnailUrl === img.url"
+								@click="setCover(img)"
+							>
+								{{ form.thumbnailUrl === img.url ? 'Cover image' : 'Use as cover' }}
+							</button>
 							<button
 								type="button"
-								class="bg-red-500/90 hover:bg-red-500 text-white rounded-lg px-3 py-1.5 text-xs font-medium"
+								class="btn btn-danger text-xs !px-3"
+								:disabled="galleryUploading"
 								@click="removeGalleryImage(img)"
 							>
 								Remove
@@ -360,7 +448,9 @@ const toggleTech = (id: string) => {
 									class="absolute top-1 right-1 bg-black/70 hover:bg-black text-white rounded-full w-6 h-6 flex items-center justify-center text-xs leading-none"
 									@click="clearThumbnail"
 									title="Remove image"
-								>✕</button>
+								>
+									✕
+								</button>
 							</div>
 							<label class="flex items-center gap-2 cursor-pointer">
 								<span
@@ -417,16 +507,16 @@ const toggleTech = (id: string) => {
 							:key="t.id"
 							type="button"
 							class="px-3 py-1 rounded-full text-xs border transition"
-							:class="form.techIds?.includes(t.id)
-								? 'bg-brand-blue text-white border-brand-blue'
-								: 'border-white/10 text-brand-gray-400 hover:border-white/30'"
+							:class="
+								form.techIds?.includes(t.id)
+									? 'bg-brand-blue text-white border-brand-blue'
+									: 'border-white/10 text-brand-gray-400 hover:border-white/30'
+							"
 							@click="toggleTech(t.id)"
 						>
 							{{ t.name }}
 						</button>
-						<span v-if="techs.length === 0" class="text-xs text-brand-gray-500">
-							Add tech stack items first.
-						</span>
+						<span v-if="techs.length === 0" class="text-xs text-brand-gray-500"> Add tech stack items first. </span>
 					</div>
 				</FormField>
 

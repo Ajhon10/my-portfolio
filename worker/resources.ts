@@ -34,6 +34,7 @@ import {
 import { createAccount, newUserSchema, publicUser, revokeUser } from './auth'
 import { hub } from './hub-client'
 import type { AppEnv, Row } from './types'
+import { projectMediaType } from '../shared/project-media'
 
 const sortOrder = z.number().int().min(0).max(10000).optional()
 const projectSchema = z.object({
@@ -124,8 +125,11 @@ export async function enrichProjects(db: D1Database, projects: Row[]): Promise<R
 			.filter((row) => row.project_id === project.id)
 			.map((row) => ({ id: row.link_id, projectId: project.id, techId: row.tech_id, tech: decode('TechStack', row) })),
 		images: (images.results as Row[])
-			.filter((row) => row.project_id === project.id)
+			.filter((row) => row.project_id === project.id && projectMediaType(row.url) === 'image')
 			.map((row) => decode('ProjectImage', row)),
+		media: (images.results as Row[])
+			.filter((row) => row.project_id === project.id)
+			.map((row) => ({ ...decode('ProjectImage', row), mediaType: projectMediaType(row.url) })),
 	}))
 }
 async function slug(db: D1Database, title: string, exclude?: string) {

@@ -14,7 +14,7 @@
 		{
 			"binding": "DB",
 			"database_name": "portfolio",
-			"database_id": "00000000-0000-0000-0000-000000000000",
+			"database_id": "aa99b37b-fcde-4022-b57f-74bac996d42c",
 			"migrations_dir": "migrations",
 		},
 	],

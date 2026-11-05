@@ -39,7 +39,7 @@ test('email transitions to masked password and confirmation on the same active r
 	const pending = readOwnerInput({ reset: true, env: {}, prompts: t.prompts })
 	await t.waitFor('Owner email: ')
 	t.input.write(' Owner@Example.Test \r')
-	await t.waitFor('New password (masked; 12-128 characters): ')
+	await t.waitFor('New password (masked; 8-128 characters): ')
 	t.input.write('a-test-only-password!')
 	assert.ok(t.rendered().includes('***'))
 	assert.ok(!t.rendered().includes('a-test-only-password!'))
@@ -132,4 +132,78 @@ test('noninteractive secret entry fails clearly rather than hanging or echoing',
 		prompts = createOwnerPrompt({ input, output })
 	await assert.rejects(prompts.secret('Password: '), /interactive terminal/)
 	prompts.close()
+})
+
+test('password boundaries accept symbols and spaces without composition requirements', async () => {
+	const { passwordValidationError } = await modulePromise
+	for (const password of ['a'.repeat(8), 'a'.repeat(128), 'Abc123!?', 'a phrase with spaces'])
+		assert.equal(passwordValidationError(password), null)
+	for (const password of ['', 'Abc123!', 'a'.repeat(129)]) {
+		assert.match(passwordValidationError(password), /8-128 characters/)
+		assert.ok(!passwordValidationError(password).includes(password) || password === '')
+	}
+})
+
+test('short interactive password asks again before confirmation and stays masked', async () => {
+	const t = await terminal(),
+		{ readOwnerInput } = await modulePromise
+	const pending = readOwnerInput({ reset: true, env: { OWNER_EMAIL: 'fixture@example.test' }, prompts: t.prompts })
+	await t.waitFor('New password')
+	t.input.write('Abc123!\r')
+	await t.waitFor('Please try again.')
+	assert.ok(!t.rendered().includes('Confirm password'))
+	t.input.write('Abc123!?\r')
+	await t.waitFor('Confirm password')
+	t.input.write('Abc123!?\r')
+	assert.equal((await pending).password, 'Abc123!?')
+	assert.ok(!t.rendered().includes('Abc123'))
+	assert.equal(t.input.isRaw, false)
+})
+
+test('failed database preflight stops before collecting a password and closes the reader', async () => {
+	const { readOwnerInput } = await modulePromise
+	let closed = false
+	await assert.rejects(
+		readOwnerInput({
+			reset: true,
+			env: { OWNER_EMAIL: 'fixture@example.test' },
+			beforePassword: async ({ email }) => {
+				assert.equal(email, 'fixture@example.test')
+				throw new Error('Database access denied')
+			},
+			prompts: {
+				secret() {
+					assert.fail('A password must not be collected when the database check failed')
+				},
+				close() {
+					closed = true
+				},
+			},
+		}),
+		/Database access denied/,
+	)
+	assert.ok(closed)
+})
+
+test('invalid automation input reports the specific field without exposing the password', async () => {
+	const { readOwnerInput } = await modulePromise
+	for (const [overrides, expected] of [
+		[{ OWNER_EMAIL: 'invalid' }, /valid owner email/],
+		[{ OWNER_FIRST_NAME: ' ' }, /names are required/],
+		[{ OWNER_PASSWORD: 'Abc123!' }, /8-128 characters/],
+	]) {
+		await assert.rejects(
+			readOwnerInput({
+				env: {
+					OWNER_EMAIL: 'fixture@example.test',
+					OWNER_FIRST_NAME: 'Fixture',
+					OWNER_LAST_NAME: 'Owner',
+					OWNER_PASSWORD: 'fixture-only-password',
+					...overrides,
+				},
+				prompts: { close() {} },
+			}),
+			(error) => expected.test(error.message) && !error.message.includes('Abc123'),
+		)
+	}
 })

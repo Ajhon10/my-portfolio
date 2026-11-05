@@ -4,7 +4,7 @@ import { ApiError, admin, body, idSchema, isAdmin, limit, now, nullableText, ok,
 import { decode, insert, list, need, placeholders, profiles, softDelete, update } from './db'
 import { accountRow, newUserSchema } from './auth'
 import { hub, publish } from './hub-client'
-import { queueMail } from './mail'
+import { flushMail, mailConfigured, queueMail, replyMailStatus } from './mail'
 import type { AppEnv, Env, Row, User } from './types'
 
 const requestSchema = z.object({
@@ -24,16 +24,20 @@ async function requestAccess(env: Env, id: string, user: User) {
 	if (user.role === 'CLIENT' && request.clientUserId !== user.id) throw new ApiError(404, 'Request not found.')
 	return request
 }
-async function includeReplies(db: D1Database, requests: Row[]) {
+async function includeReplies(env: Env, requests: Row[]) {
 	if (!requests.length) return requests
+	const db = env.DB
 	const ids = requests.map((item) => item.id)
 	const rawReplies = await db
 		.prepare(
-			`SELECT * FROM client_request_reply WHERE request_id IN (${placeholders(ids.length)}) AND deleted=0 ORDER BY created_at,id LIMIT 500`,
+			`SELECT r.*,m.id AS mail_id,m.delivered_at AS email_accepted_at,m.failed_at AS email_failed_at FROM client_request_reply r LEFT JOIN mail_outbox m ON m.id=r.id WHERE r.request_id IN (${placeholders(ids.length)}) AND r.deleted=0 ORDER BY r.created_at,r.id LIMIT 500`,
 		)
 		.bind(...ids)
 		.all<Row>()
-	const replies = rawReplies.results.map((row) => decode('ClientRequestReply', row)!)
+	const replies = rawReplies.results.map((row): Row => ({
+		...decode('ClientRequestReply', row)!,
+		emailDelivery: replyMailStatus(env, row),
+	}))
 	const users = await profiles(db, [
 		...requests.map((item) => item.clientUserId),
 		...replies.map((item) => item.repliedById),
@@ -87,28 +91,29 @@ async function submit(c: import('hono').Context<AppEnv>, client: boolean) {
 }
 requestRoutes.post('/submit', (c) => submit(c, false))
 requestRoutes.post('/my/submit', (c) => submit(c, true))
+requestRoutes.get('/email/status', async (c) => {
+	admin(c)
+	const queue = await c.env.DB.prepare(
+		'SELECT COUNT(CASE WHEN delivered_at IS NOT NULL THEN 1 END) AS accepted,COUNT(CASE WHEN delivered_at IS NULL AND failed_at IS NULL THEN 1 END) AS pending,COUNT(CASE WHEN failed_at IS NOT NULL THEN 1 END) AS failed FROM mail_outbox',
+	).first()
+	return ok(c, { configured: mailConfigured(c.env), queue })
+})
 requestRoutes.get('/my', async (c) => {
 	const user = requireUser(c, ['CLIENT'])
 	return ok(
 		c,
-		await includeReplies(
-			c.env.DB,
-			await list(c.env.DB, 'ClientRequest', { clientUserId: user.id }, { take: limit(c) }),
-		),
+		await includeReplies(c.env, await list(c.env.DB, 'ClientRequest', { clientUserId: user.id }, { take: limit(c) })),
 	)
 })
 requestRoutes.get('/', async (c) => {
 	admin(c)
 	const filter: Row = {}
 	if (c.req.query('status')) filter.status = z.enum(statuses).parse(c.req.query('status'))
-	return ok(c, await includeReplies(c.env.DB, await list(c.env.DB, 'ClientRequest', filter, { take: limit(c) })))
+	return ok(c, await includeReplies(c.env, await list(c.env.DB, 'ClientRequest', filter, { take: limit(c) })))
 })
 requestRoutes.get('/:id', async (c) => {
 	const user = requireUser(c)
-	return ok(
-		c,
-		(await includeReplies(c.env.DB, [await requestAccess(c.env, idSchema.parse(c.req.param('id')), user)]))[0],
-	)
+	return ok(c, (await includeReplies(c.env, [await requestAccess(c.env, idSchema.parse(c.req.param('id')), user)]))[0])
 })
 requestRoutes.post('/:id/client-account', async (c) => {
 	admin(c)
@@ -217,14 +222,13 @@ requestRoutes.post('/:id/reply', async (c) => {
 	await c.env.DB.batch([
 		reply.statement,
 		update(c.env.DB, 'ClientRequest', id, { status: 'REPLIED' }),
-		queueMail(c.env.DB, request.email, 'Reply to your project inquiry', input.message),
+		queueMail(c.env.DB, request.email, 'Reply to your project inquiry', input.message, reply.row.id),
 	])
+	if (mailConfigured(c.env)) c.executionCtx.waitUntil(flushMail(c.env, reply.row.id))
 	return ok(
 		c,
-		{ ...reply.row, emailDelivery: c.env.MAIL_API_TOKEN && c.env.MAIL_FROM ? 'queued' : 'not-configured' },
-		c.env.MAIL_API_TOKEN && c.env.MAIL_FROM
-			? 'Reply saved; email queued.'
-			: 'Reply saved. Email delivery is not configured.',
+		{ ...reply.row, emailDelivery: mailConfigured(c.env) ? 'queued' : 'not-configured' },
+		mailConfigured(c.env) ? 'Reply saved; email queued.' : 'Reply saved. Email delivery is not configured.',
 	)
 })
 requestRoutes.delete('/:id', async (c) => {

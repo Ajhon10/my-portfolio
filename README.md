@@ -43,3 +43,20 @@ records, secrets, uploads, local database state and backup archives stay out of 
 
 Historical NestJS/Vercel documents are under `docs/legacy/`; the original source
 is recoverable from Git and the private pre-conversion backup.
+
+## Environment files
+
+The active local environment file is `.dev.vars` in this repository root, with
+the safe key template in `.dev.vars.example`. There is no active root `.env` in
+the integrated Cloudflare application. Keep `.dev.vars` private and ignored by Git.
+
+Production values are managed in Cloudflare Workers → my-portfolio → Settings →
+Variables and Secrets, or with `npx.cmd wrangler secret put NAME`. Editing the
+local file does not update production. The existing private bootstrap JSON is
+`.wrangler/private/production-secrets.private.json`; do not recreate or rotate
+AUTH_SECRET after authenticator enrollment.
+
+The retired client/server `.env` files remain in the private backup at
+`../../BACKUPS/MY_PORTFOLIO-before-cloudflare-2026-11-05/retired-source/`, inside
+`portfolio-client/` and `portfolio-server/`. They belong to the old application,
+not the current Worker. Never paste their contents into chat or commit them.
