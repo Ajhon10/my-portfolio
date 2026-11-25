@@ -799,6 +799,9 @@ try {
 		await recovery.goto('http://127.0.0.1:5179/login', { waitUntil: 'networkidle' })
 		await recovery.evaluate(() => localStorage.setItem('portfolio_token', 'expired-session-fixture'))
 		await recovery.getByRole('link', { name: 'Forgot password?', exact: true }).click()
+		await recovery.evaluate(() => localStorage.setItem('portfolio_token', 'expired-session-fixture'))
+		await recovery.reload({ waitUntil: 'networkidle' })
+		assert.equal(new URL(recovery.url()).pathname, '/forgot-password')
 		await recovery.getByText('Email recovery is unavailable.', { exact: false }).waitFor()
 		assert.ok(await recovery.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
 		await recovery.screenshot({ path: artifact + '/forgot-password-mobile.png' })
@@ -832,6 +835,7 @@ try {
 			`INSERT INTO password_reset_challenges(token_hash,user_id,credential_fingerprint,purpose,created_at,expires_at) VALUES(${literal(tokenHash)},${literal(recoveryUser.id)},${literal(fingerprint)},'email',${literal(new Date().toISOString())},${literal(new Date(Date.now() + 900000).toISOString())});`,
 		)
 		await recovery.setViewportSize({ width: 1440, height: 1000 })
+		await recovery.evaluate(() => localStorage.setItem('portfolio_token', 'expired-session-fixture'))
 		await recovery.goto('http://127.0.0.1:5179/reset-password#token=' + resetToken, { waitUntil: 'networkidle' })
 		await recovery.getByRole('heading', { name: 'Reset password', exact: true }).waitFor()
 		assert.equal(new URL(recovery.url()).hash, '')

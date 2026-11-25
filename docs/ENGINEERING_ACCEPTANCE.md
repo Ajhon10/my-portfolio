@@ -956,3 +956,12 @@ bookmark/public-content hash baseline. Brought the isolated preview schema from
 the explicit user seeder; its password-change/MFA gates are enabled. Existing
 owner records were preserved. Production account creation is deliberately after
 the new recovery code deploys so that its forced-change sign-in is supported.
+
+A focused cold-load regression additionally found that an expired session on
+the background branding request could redirect a recovery page to login. The
+401 interceptor now keeps `/forgot-password` and `/reset-password` available
+while clearing that expired token. Public recovery/sign-in requests themselves
+omit stored Authorization. Chrome verified a cold reset-link load with an
+expired stored session, URL-token removal, validation and both theme contrasts;
+typechecks passed. The shared browser regression includes cold forgot/reset
+loads with stale storage. No account authentication checks were weakened.

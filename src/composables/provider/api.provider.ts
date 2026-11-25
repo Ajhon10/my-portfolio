@@ -66,7 +66,10 @@ export const useApiProvider = () => {
 				const isWhoami = response.config.url?.includes('/auth/whoami')
 				if (!isWhoami) {
 					clearToken()
-					if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+					if (
+						typeof window !== 'undefined' &&
+						!['/login', '/forgot-password', '/reset-password'].includes(window.location.pathname)
+					) {
 						setTimeout(() => {
 							window.location.href = '/login'
 						}, 100)
