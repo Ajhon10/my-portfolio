@@ -89,6 +89,60 @@ test('public CSV seed restores page data and galleries idempotently without repl
 	}
 })
 
+test('subcategory migration preserves existing catalog rows and seeds scoped children against existing parent IDs', async () => {
+	const { DatabaseSync } = await import('node:sqlite')
+	const { seedSql } = await import('../scripts/seed.mjs')
+	const db = new DatabaseSync(':memory:')
+	try {
+		for (const file of (await readdir('migrations')).filter((f) => f.endsWith('.sql') && f < '0008').sort())
+			db.exec(await readFile('migrations/' + file, 'utf8'))
+		const parentId = randomUUID(),
+			productId = randomUUID()
+		db.prepare(
+			"INSERT INTO shop_category(id,name,created_at,updated_at) VALUES(?,'digital products',datetime('now'),datetime('now'))",
+		).run(parentId)
+		db.prepare(
+			"INSERT INTO shop_product(id,name,description,created_at,updated_at) VALUES(?,'Keep this item','Existing product',datetime('now'),datetime('now'))",
+		).run(productId)
+		db.prepare('INSERT INTO shop_product_category(product_id,category_id) VALUES(?,?)').run(productId, parentId)
+		db.exec(await readFile('migrations/0008_shop_subcategories.sql', 'utf8'))
+		db.exec(await readFile('migrations/0009_shop_downloads.sql', 'utf8'))
+		db.exec(seedSql())
+		db.exec(seedSql())
+		assert.equal(db.prepare('SELECT COUNT(*) n FROM shop_category').get().n, 2)
+		assert.equal(db.prepare('SELECT COUNT(*) n FROM shop_subcategory').get().n, 5)
+		assert.equal(db.prepare('SELECT COUNT(*) n FROM shop_product').get().n, 2)
+		const free = db.prepare("SELECT * FROM shop_product WHERE name='ATS-friendly Resume Template'").get()
+		assert.equal(free.price_label, 'Free')
+		assert.equal(free.download_url, '/downloads/ats-friendly-resume-template.zip')
+		assert.equal(
+			db
+				.prepare('SELECT COUNT(*) n FROM shop_product_category WHERE product_id=? AND category_id=?')
+				.get(free.id, parentId).n,
+			1,
+		)
+		assert.equal(db.prepare('SELECT COUNT(*) n FROM shop_media WHERE product_id=?').get(free.id).n, 1)
+		assert.equal(db.prepare("SELECT COUNT(*) n FROM shop_subcategory WHERE name='Kids'").get().n, 2)
+		const kids = db
+			.prepare("SELECT id,category_id FROM shop_subcategory WHERE category_id=? AND name='Kids'")
+			.get(parentId)
+		assert.ok(kids)
+		assert.equal(db.prepare('SELECT name FROM shop_product WHERE id=?').get(productId).name, 'Keep this item')
+		db.prepare('INSERT INTO shop_product_subcategory(product_id,subcategory_id) VALUES(?,?)').run(productId, kids.id)
+		assert.throws(
+			() => db.prepare('DELETE FROM shop_product_category WHERE product_id=?').run(productId),
+			/SHOP_SUBCATEGORY_PARENT_REQUIRED/,
+		)
+		assert.throws(
+			() => db.prepare('UPDATE shop_category SET deleted=1 WHERE id=?').run(parentId),
+			/SHOP_CATEGORY_HAS_CHILDREN/,
+		)
+		assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), [])
+	} finally {
+		db.close()
+	}
+})
+
 test('the four owner photographs retain their locations, order and bundled JPEG assets', async () => {
 	const { readSeedCsv } = await import('../scripts/seed.mjs')
 	const photos = readSeedCsv('Photograph', 'photography.csv')

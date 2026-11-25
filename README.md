@@ -64,10 +64,17 @@ captured read-only from the production public API at
 | `certifications.csv` | 0 |
 | `photography.csv` | 4 |
 | `gears.csv` | 0 |
+| `shop-categories.csv` | 2 |
+| `shop-subcategories.csv` | 5 |
+| `shop-products.csv` | 1 |
+| `shop-product-categories.csv` | 1 |
+| `shop-product-media.csv` | 1 |
 
 The empty CSVs retain their column headers because production exposes no records
-for those sections. Production does not yet expose a shop API; no shop rows were
-invented. The 13 enabled chatbot answers were read through a narrowly scoped,
+for those sections. The production snapshot had no shop API. The shop CSVs now
+seed the requested structure: Digital products → Kids and Clothing → Men,
+Women, Kids, plus Digital products → Resume templates. Subcategory names are unique within their
+parent, so both parents can have Kids. The 13 enabled chatbot answers were read through a narrowly scoped,
 read-only production D1 query because the knowledge-management API requires
 administrator access. Disabled answers and visitor conversations were excluded.
 
@@ -90,7 +97,24 @@ records without changing proficiency ratings. Project media now includes the
 original MemeCam studio screenshot and MuniAlert's desktop/mobile demo captures.
 FableSplice uses an authored SVG prototype cover illustrating its actual pipeline,
 not an application screenshot. These assets live under `public/seed/projects/`.
-No live URLs were invented. The seed now contains 128 records overall.
+No live URLs were invented. The seed now contains 138 CSV rows overall; a shop
+category-link row creates both its parent and optional child association.
+
+The shop includes one published **ATS-friendly Resume Template**, priced Free.
+Its direct download contains an original editable DOCX, matching TXT and usage
+instructions. The document uses a single column, Arial, standard headings and
+ordinary paragraphs; contact information stays in the body. It contains no
+tables, text boxes or images. Follow the employer's requested format and review
+autofilled application fields. Sources for those layout choices:
+[University of Minnesota Duluth](https://career.d.umn.edu/students/resume-cover-letter/applicant-tracking-system-ats-tips)
+and [Dartmouth](https://careerdesign.dartmouth.edu/resources/beat-the-bots-understanding-applicant-tracking-systems/).
+The original preview lives in `public/seed/shop/`; the four download assets are
+deliberately bundled source files in `public/downloads/`. Rebuild them with
+`python scripts/generate-resume-template.py` (standard library only, optional for
+asset regeneration; Python is not required to build or serve the portfolio).
+Direct free downloads require no account or inquiry. Existing purchase links and
+inquiry flows remain available. The API permits the exact bundled ZIP path or an
+HTTP(S) URL for a free download; paid-file access control is not implemented.
 
 CSV fields support quoted multiline text, commas, quotes, UTF-8 and `\N` for
 database null (distinct from an empty string). Uploaded-asset references use
@@ -101,6 +125,9 @@ copy under `public/seed/portrait/`; the canvas maps only that exact production
 URL to the same-origin copy, restoring local particle rendering and hover.
 Other external portraits need their asset origin's CORS permission for canvas
 reads; a static fallback remains available when those permissions are absent.
+Light mode uses dark image details as blue ink, heavier characters and reduced
+background noise. Dark mode uses light details; changing themes repaints the
+canvas immediately, including with reduced motion. Pointer scatter is retained.
 Account credentials, inquiries, private
 chat and notifications are excluded.
 

@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { toast } from 'vue3-toastify'
 import {
 	useShopProvider,
+	shopCategoryLabel,
 	type ShopCategory,
+	type ShopSubcategory,
 	type ShopProduct,
 	type ShopInput,
 	type ShopMedia,
@@ -20,6 +22,8 @@ const api = useShopProvider()
 const { resolveAssetUrl } = useSiteBranding()
 const products = ref<ShopProduct[]>([])
 const categories = ref<ShopCategory[]>([])
+const subcategories = ref<ShopSubcategory[]>([])
+const childrenOf = (id: string) => subcategories.value.filter((s) => s.categoryId === id)
 const loading = ref(true)
 const page = ref(1)
 const failed = ref(false)
@@ -29,13 +33,24 @@ const editing = ref<string>()
 const media = ref<ShopMedia[]>([])
 const categoryName = ref('')
 const categoryId = ref<string>()
+const subcategoryId = ref<string>()
+const categoryParent = ref('')
 const cancelCategory = () => {
 	categoryId.value = undefined
 	categoryName.value = ''
+	subcategoryId.value = undefined
+	categoryParent.value = ''
 }
 const editCategory = (category: ShopCategory) => {
+	cancelCategory()
 	categoryId.value = category.id
 	categoryName.value = category.name
+}
+const editSubcategory = (subcategory: ShopSubcategory) => {
+	cancelCategory()
+	subcategoryId.value = subcategory.id
+	categoryName.value = subcategory.name
+	categoryParent.value = subcategory.categoryId
 }
 const uploadStatus = ref('')
 const uploadErrors = ref<string[]>([])
@@ -44,18 +59,40 @@ const empty = (): ShopInput => ({
 	description: '',
 	priceLabel: '',
 	purchaseUrl: '',
+	downloadUrl: '',
 	published: false,
 	sortOrder: 0,
 	categoryIds: [],
+	subcategoryIds: [],
 })
 const form = ref<ShopInput>(empty())
+watch(
+	() => form.value.categoryIds,
+	() => {
+		form.value.subcategoryIds = form.value.subcategoryIds.filter((id) =>
+			subcategories.value.some((s) => s.id === id && form.value.categoryIds.includes(s.categoryId)),
+		)
+	},
+	{ deep: true },
+)
+const selectSubcategory = (subcategory: ShopSubcategory, event: Event) => {
+	if ((event.target as HTMLInputElement).checked) {
+		if (!form.value.categoryIds.includes(subcategory.categoryId)) form.value.categoryIds.push(subcategory.categoryId)
+		form.value.subcategoryIds.push(subcategory.id)
+	} else form.value.subcategoryIds = form.value.subcategoryIds.filter((id) => id !== subcategory.id)
+}
 const load = async () => {
 	loading.value = true
-	const [items, groups] = await Promise.all([api.products(true, { page: page.value }), api.categories()])
-	failed.value = !items.success || !groups.success
-	if (items.success && groups.success) {
+	const [items, groups, children] = await Promise.all([
+		api.products(true, { page: page.value }),
+		api.categories(),
+		api.subcategories(),
+	])
+	failed.value = !items.success || !groups.success || !children.success
+	if (items.success && groups.success && children.success) {
 		products.value = items.data
 		categories.value = groups.data
+		subcategories.value = children.data
 	}
 	loading.value = false
 }
@@ -73,9 +110,11 @@ const edit = (product: ShopProduct) => {
 		description: product.description,
 		priceLabel: product.priceLabel,
 		purchaseUrl: product.purchaseUrl,
+		downloadUrl: product.downloadUrl,
 		published: product.published,
 		sortOrder: product.sortOrder,
 		categoryIds: product.categories.map((c) => c.id),
+		subcategoryIds: product.subcategories.map((s) => s.id),
 	}
 	media.value = product.media.map((m) => ({ ...m }))
 	uploadStatus.value = ''
@@ -101,10 +140,24 @@ const save = async () => {
 const saveCategory = async () => {
 	busy.value = true
 	try {
-		const result = await api.saveCategory(categoryName.value, categoryId.value)
+		const result = categoryParent.value
+			? await api.saveSubcategory(categoryName.value, categoryParent.value, subcategoryId.value)
+			: await api.saveCategory(categoryName.value, categoryId.value)
 		if (result.success) {
-			categoryName.value = ''
-			categoryId.value = undefined
+			cancelCategory()
+			await load()
+		}
+	} finally {
+		busy.value = false
+	}
+}
+const removeSubcategory = async (subcategory: ShopSubcategory) => {
+	if (!window.confirm(`Remove subcategory "${subcategory.name}"?`)) return
+	busy.value = true
+	try {
+		if ((await api.removeSubcategory(subcategory.id)).success) {
+			form.value.subcategoryIds = form.value.subcategoryIds.filter((id) => id !== subcategory.id)
+			if (subcategoryId.value === subcategory.id) cancelCategory()
 			await load()
 		}
 	} finally {
@@ -247,20 +300,58 @@ const changePage = (next: number) => {
 						class="input mt-2"
 					/>
 				</label>
+				<label class="label"
+					>Free download link (optional)
+					<input
+						v-model.trim="form.downloadUrl"
+						maxlength="1500"
+						class="input mt-2"
+						placeholder="https://… or /downloads/ats-friendly-resume-template.zip"
+					/>
+					<span class="block mt-2 text-sm text-brand-gray-400">Add a direct link to a free file or sample.</span>
+				</label>
 				<fieldset class="space-y-2">
 					<legend class="label">Categories (choose 1–10)</legend>
 					<p v-if="!categories.length" class="text-sm text-brand-gray-400">
 						Create a category below to add your first product.
 					</p>
-					<div class="flex flex-wrap gap-x-6 gap-y-2">
-						<label v-for="category in categories" :key="category.id" class="inline-flex items-center gap-2 min-h-11"
-							><input
-								v-model="form.categoryIds"
-								type="checkbox"
-								:value="category.id"
-								:disabled="!form.categoryIds.includes(category.id) && form.categoryIds.length >= 10"
-							/>{{ category.name }}</label
+					<p class="text-sm text-brand-gray-400">
+						Choose up to 10 subcategories. Selecting one also selects its parent category.
+					</p>
+					<div class="grid sm:grid-cols-2 gap-3">
+						<div
+							v-for="category in categories"
+							:key="category.id"
+							class="border border-white/10 rounded-lg p-3 min-w-0"
 						>
+							<label class="inline-flex items-center gap-2 min-h-11"
+								><input
+									v-model="form.categoryIds"
+									type="checkbox"
+									:value="category.id"
+									:disabled="!form.categoryIds.includes(category.id) && form.categoryIds.length >= 10"
+								/>{{ category.name }}</label
+							>
+							<div v-if="childrenOf(category.id).length" class="pl-5 border-l border-white/10 ml-2 space-y-1">
+								<label
+									v-for="subcategory in childrenOf(category.id)"
+									:key="subcategory.id"
+									class="flex items-center gap-2 min-h-11 break-words"
+								>
+									<input
+										type="checkbox"
+										:aria-label="`${category.name} → ${subcategory.name}`"
+										:checked="form.subcategoryIds.includes(subcategory.id)"
+										:disabled="
+											!form.subcategoryIds.includes(subcategory.id) &&
+											(form.subcategoryIds.length >= 10 ||
+												(!form.categoryIds.includes(category.id) && form.categoryIds.length >= 10))
+										"
+										@change="selectSubcategory(subcategory, $event)"
+									/>{{ subcategory.name }}
+								</label>
+							</div>
+						</div>
 					</div>
 				</fieldset>
 				<label class="label"
@@ -354,8 +445,23 @@ const changePage = (next: number) => {
 			</div>
 		</section>
 		<section class="card p-6 space-y-5" aria-labelledby="categories-heading">
-			<h3 id="categories-heading" class="text-lg font-semibold">Categories</h3>
-			<form class="flex flex-wrap items-end gap-3" @submit.prevent="saveCategory">
+			<h3 id="categories-heading" class="text-lg font-semibold">Categories &amp; subcategories</h3>
+			<p class="text-sm text-brand-gray-400">
+				Group your collection, for example Digital products → Kids or Clothing → Men, Women, Kids.
+			</p>
+			<form class="grid sm:flex sm:flex-wrap sm:items-end gap-3" @submit.prevent="saveCategory">
+				<label class="label flex-1 min-w-0"
+					>Parent category (optional)
+					<select
+						aria-label="Parent category (optional)"
+						v-model="categoryParent"
+						class="input mt-2"
+						:disabled="busy || uploading || !!categoryId || !!subcategoryId"
+					>
+						<option value="">None — top-level category</option>
+						<option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option>
+					</select>
+				</label>
 				<label class="label flex-1 min-w-0"
 					>Category name<input
 						v-model.trim="categoryName"
@@ -364,32 +470,67 @@ const changePage = (next: number) => {
 						class="input mt-2"
 						:disabled="busy || uploading" /></label
 				><button class="btn btn-primary mb-1.5" type="submit" :disabled="busy || uploading || loading">
-					{{ categoryId ? 'Save category' : 'Add category' }}</button
-				><button v-if="categoryId" type="button" class="btn btn-ghost" @click="cancelCategory">Cancel</button>
+					{{
+						categoryParent
+							? subcategoryId
+								? 'Save subcategory'
+								: 'Add subcategory'
+							: categoryId
+								? 'Save category'
+								: 'Add category'
+					}}</button
+				><button v-if="categoryId || subcategoryId" type="button" class="btn btn-ghost" @click="cancelCategory">
+					Cancel
+				</button>
 			</form>
 			<div class="divide-y divide-white/10">
-				<div
-					v-for="category in categories"
-					:key="category.id"
-					class="flex flex-wrap items-center justify-between gap-3 py-3"
-				>
-					<span class="break-words min-w-0">{{ category.name }}</span>
-					<div class="flex gap-3">
-						<button
-							type="button"
-							class="btn btn-outline !px-3 !py-2"
-							:disabled="busy || uploading"
-							@click="editCategory(category)"
-						>
-							Rename</button
-						><button
-							type="button"
-							class="btn btn-danger !px-3 !py-2"
-							:disabled="busy || uploading"
-							@click="removeCategory(category)"
-						>
-							Delete
-						</button>
+				<div v-for="category in categories" :key="category.id" class="py-3">
+					<div class="flex flex-wrap items-center justify-between gap-3">
+						<span class="break-words min-w-0">{{ category.name }}</span>
+						<div class="flex gap-3">
+							<button
+								type="button"
+								class="btn btn-outline !px-3 !py-2"
+								:disabled="busy || uploading"
+								@click="editCategory(category)"
+							>
+								Rename</button
+							><button
+								type="button"
+								class="btn btn-danger !px-3 !py-2"
+								:disabled="busy || uploading"
+								@click="removeCategory(category)"
+							>
+								Delete
+							</button>
+						</div>
+					</div>
+					<div
+						v-for="subcategory in childrenOf(category.id)"
+						:key="subcategory.id"
+						class="ml-3 pl-4 border-l border-white/10 flex flex-wrap items-center justify-between gap-3 py-2"
+					>
+						<span class="break-words min-w-0">{{ category.name }} → {{ subcategory.name }}</span>
+						<div class="flex gap-3">
+							<button
+								type="button"
+								class="btn btn-outline !px-3 !py-2"
+								:aria-label="`Rename ${category.name} → ${subcategory.name}`"
+								:disabled="busy || uploading"
+								@click="editSubcategory(subcategory)"
+							>
+								Rename
+							</button>
+							<button
+								type="button"
+								class="btn btn-danger !px-3 !py-2"
+								:aria-label="`Delete ${category.name} → ${subcategory.name}`"
+								:disabled="busy || uploading"
+								@click="removeSubcategory(subcategory)"
+							>
+								Delete
+							</button>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -408,7 +549,7 @@ const changePage = (next: number) => {
 				<div class="min-w-0">
 					<h4 class="font-semibold break-words">{{ product.name }}</h4>
 					<p class="text-sm text-brand-gray-400">
-						{{ product.published ? 'Published' : 'Draft' }} · {{ product.categories.map((c) => c.name).join(' / ') }} ·
+						{{ product.published ? 'Published' : 'Draft' }} · {{ shopCategoryLabel(product) }} ·
 						{{ product.media.length }} media
 					</p>
 				</div>

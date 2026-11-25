@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { spawn, execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { chromium } from 'playwright'
@@ -403,12 +403,24 @@ try {
 	await page.getByLabel('Category name', { exact: true }).fill('Digital collection')
 	await page.getByRole('button', { name: 'Add category', exact: true }).click()
 	await page.getByLabel('Digital collection', { exact: true }).waitFor()
+	await page.getByLabel('Parent category (optional)', { exact: true }).selectOption({ label: 'Digital collection' })
+	await page.getByLabel('Category name', { exact: true }).fill('Children')
+	await page.getByRole('button', { name: 'Add subcategory', exact: true }).click()
+	await page.getByLabel('Digital collection → Children', { exact: true }).waitFor()
+	await page.getByRole('button', { name: 'Rename Digital collection → Children', exact: true }).click()
+	await page.getByLabel('Category name', { exact: true }).fill('Kids')
+	await page.getByRole('button', { name: 'Save subcategory', exact: true }).click()
+	await page.getByLabel('Digital collection → Kids', { exact: true }).waitFor()
 	await page.getByLabel('Product name', { exact: true }).fill('Browser shop template')
 	await page
 		.getByLabel('Description', { exact: true })
 		.fill('A browser fixture product with a gallery and multiple categories.')
 	await page.getByLabel('Browser templates', { exact: true }).check()
-	await page.getByLabel('Digital collection', { exact: true }).check()
+	await page.getByLabel('Digital collection → Kids', { exact: true }).check()
+	assert.ok(await page.getByLabel('Digital collection', { exact: true }).isChecked())
+	await page.getByLabel('Digital collection', { exact: true }).uncheck()
+	assert.equal(await page.getByLabel('Digital collection → Kids', { exact: true }).isChecked(), false)
+	await page.getByLabel('Digital collection → Kids', { exact: true }).check()
 	await page.getByLabel('Price label (optional)', { exact: true }).fill('₱500')
 	await page.getByLabel('External purchase link (optional)', { exact: true }).fill('https://example.com/product')
 	await page.getByRole('button', { name: 'Create product', exact: true }).click()
@@ -420,6 +432,29 @@ try {
 		return (await response.json()).data.find((p) => p.name === 'Browser shop template').id
 	})
 	assert.equal((await context.request.get('http://127.0.0.1:5179/api/shop/products/' + browserShopId)).status(), 404)
+	assert.ok(await page.getByLabel('Digital collection → Kids', { exact: true }).isChecked())
+	await page.evaluate(async () => {
+		const headers = {
+			Authorization: 'Bearer ' + localStorage.getItem('portfolio_token'),
+			'Content-Type': 'application/json',
+		}
+		const categories = (await (await fetch('/api/shop/categories')).json()).data
+		const subcategories = (await (await fetch('/api/shop/subcategories')).json()).data
+		const clothing = categories.find((c) => c.name === 'Clothing')
+		const kids = subcategories.find((s) => s.categoryId === clothing.id && s.name === 'Kids')
+		const response = await fetch('/api/shop/products', {
+			method: 'POST',
+			headers,
+			body: JSON.stringify({
+				name: 'Clothing fixture for kids',
+				description: 'A separate parent category fixture.',
+				categoryIds: [clothing.id],
+				subcategoryIds: [kids.id],
+				published: true,
+			}),
+		})
+		if (!response.ok) throw new Error('Failed to create scoped category fixture.')
+	})
 	const shopImage = {
 		name: 'shop-fixture.png',
 		mimeType: 'image/png',
@@ -453,11 +488,80 @@ try {
 	await page.getByRole('status').filter({ hasText: '3 of 3 files uploaded.' }).waitFor()
 	await page.getByLabel('Published', { exact: true }).check()
 	await page.getByRole('button', { name: 'Save product', exact: true }).click()
-	await page.getByText('Published ·', { exact: false }).waitFor()
+	await page
+		.locator('article')
+		.filter({ has: page.getByRole('heading', { name: 'Browser shop template', exact: true }) })
+		.getByText('Published ·', { exact: false })
+		.waitFor()
 	await page.screenshot({ path: artifact + '/admin-shop.png', fullPage: true })
+	await page.setViewportSize({ width: 390, height: 844 })
+	assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+	await page.locator('.Toastify__close-button').evaluateAll((buttons) => buttons.forEach((button) => button.click()))
+	await page.waitForFunction(() => !document.querySelector('.Toastify__toast'))
+	await page.getByRole('button', { name: 'Close menu', exact: true }).click()
+	await page.waitForFunction(() => document.querySelector('aside').getBoundingClientRect().right <= 0)
+	await page.getByLabel('Digital collection → Kids', { exact: true }).scrollIntoViewIfNeeded()
+	await page.screenshot({ path: artifact + '/admin-shop-subcategories-mobile.png' })
+	await page.getByRole('heading', { name: 'Categories & subcategories', exact: true }).scrollIntoViewIfNeeded()
+	assert.ok((await page.getByLabel('Parent category (optional)', { exact: true }).boundingBox()).width > 240)
+	await page.getByLabel('Parent category (optional)', { exact: true }).selectOption({ label: 'Clothing' })
+	await page.getByRole('button', { name: 'Add subcategory', exact: true }).waitFor()
+	await page.getByLabel('Parent category (optional)', { exact: true }).selectOption('')
+	await page
+		.locator('section[aria-labelledby="categories-heading"]')
+		.screenshot({ path: artifact + '/admin-shop-categories-mobile.png' })
+	await page.setViewportSize({ width: 1440, height: 1000 })
 	await page.goto('http://127.0.0.1:5179/shop', { waitUntil: 'networkidle' })
+	const anonymousShop = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' })
+	try {
+		const visitor = await anonymousShop.newPage()
+		await visitor.goto('http://127.0.0.1:5179/shop', { waitUntil: 'networkidle' })
+		const resume = visitor
+			.locator('.shop-product')
+			.filter({ has: visitor.getByRole('heading', { name: 'ATS-friendly Resume Template', exact: true }) })
+		await resume.getByText('Free', { exact: true }).waitFor()
+		await resume.scrollIntoViewIfNeeded()
+		await resume.locator('img').evaluate((image) => image.decode())
+		await resume.screenshot({ path: artifact + '/free-resume.png' })
+		const downloadPromise = visitor.waitForEvent('download')
+		await resume.getByRole('link', { name: 'Free download', exact: true }).click()
+		const download = await downloadPromise
+		assert.equal(download.suggestedFilename(), 'ats-friendly-resume-template.zip')
+		await download.saveAs(artifact + '/resume-download.zip')
+		assert.deepEqual(
+			await readFile(artifact + '/resume-download.zip'),
+			await readFile('public/downloads/ats-friendly-resume-template.zip'),
+		)
+		assert.equal(await visitor.locator('input[type="password"]').count(), 0)
+	} finally {
+		await anonymousShop.close()
+	}
 	await page.getByRole('button', { name: 'Browser templates', exact: true }).click()
 	await page.getByRole('heading', { name: 'Browser shop template' }).waitFor()
+	await page
+		.getByRole('group', { name: 'Shop categories', exact: true })
+		.getByRole('button', { name: 'Clothing', exact: true })
+		.click()
+	await page
+		.getByRole('group', { name: 'Shop subcategories', exact: true })
+		.getByRole('button', { name: 'Kids', exact: true })
+		.click()
+	await page.getByRole('heading', { name: 'Clothing fixture for kids', exact: true }).waitFor()
+	await page.getByRole('heading', { name: 'Browser shop template', exact: true }).waitFor({ state: 'hidden' })
+	await page
+		.getByRole('group', { name: 'Shop categories', exact: true })
+		.getByRole('button', { name: 'Digital collection', exact: true })
+		.click()
+	await page.getByRole('heading', { name: 'Browser shop template', exact: true }).waitFor()
+	assert.equal(
+		await page.getByRole('button', { name: 'All in this category', exact: true }).getAttribute('aria-pressed'),
+		'true',
+	)
+	await page
+		.getByRole('group', { name: 'Shop subcategories', exact: true })
+		.getByRole('button', { name: 'Kids', exact: true })
+		.click()
+	await page.getByRole('heading', { name: 'Clothing fixture for kids', exact: true }).waitFor({ state: 'hidden' })
 	await page.getByRole('button', { name: 'Show video 3 for Browser shop template' }).click()
 	assert.ok(await page.locator('.shop-cover video').isVisible())
 	await page.locator('.shop-cover video').evaluate(async (video) => {
@@ -471,11 +575,25 @@ try {
 	await page.getByRole('button', { name: 'Show all items' }).click()
 	await page.getByRole('heading', { name: 'Browser shop template' }).waitFor()
 	await page.screenshot({ path: artifact + '/shop-desktop.png', fullPage: true })
-	await page.getByRole('link', { name: 'Inquire about this' }).click()
+	await page
+		.locator('.shop-product')
+		.filter({ has: page.getByRole('heading', { name: 'Browser shop template', exact: true }) })
+		.getByRole('link', { name: 'Inquire about this' })
+		.click()
 	assert.match(await page.getByPlaceholder('Goals, audience, key features...').inputValue(), /Browser shop template/)
 	await page.setViewportSize({ width: 390, height: 844 })
 	await page.goto('http://127.0.0.1:5179/shop', { waitUntil: 'networkidle' })
 	assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+	await page
+		.getByRole('group', { name: 'Shop categories', exact: true })
+		.getByRole('button', { name: 'Clothing', exact: true })
+		.click()
+	await page
+		.getByRole('group', { name: 'Shop subcategories', exact: true })
+		.getByRole('button', { name: 'Kids', exact: true })
+		.click()
+	await page.getByRole('heading', { name: 'Clothing fixture for kids', exact: true }).waitFor()
+	await page.getByRole('heading', { name: 'Browser shop template', exact: true }).waitFor({ state: 'hidden' })
 	await page.screenshot({ path: artifact + '/shop-mobile.png', fullPage: true })
 	await page.getByRole('button', { name: 'Menu +' }).click()
 	await page.getByRole('button', { name: 'Toggle dark mode' }).click()
@@ -614,7 +732,7 @@ try {
 					'Light/Dark labels, Light default, theme persistence, animated changes and reduced motion',
 					'live viewer wording for one, two and five sessions; game toggle beside viewers',
 					'same-origin seeded particle portrait, hover response, reduced motion, SVG icons and responsive navigation',
-					'shop categories, draft privacy, multiple media upload, video playback, filtering and inquiry prefill',
+					'shop categories/subcategories, scoped Kids groups, admin assignment/rename, free resume guest download, parent reset, draft privacy, media, filters and inquiry',
 					'multi-image project upload, cover selection, video playback and image lightbox',
 					'Gears/Photography sidebar navigation, image uploads and saved records',
 					'reply saved with visible unconfigured-email status',

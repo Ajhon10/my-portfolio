@@ -4,6 +4,9 @@ export interface ShopCategory {
 	name: string
 	sortOrder: number
 }
+export interface ShopSubcategory extends ShopCategory {
+	categoryId: string
+}
 export interface ShopMedia {
 	id: string
 	productId: string
@@ -18,21 +21,38 @@ export interface ShopProduct {
 	description: string
 	priceLabel: string
 	purchaseUrl: string
+	downloadUrl: string
 	published: boolean
 	sortOrder: number
 	categories: ShopCategory[]
+	subcategories: ShopSubcategory[]
 	media: ShopMedia[]
 }
 export type ShopInput = Pick<
 	ShopProduct,
-	'name' | 'description' | 'priceLabel' | 'purchaseUrl' | 'published' | 'sortOrder'
-> & { categoryIds: string[] }
+	'name' | 'description' | 'priceLabel' | 'purchaseUrl' | 'downloadUrl' | 'published' | 'sortOrder'
+> & { categoryIds: string[]; subcategoryIds: string[] }
+export const shopCategoryLabel = (product: ShopProduct) =>
+	product.categories
+		.map((category) => {
+			const children = product.subcategories.filter((s) => s.categoryId === category.id)
+			return category.name + (children.length ? ' → ' + children.map((s) => s.name).join(', ') : '')
+		})
+		.join(' · ')
 export const useShopProvider = () => {
 	const api = useApiProvider()
 	return {
-		products: (admin = false, filters: { page?: number; search?: string; category?: string } = {}) =>
-			api.GET<ShopProduct[]>('/shop/products' + (admin ? '/admin' : ''), filters, { silent: true }),
+		products: (
+			admin = false,
+			filters: { page?: number; search?: string; category?: string; subcategory?: string } = {},
+		) => api.GET<ShopProduct[]>('/shop/products' + (admin ? '/admin' : ''), filters, { silent: true }),
 		categories: () => api.GET<ShopCategory[]>('/shop/categories', {}, { silent: true }),
+		subcategories: () => api.GET<ShopSubcategory[]>('/shop/subcategories', {}, { silent: true }),
+		saveSubcategory: (name: string, categoryId: string, id?: string) =>
+			id
+				? api.PUT<ShopSubcategory>(`/shop/subcategories/${id}`, { name })
+				: api.POST<ShopSubcategory>('/shop/subcategories', { name, categoryId }),
+		removeSubcategory: (id: string) => api.DELETE(`/shop/subcategories/${id}`),
 		save: (input: ShopInput, id?: string) =>
 			id ? api.PUT<ShopProduct>(`/shop/products/${id}`, input) : api.POST<ShopProduct>('/shop/products', input),
 		remove: (id: string) => api.DELETE(`/shop/products/${id}`),

@@ -394,7 +394,10 @@ try {
 	const shopId = shopProduct.body.data.id
 	assert.equal(shopProduct.body.data.categories.length, 2)
 	status(await api('/shop/products/' + shopId), 404)
-	assert.equal((await api('/shop/products', { token: owner })).body.data.length, 0)
+	assert.equal(
+		(await api('/shop/products', { token: owner })).body.data.some((product) => product.id === shopId),
+		false,
+	)
 	status(await api('/shop/products/' + shopId, { token: client, method: 'PUT', data: shopInput }), 403)
 	status(
 		await api('/shop/products/' + shopId, {
@@ -474,8 +477,8 @@ try {
 		)
 		.bind(shopCategory2.body.data.id)
 		.run()
-	const firstPage = await api('/shop/products?page=1')
-	const secondPage = await api('/shop/products?page=2')
+	const firstPage = await api('/shop/products?category=' + shopCategory2.body.data.id + '&page=1')
+	const secondPage = await api('/shop/products?category=' + shopCategory2.body.data.id + '&page=2')
 	status(firstPage, 200)
 	status(secondPage, 200)
 	assert.equal(firstPage.body.data.length, 80)
@@ -486,6 +489,181 @@ try {
 	status(await api('/shop/products?page=0'), 422)
 	status(await api('/shop/products?category=invalid'), 422)
 	checks += 10
+	// Subcategories are scoped to their parent and commit with product categories.
+	const roots = (await api('/shop/categories')).body.data
+	const resume = (await api('/shop/products?search=ATS-friendly%20Resume%20Template')).body.data.find(
+		(product) => product.name === 'ATS-friendly Resume Template',
+	)
+	assert.equal(resume.priceLabel, 'Free')
+	assert.equal(resume.downloadUrl, '/downloads/ats-friendly-resume-template.zip')
+	assert.equal(resume.subcategories[0].name, 'Resume templates')
+	checks += 3
+	for (const downloadUrl of ['javascript:alert(1)', '/downloads/../../.dev.vars'])
+		status(
+			await api('/shop/products/' + resume.id, {
+				token: owner,
+				method: 'PUT',
+				data: {
+					...resume,
+					categoryIds: resume.categories.map((c) => c.id),
+					subcategoryIds: resume.subcategories.map((s) => s.id),
+					downloadUrl,
+				},
+			}),
+			422,
+		)
+	const digital = roots.find((category) => category.name === 'Digital products')
+	const clothing = roots.find((category) => category.name === 'Clothing')
+	const children = (await api('/shop/subcategories')).body.data
+	const digitalKids = children.find((s) => s.categoryId === digital.id && s.name === 'Kids')
+	const clothingKids = children.find((s) => s.categoryId === clothing.id && s.name === 'Kids')
+	assert.ok(digitalKids && clothingKids && digitalKids.id !== clothingKids.id)
+	checks++
+	status(await api('/shop/subcategories', { method: 'POST', data: { categoryId: digital.id, name: 'Other' } }), 401)
+	status(
+		await api('/shop/subcategories', {
+			token: client,
+			method: 'POST',
+			data: { categoryId: digital.id, name: 'Other' },
+		}),
+		403,
+	)
+	status(
+		await api('/shop/subcategories', { token: owner, method: 'POST', data: { categoryId: digital.id, name: 'kids' } }),
+		409,
+	)
+	status(
+		await api('/shop/subcategories', {
+			token: owner,
+			method: 'POST',
+			data: { categoryId: randomUUID(), name: 'Unknown' },
+		}),
+		422,
+	)
+	const extraChild = await api('/shop/subcategories', {
+		token: owner,
+		method: 'POST',
+		data: { categoryId: digital.id, name: 'Teachers' },
+	})
+	status(extraChild, 201)
+	status(
+		await api('/shop/subcategories/' + extraChild.body.data.id, {
+			token: owner,
+			method: 'PUT',
+			data: { name: 'Educators' },
+		}),
+		200,
+	)
+	status(
+		await api('/shop/subcategories/' + extraChild.body.data.id, {
+			token: owner,
+			method: 'PUT',
+			data: { name: 'Move', categoryId: clothing.id },
+		}),
+		422,
+	)
+	const childInput = {
+		name: 'Kids activity workbook',
+		description: 'A child-category test product.',
+		categoryIds: [digital.id],
+		subcategoryIds: [digitalKids.id],
+		published: false,
+	}
+	const childProduct = await api('/shop/products', { token: owner, method: 'POST', data: childInput })
+	status(childProduct, 201)
+	assert.equal(childProduct.body.data.subcategories[0].id, digitalKids.id)
+	assert.equal((await api('/shop/products?subcategory=' + digitalKids.id)).body.data.length, 0)
+	checks += 2
+	status(
+		await api('/shop/products/' + childProduct.body.data.id, {
+			token: owner,
+			method: 'PUT',
+			data: { ...childInput, name: 'Must roll back subcategory', subcategoryIds: [clothingKids.id] },
+		}),
+		422,
+	)
+	const unchangedChild = (await api('/shop/products/' + childProduct.body.data.id, { token: owner })).body.data
+	assert.equal(unchangedChild.name, childInput.name)
+	assert.equal(unchangedChild.subcategories[0].id, digitalKids.id)
+	checks += 2
+	status(
+		await api('/shop/products', { token: owner, method: 'POST', data: { ...childInput, categoryIds: [clothing.id] } }),
+		422,
+	)
+	status(
+		await api('/shop/products', {
+			token: owner,
+			method: 'POST',
+			data: { ...childInput, subcategoryIds: Array(11).fill(digitalKids.id) },
+		}),
+		422,
+	)
+	status(await api('/shop/subcategories/' + digitalKids.id, { token: owner, method: 'DELETE' }), 409)
+	status(await api('/shop/categories/' + clothing.id, { token: owner, method: 'DELETE' }), 409)
+	status(
+		await api('/shop/products/' + childProduct.body.data.id, {
+			token: owner,
+			method: 'PUT',
+			data: { ...childInput, published: true },
+		}),
+		200,
+	)
+	const clothingProduct = await api('/shop/products', {
+		token: owner,
+		method: 'POST',
+		data: {
+			...childInput,
+			name: 'Kids shirt',
+			categoryIds: [clothing.id],
+			subcategoryIds: [clothingKids.id],
+			published: true,
+		},
+	})
+	status(clothingProduct, 201)
+	assert.equal(
+		(await api('/shop/products?category=' + digital.id + '&subcategory=' + digitalKids.id)).body.data[0].id,
+		childProduct.body.data.id,
+	)
+	assert.equal(
+		(await api('/shop/products?category=' + clothing.id + '&subcategory=' + digitalKids.id)).body.data.length,
+		0,
+	)
+	assert.equal(
+		(await api('/shop/products?category=' + clothing.id + '&subcategory=' + clothingKids.id)).body.data[0].id,
+		clothingProduct.body.data.id,
+	)
+	assert.equal((await api('/shop/products?search=Kids&category=' + clothing.id)).body.data.length, 1)
+	checks += 4
+	status(await api('/shop/products?subcategory=invalid'), 422)
+	await assert.rejects(
+		db.prepare('DELETE FROM shop_product_category WHERE product_id=?').bind(childProduct.body.data.id).run(),
+		/SHOP_SUBCATEGORY_PARENT_REQUIRED/,
+	)
+	checks++
+	status(
+		await api('/shop/products/' + childProduct.body.data.id, {
+			token: owner,
+			method: 'PUT',
+			data: { ...childInput, subcategoryIds: [], published: true },
+		}),
+		200,
+	)
+	assert.equal((await api('/shop/products/' + childProduct.body.data.id)).body.data.subcategories.length, 0)
+	checks++
+	status(await api('/shop/subcategories/' + extraChild.body.data.id, { token: owner, method: 'DELETE' }), 200)
+	status(
+		await api('/shop/products', {
+			token: owner,
+			method: 'POST',
+			data: { ...childInput, subcategoryIds: [extraChild.body.data.id] },
+		}),
+		422,
+	)
+	assert.equal(
+		(await api('/shop/subcategories')).body.data.some((s) => s.id === extraChild.body.data.id),
+		false,
+	)
+	checks++
 	// Expensive password work must execute in the Durable Object, not the free Worker CPU budget.
 	status(
 		await api('/auth/change-password', {

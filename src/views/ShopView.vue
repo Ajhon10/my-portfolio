@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
-import { useShopProvider, type ShopProduct, type ShopCategory } from '@/composables/provider/shop.provider'
+import { computed, onMounted, ref, watch } from 'vue'
+import {
+	useShopProvider,
+	shopCategoryLabel,
+	type ShopProduct,
+	type ShopCategory,
+	type ShopSubcategory,
+} from '@/composables/provider/shop.provider'
 import { useSiteBranding } from '@/composables/useSiteBranding'
 import SiteIcon from '@/components/SiteIcon.vue'
 
@@ -9,6 +15,13 @@ const { resolveAssetUrl } = useSiteBranding()
 const products = ref<ShopProduct[]>([])
 const categories = ref<ShopCategory[]>([])
 const activeCategory = ref('')
+const subcategories = ref<ShopSubcategory[]>([])
+const activeSubcategory = ref('')
+const visibleSubcategories = computed(() => subcategories.value.filter((s) => s.categoryId === activeCategory.value))
+const chooseCategory = (id: string) => {
+	activeSubcategory.value = ''
+	activeCategory.value = id
+}
 const search = ref('')
 const loading = ref(true)
 const failed = ref(false)
@@ -19,19 +32,26 @@ const currentMedia = (p: ShopProduct) => p.media.find((m) => m.id === selected.v
 const load = async () => {
 	loading.value = true
 	const version = ++loadVersion
-	const [items, groups] = await Promise.all([
-		provider.products(false, { page: page.value, search: search.value.trim(), category: activeCategory.value }),
+	const [items, groups, children] = await Promise.all([
+		provider.products(false, {
+			page: page.value,
+			search: search.value.trim(),
+			category: activeCategory.value,
+			subcategory: activeSubcategory.value,
+		}),
 		provider.categories(),
+		provider.subcategories(),
 	])
 	if (version !== loadVersion) return
-	failed.value = !items.success || !groups.success
-	if (items.success && groups.success) {
+	failed.value = !items.success || !groups.success || !children.success
+	if (items.success && groups.success && children.success) {
 		products.value = items.data
 		categories.value = groups.data
+		subcategories.value = children.data
 	}
 	loading.value = false
 }
-watch([activeCategory, search], () => {
+watch([activeCategory, activeSubcategory, search], () => {
 	page.value = 1
 	void load()
 })
@@ -41,7 +61,7 @@ const changePage = (next: number) => {
 }
 const clearFilters = () => {
 	search.value = ''
-	activeCategory.value = ''
+	chooseCategory('')
 }
 onMounted(load)
 </script>
@@ -57,13 +77,13 @@ onMounted(load)
 			</header>
 			<div class="shop-toolbar">
 				<div class="shop-filters" role="group" aria-label="Shop categories">
-					<button type="button" :aria-pressed="!activeCategory" @click="activeCategory = ''">All items</button>
+					<button type="button" :aria-pressed="!activeCategory" @click="chooseCategory('')">All items</button>
 					<button
 						v-for="category in categories"
 						:key="category.id"
 						type="button"
 						:aria-pressed="activeCategory === category.id"
-						@click="activeCategory = category.id"
+						@click="chooseCategory(category.id)"
 					>
 						{{ category.name }}
 					</button>
@@ -72,6 +92,26 @@ onMounted(load)
 					><span class="sr-only">Search shop</span
 					><input v-model="search" type="search" class="input" placeholder="Search the shop" maxlength="200"
 				/></label>
+			</div>
+			<div
+				v-if="visibleSubcategories.length"
+				class="shop-filters shop-subcategories"
+				role="group"
+				aria-label="Shop subcategories"
+			>
+				<span class="shop-subcategory-heading">Subcategories</span>
+				<button type="button" :aria-pressed="!activeSubcategory" @click="activeSubcategory = ''">
+					All in this category
+				</button>
+				<button
+					v-for="subcategory in visibleSubcategories"
+					:key="subcategory.id"
+					type="button"
+					:aria-pressed="activeSubcategory === subcategory.id"
+					@click="activeSubcategory = subcategory.id"
+				>
+					{{ subcategory.name }}
+				</button>
 			</div>
 			<p v-if="loading" role="status" class="shop-state">Loading the collection...</p>
 			<div v-else-if="failed" role="alert" class="shop-state">
@@ -146,14 +186,25 @@ onMounted(load)
 							</button>
 						</div>
 						<div class="shop-product-copy">
-							<p class="shop-category-label">{{ product.categories.map((c) => c.name).join(' / ') }}</p>
+							<p class="shop-category-label">{{ shopCategoryLabel(product) }}</p>
 							<div class="shop-product-title">
 								<h2>{{ product.name }}</h2>
 								<span v-if="product.priceLabel">{{ product.priceLabel }}</span>
 							</div>
 							<p class="shop-description">{{ product.description }}</p>
 							<div class="shop-actions">
-								<router-link :to="{ path: '/', hash: '#contact', query: { item: product.name } }" class="folio-button"
+								<a
+									v-if="product.downloadUrl"
+									:href="product.downloadUrl"
+									download
+									target="_blank"
+									rel="noopener noreferrer"
+									class="folio-button"
+									>Free download <SiteIcon name="download" :size="18"
+								/></a>
+								<router-link
+									:to="{ path: '/', hash: '#contact', query: { item: product.name } }"
+									:class="product.downloadUrl ? 'folio-text-link' : 'folio-button'"
 									>Inquire about this <SiteIcon name="mail" :size="18" /></router-link
 								><a
 									v-if="product.purchaseUrl"
@@ -183,6 +234,14 @@ onMounted(load)
 	</section>
 </template>
 <style scoped>
+.shop-subcategories {
+	margin: -8px 0 28px;
+}
+.shop-subcategory-heading {
+	align-self: center;
+	color: var(--folio-muted);
+	font-size: 13px;
+}
 .shop-heading {
 	display: grid;
 	grid-template-columns: 1.2fr 1fr;

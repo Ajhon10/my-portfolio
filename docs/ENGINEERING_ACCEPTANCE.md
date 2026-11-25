@@ -690,3 +690,101 @@ and no overflow or page errors. Evidence in the same folder: `built-report.json`
 and `munialert-gallery-final-*.png`. No production migration,
 seeding or release was performed; the source push continues the existing
 authorized feature-branch workflow.
+
+## Portrait visibility and shop subcategories — November 25, 2026
+
+The particle portrait now emphasizes dark image features in light mode, with
+larger/heavier blue glyphs and a stronger opacity curve. Dark mode uses light
+features. A theme-attribute observer redraws even when reduced motion stops the
+animation loop. Sampling positions and pointer-scatter physics are unchanged.
+Reviewed light/dark captures at 1440/390px and verified actual canvas changes
+when toggling themes. Evidence: `.test-artifacts/portrait-contrast/report.json`
+and its adjacent image captures.
+
+Added `0008_shop_subcategories.sql` without rebuilding existing catalog tables.
+Subcategories belong to one category, allow the same name under different
+parents and retain their parent after creation. Product fields, root assignments
+and child assignments commit atomically. API and database guards reject
+mismatched/inactive children, removal of required parent links and deletion of
+categories/children still in use. Public child filtering/search runs before
+pagination. Admin has creation/rename/removal, grouped checkboxes with automatic
+parent selection, and full category-path labels. Public parent changes reset the
+child filter. New CSVs seed Digital products → Kids and Clothing → Men/Women/Kids;
+original seeder filenames and customized records remain. Total seed rows: 134.
+
+Applied migration and seeds locally only. Verification passed: 50 Node tests,
+185 isolated Worker checks, TypeScript, production compilation and deployment
+dry run. Coverage includes migration over existing catalog rows, natural-key
+parent resolution, repeat seeding, duplicate names scoped to parent, authorization,
+immutable parents, invalid-assignment rollback, parent/child deletion guards,
+draft privacy and independent filters for both Kids groups. Build evidence:
+`.test-artifacts/subcategories-build.log` and `subcategories-final-compile.log`.
+
+The deployment guide now requires all pending migrations, including 0007/0008,
+before releasing the updated Worker, followed by the reviewed seed step. No
+remote migrations, seeding, merge or production deployment were performed.
+
+The final complete browser run passed with no page errors or failed page API
+responses. It covers category/child creation and rename, automatic parent
+selection, child clearing when a parent is unchecked, saved assignments, separate
+Kids filters under different parents, reset on parent changes, mobile filtering,
+and the existing gallery, inquiry, theme, presence and CMS flows. The parent
+selector now has an explicit accessible name. The inquiry regression targets its
+intended product after adding a second published test item. Mobile screenshots
+wait for the normal sidebar closing animation and dismiss temporary success
+notifications before showing the editor. Reviewed the resulting desktop/mobile
+screens. Evidence:
+`.test-artifacts/browser-9d5fe2b0-7be3-4ae2-aef8-813a17ba83ba/report.json`,
+`admin-shop-subcategories-mobile.png`, `admin-shop-categories-mobile.png`, and
+the shop/portrait captures. `git diff --check` and the source-file credential /
+private-artifact audit passed before the authorized feature-branch push.
+
+Final visual refinement stacks category-creation fields and their action on
+phones, keeping parent names fully readable. Browser checks require the 390px
+parent selector to exceed 240px in width and exercise changing its parent choice.
+Production assets were rebuilt and the deployment dry run passed again after
+this observed layout fix.
+
+Final subcategory-only browser evidence, including the readable stacked mobile
+form: `.test-artifacts/browser-04d3074f-8822-4a46-a114-bbdb4b15b37f`.
+
+## Free resume shop item — November 25, 2026
+
+Added one published Free item under Digital products → Resume templates, with
+an original SVG preview and public download ZIP. The package includes an editable
+DOCX, a matching TXT copy and customization instructions. Ordinary single-column
+paragraphs, Arial 11pt body text, standard headings and main-body contact details
+follow the cited university formatting guidance in README and the instructions.
+The DOCX contains no tables, graphics, text boxes or header/footer references.
+No actual applicant information or fabricated work history is included.
+
+`scripts/generate-resume-template.py` reproduces the four bundled download assets
+with Python's standard library; application builds/runtime still require only
+the existing Node/Cloudflare stack. ZIP integrity and XML well-formedness passed
+independent Python checks. A Node test decompresses both archives, verifies all
+package contents, compares DOCX text in reading order to TXT and checks the
+single-column / no-embedded-graphics structure. This verifies document structure
+and extraction; it does not certify every third-party ATS parser.
+
+Migration `0009_shop_downloads.sql` adds an optional download link without
+changing existing product data. API validation allows HTTP(S) or the exact
+bundled ZIP path, rejects executable protocols and traversal, and retains admin
+authorization. New CSVs seed the product, scoped category associations and preview
+without overwriting existing products. Total: 138 CSV rows. Applied migrations
+and repeatable seeds locally only; production requires pending migrations before
+deployment and the reviewed seed step after bundled assets are live.
+
+Final verification passed: 51 Node tests, 190 isolated Worker checks, TypeScript,
+production build and the full browser suite. Pagination regression now filters
+its 81-item category fixture instead of assuming the seeded catalog is empty.
+The free-item assertion searches before pagination. A fresh browser context
+without credentials downloads the ZIP from the public shop and checks its
+filename and exact bytes against the bundled source. Existing category, mobile
+editor, portrait, inquiry, gallery, theme and CMS flows remain green. Reviewed
+the actual free product card. Evidence: `.test-artifacts/free-resume-build.log`,
+`.test-artifacts/free-resume-browser.log`, and
+`.test-artifacts/browser-e531a2db-4952-4d14-ab4b-f3b3c94df90b`, including
+`free-resume.png` and the private test-only downloaded ZIP. No live data or
+production deployment was changed.
+
+The final deployment dry run and source/private-artifact audit also passed.

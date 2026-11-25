@@ -120,6 +120,47 @@ The selected sales flow is inquiry plus an optional external purchase link.
 Inquiries persist through the existing client-request path and preserve its
 email-delivery semantics. This extension does not accept payments.
 
+### Shop subcategories
+
+`0008_shop_subcategories.sql` adds a second level under each existing category
+without rebuilding or renaming the original tables. Child names are unique
+within their parent, allowing separate Kids groups under Digital products and
+Clothing. Parent assignment is fixed after creation; names remain editable.
+The seed adds the two requested root groups and four children from CSV, resolving
+existing parent IDs by name and preserving customized or removed records.
+
+`/api/shop/subcategories` exposes active children of active parents (up to 1,000).
+OWNER/ADMIN can create, rename and remove them. Products accept 0–10 child IDs
+in addition to 1–10 categories; each child's parent must also be assigned.
+Related product/category/subcategory changes commit in one D1 batch. Triggers
+reject inactive or mismatched children and removal of required parent links;
+atomic conditional deletes protect categories/children currently in use.
+Categories with active children must have those children removed first.
+
+Public search includes subcategory names. Parent and child filters run before
+80-record pagination. A product page uses four queries (one page plus three
+bounded enrichment queries), each binding at most 80 product IDs. The storefront
+clears its child filter when changing parent and labels product category paths.
+Admin child selection automatically includes the parent; deselecting a parent
+clears its selected children. Migration and seeding are local until separately
+released; apply pending schema migrations before deploying code that needs them.
+
+### Free shop downloads
+
+`0009_shop_downloads.sql` adds an optional public `download_url` field. Existing
+products default to an empty link. OWNER/ADMIN can set an HTTP(S) link or the
+exact bundled resume ZIP path; other relative paths and executable protocols
+are rejected. The storefront shows a direct Free download action alongside the
+existing inquiry flow. This link grants public file access, not paid delivery.
+
+CSV seeds publish one free original resume template under Digital products →
+Resume templates, with an SVG layout preview. Its Static Assets ZIP includes
+editable DOCX, matching TXT and instructions; no account or inquiry is required.
+These deliberately bundled assets use no D1 media budget. The generator uses
+Python's standard library only and is not part of application build/runtime.
+Seeded products, category links and gallery rows add missing records without
+replacing customized rows. Parent/child IDs resolve from their scoped names.
+
 ## Bundled photography seeds — November 25, 2026
 
 Four owner-supplied JPEGs are deliberate static source assets under

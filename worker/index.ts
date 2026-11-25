@@ -73,6 +73,14 @@ app.onError((error, c) => {
 	} else if (/MEDIA_STORAGE_LIMIT/.test(String(error))) {
 		status = 413
 		message = 'Media storage is full. Remove unused uploads before adding more.'
+	} else if (
+		/SHOP_SUBCATEGORY_INVALID|SHOP_SUBCATEGORY_PARENT_REQUIRED|SHOP_SUBCATEGORY_PARENT_FIXED/.test(String(error))
+	) {
+		status = 422
+		message = 'Choose an active subcategory and include its parent category.'
+	} else if (/SHOP_CATEGORY_HAS_CHILDREN/.test(String(error))) {
+		status = 409
+		message = 'Delete this category’s subcategories first.'
 	} else if (/SHOP_CATEGORY_UNAVAILABLE|SHOP_PRODUCT_UNAVAILABLE/.test(String(error))) {
 		status = 422
 		message = 'The selected shop category or product is no longer available.'

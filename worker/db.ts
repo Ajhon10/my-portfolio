@@ -22,6 +22,7 @@ export const models = { ...metadata.models } as Record<string, Model>
 // New shop records use the same mapper without changing the legacy import map.
 for (const [name, table, fields, soft] of [
 	['ShopCategory', 'shop_category', { name: 'String', sortOrder: 'Int' }, true],
+	['ShopSubcategory', 'shop_subcategory', { categoryId: 'String', name: 'String', sortOrder: 'Int' }, true],
 	[
 		'ShopProduct',
 		'shop_product',
@@ -30,6 +31,7 @@ for (const [name, table, fields, soft] of [
 			description: 'String',
 			priceLabel: 'String',
 			purchaseUrl: 'String',
+			downloadUrl: 'String',
 			published: 'Boolean',
 			sortOrder: 'Int',
 		},

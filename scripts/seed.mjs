@@ -43,9 +43,8 @@ export function parseCsv(source) {
 	return rows
 }
 
-export function readSeedCsv(model, filename) {
+export function readSeedCsv(model, filename, fields = metadata.models[model]?.fields) {
 	const [columns, ...rows] = parseCsv(readFileSync(new URL('../migration/' + filename, import.meta.url), 'utf8'))
-	const fields = metadata.models[model].fields
 	if (!columns?.length || new Set(columns).size !== columns.length || columns.some((key) => !fields[key]))
 		throw new Error(`Invalid seed CSV columns: ${filename}`)
 	return rows.map((values, index) => {
@@ -120,6 +119,75 @@ export function seedSql() {
 			sql.push(
 				`UPDATE project SET thumbnail_url=${literal(project.thumbnailUrl)} WHERE slug=${literal(project.slug)} AND deleted=0 AND (thumbnail_url IS NULL OR thumbnail_url='');`,
 			)
+	// The shop is a new D1 extension; keep the legacy import model map intact.
+	const shopFields = Object.fromEntries(
+		['id', 'name', 'sortOrder'].map((key) => [key, metadata.models.TechStack.fields[key]]),
+	)
+	const categories = readSeedCsv('ShopCategory', 'shop-categories.csv', shopFields)
+	for (const category of categories)
+		sql.push(
+			`INSERT OR IGNORE INTO shop_category(id,name,sort_order,created_at,updated_at) SELECT ${literal(category.id)},${literal(category.name)},${literal(category.sortOrder)},datetime('now'),datetime('now') WHERE NOT EXISTS(SELECT 1 FROM shop_category WHERE name=${literal(category.name)});`,
+		)
+	const categoryNames = new Map(categories.map((category) => [category.id, category.name]))
+	const subcategories = readSeedCsv('ShopSubcategory', 'shop-subcategories.csv', {
+		...shopFields,
+		categoryId: metadata.models.ProjectImage.fields.projectId,
+	})
+	for (const subcategory of subcategories) {
+		const name = categoryNames.get(subcategory.categoryId)
+		if (!name) throw new Error('Unknown parent category in shop-subcategories.csv')
+		const parent = `(SELECT id FROM shop_category WHERE name=${literal(name)} AND deleted=0 LIMIT 1)`
+		sql.push(
+			`INSERT OR IGNORE INTO shop_subcategory(id,category_id,name,sort_order,created_at,updated_at) SELECT ${literal(subcategory.id)},${parent},${literal(subcategory.name)},${literal(subcategory.sortOrder)},datetime('now'),datetime('now') WHERE ${parent} IS NOT NULL AND NOT EXISTS(SELECT 1 FROM shop_subcategory WHERE category_id=${parent} AND name=${literal(subcategory.name)});`,
+		)
+	}
+	const shopProducts = readSeedCsv('ShopProduct', 'shop-products.csv', {
+		...shopFields,
+		description: metadata.models.Project.fields.description,
+		priceLabel: shopFields.name,
+		purchaseUrl: shopFields.name,
+		downloadUrl: shopFields.name,
+		published: metadata.models.Project.fields.published,
+	})
+	for (const product of shopProducts)
+		sql.push(
+			`INSERT OR IGNORE INTO shop_product(id,name,description,price_label,purchase_url,download_url,published,sort_order,created_at,updated_at) VALUES(${[product.id, product.name, product.description, product.priceLabel, product.purchaseUrl, product.downloadUrl, product.published, product.sortOrder].map(literal).join(',')},datetime('now'),datetime('now'));`,
+		)
+	const shopIds = new Set(shopProducts.map((product) => product.id))
+	const subcategoriesById = new Map(subcategories.map((subcategory) => [subcategory.id, subcategory]))
+	for (const link of readSeedCsv('ShopProductCategory', 'shop-product-categories.csv', {
+		productId: shopFields.id,
+		categoryId: shopFields.id,
+		subcategoryId: { ...shopFields.id, nullable: true },
+	})) {
+		if (!shopIds.has(link.productId) || !categoryNames.has(link.categoryId))
+			throw new Error('Unknown shop product/category seed')
+		const parent = `(SELECT id FROM shop_category WHERE name=${literal(categoryNames.get(link.categoryId))} AND deleted=0 LIMIT 1)`
+		const active = `EXISTS(SELECT 1 FROM shop_product WHERE id=${literal(link.productId)} AND deleted=0)`
+		sql.push(
+			`INSERT OR IGNORE INTO shop_product_category(product_id,category_id) SELECT ${literal(link.productId)},${parent} WHERE ${active} AND ${parent} IS NOT NULL;`,
+		)
+		if (link.subcategoryId) {
+			const subcategory = subcategoriesById.get(link.subcategoryId)
+			if (!subcategory || subcategory.categoryId !== link.categoryId)
+				throw new Error('Mismatched shop subcategory seed')
+			const child = `(SELECT id FROM shop_subcategory WHERE category_id=${parent} AND name=${literal(subcategory.name)} AND deleted=0 LIMIT 1)`
+			sql.push(
+				`INSERT OR IGNORE INTO shop_product_subcategory(product_id,subcategory_id) SELECT ${literal(link.productId)},${child} WHERE ${active} AND ${child} IS NOT NULL;`,
+			)
+		}
+	}
+	for (const media of readSeedCsv('ShopMedia', 'shop-product-media.csv', {
+		...shopFields,
+		productId: shopFields.id,
+		url: metadata.models.ProjectImage.fields.url,
+		altText: metadata.models.Photograph.fields.altText,
+	})) {
+		if (!shopIds.has(media.productId)) throw new Error('Unknown shop media product seed')
+		sql.push(
+			`INSERT OR IGNORE INTO shop_media(id,product_id,url,alt_text,sort_order,created_at,updated_at) SELECT ${[media.id, media.productId, media.url, media.altText, media.sortOrder].map(literal).join(',')},datetime('now'),datetime('now') WHERE EXISTS(SELECT 1 FROM shop_product WHERE id=${literal(media.productId)} AND deleted=0) AND NOT EXISTS(SELECT 1 FROM shop_media WHERE product_id=${literal(media.productId)} AND url=${literal(media.url)});`,
+		)
+	}
 	// Resolve parents by their existing natural keys so customized local IDs and
 	// rows survive. Public gallery/link records are added without replacing them.
 	const projectIds = new Map(projects.map((p) => [p.id, p.slug]))

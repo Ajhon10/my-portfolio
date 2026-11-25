@@ -3,7 +3,8 @@
 Updated: 5 November 2026 (Asia/Manila).
 
 Shop update (November 25, 2026): before releasing source that includes the shop,
-back up the intended D1 target and apply the additive `0007_shop.sql` migration.
+back up the intended D1 target and apply pending additive migrations, including
+`0007_shop.sql`, `0008_shop_subcategories.sql` and `0009_shop_downloads.sql`.
 Use `npm.cmd run db:migrate` for local development, `npm.cmd run db:migrate:preview`
 for the isolated staging target, or the established production migration process
 (`npm.cmd run db:migrate:remote`) when production release is authorized. Apply
@@ -102,7 +103,7 @@ Runtime secrets remain in the existing Worker configuration. The GitHub CI job
 needs no Cloudflare production token. Check both GitHub Actions and Workers
 Builds for the exact commit; a completed source push alone is not deployment.
 
-This pending portfolio update includes the additive shop migration and new
+This pending portfolio update includes the additive shop/subcategory/download migrations and new
 seeded photos. After backing up the intended production D1 target, apply
 `npm.cmd run db:migrate:remote` **before merging this release**. Once the new
 Worker and its bundled image assets have deployed, run

@@ -1,0 +1,25 @@
+[YOUR NAME]
+[City, Country] | [Phone number] | [Email address] | [LinkedIn or portfolio URL]
+PROFESSIONAL SUMMARY
+[Target role] with experience in [relevant area]. Skilled in [skill 1], [skill 2] and [skill 3]. [Add a brief, truthful example of the value you bring.]
+SKILLS
+Core skills: [Relevant skill 1], [Relevant skill 2], [Relevant skill 3]
+Tools and technologies: [Tool 1], [Tool 2], [Tool 3]
+WORK EXPERIENCE
+[JOB TITLE] | [EMPLOYER] | [City, Country]
+[Month Year] - [Month Year or Present]
+- [Action verb] [specific responsibility or project] using [relevant skill or tool].
+- [Describe an improvement or problem solved, including a measurable result if available.]
+- [Describe collaboration, ownership or another achievement relevant to the role.]
+[PREVIOUS JOB TITLE] | [EMPLOYER] | [City, Country]
+[Month Year] - [Month Year]
+- [Describe a relevant contribution and its outcome.]
+- [Describe another relevant responsibility or achievement.]
+PROJECTS
+[PROJECT NAME] | [TOOLS OR TECHNOLOGIES]
+- [Explain what you built or delivered, your contribution and the result.]
+EDUCATION
+[DEGREE OR QUALIFICATION] | [INSTITUTION]
+[City, Country] | [Graduation Month Year]
+CERTIFICATIONS
+[Certification name] | [Issuing organization] | [Year]

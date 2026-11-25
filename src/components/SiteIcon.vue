@@ -1,5 +1,5 @@
 <script setup lang="ts">
-withDefaults(defineProps<{ name: 'code' | 'folder' | 'mail' | 'bag'; size?: number }>(), { size: 20 })
+withDefaults(defineProps<{ name: 'code' | 'folder' | 'mail' | 'bag' | 'download'; size?: number }>(), { size: 20 })
 </script>
 <template>
 	<svg
@@ -24,6 +24,7 @@ withDefaults(defineProps<{ name: 'code' | 'folder' | 'mail' | 'bag'; size?: numb
 			<rect x="3" y="5" width="18" height="14" rx="2" />
 			<path d="m3 7 9 6 9-6" />
 		</template>
+		<path v-else-if="name === 'download'" d="M12 3v12m-5-5 5 5 5-5M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" />
 		<template v-else>
 			<path d="M5 7h14l2 14H3L5 7Z" />
 			<path d="M9 8V6a3 3 0 0 1 6 0v2" />

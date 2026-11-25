@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+  <title id="title">Free ATS-friendly resume template</title>
+  <desc id="desc">A preview of the editable single-column resume with standard headings and bracketed placeholders. Includes DOCX and plain text.</desc>
+  <rect width="1200" height="900" fill="#eaf0fc"/>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <rect x="70" y="110" width="112" height="42" rx="21" fill="#1659c7"/>
+    <text x="126" y="138" fill="white" font-size="20" text-anchor="middle" font-weight="700">FREE</text>
+    <text x="68" y="265" fill="#14253e" font-size="56" font-weight="700">ATS-friendly</text>
+    <text x="68" y="335" fill="#14253e" font-size="56" font-weight="700">Resume</text>
+    <text x="68" y="405" fill="#14253e" font-size="56" font-weight="700">Template</text>
+    <text x="72" y="490" fill="#52647c" font-size="25">A clean starting point.</text>
+    <text x="72" y="535" fill="#52647c" font-size="25">Make it your own.</text>
+    <text x="72" y="720" fill="#1659c7" font-size="22" font-weight="700">EDITABLE DOCX + PLAIN TEXT</text>
+    <text x="72" y="760" fill="#52647c" font-size="20">Single column · Standard headings</text>
+    <rect x="610" y="84" width="516" height="744" rx="3" fill="#d0dced"/>
+    <rect x="600" y="74" width="516" height="744" rx="3" fill="white" stroke="#ccd8e8"/>
+    <g fill="#172335">
+      <text x="644" y="142" font-size="29" font-weight="700">[YOUR NAME]</text>
+      <text x="644" y="174" font-size="12">[City, Country] | [Phone] | [Email] | [Portfolio URL]</text>
+      <g font-size="15" font-weight="700">
+        <text x="644" y="226">PROFESSIONAL SUMMARY</text>
+        <text x="644" y="322">SKILLS</text>
+        <text x="644" y="418">WORK EXPERIENCE</text>
+        <text x="644" y="616">EDUCATION</text>
+        <text x="644" y="724">CERTIFICATIONS</text>
+      </g>
+      <g font-size="13" fill="#52647c">
+        <text x="644" y="255">[Target role] with experience in [relevant area].</text>
+        <text x="644" y="279">[Describe the value you bring.]</text>
+        <text x="644" y="351">Core skills: [Skill 1], [Skill 2], [Skill 3]</text>
+        <text x="644" y="375">Tools and technologies: [Tool 1], [Tool 2]</text>
+        <text x="644" y="450" font-weight="700">[JOB TITLE] | [EMPLOYER]</text>
+        <text x="644" y="477">[Month Year] - [Present]</text>
+        <text x="644" y="509">- [Describe a relevant contribution.]</text>
+        <text x="644" y="537">- [Add an achievement and its outcome.]</text>
+        <text x="644" y="565">- [Include relevant skills and tools.]</text>
+        <text x="644" y="648" font-weight="700">[DEGREE] | [INSTITUTION]</text>
+        <text x="644" y="676">[City, Country] | [Graduation Month Year]</text>
+        <text x="644" y="754">[Certification] | [Issuer] | [Year]</text>
+      </g>
+    </g>
+  </g>
+</svg>

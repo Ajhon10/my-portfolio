@@ -90,6 +90,23 @@ be deleted. Empty, loading, error and filtered-empty states are included.
 
 # Portfolio redesign
 
+## Portrait contrast and shop subcategories — November 25, 2026
+
+Light-mode particles now use dark photo features as blue ink, rather than
+emphasizing the bright background. Larger, heavier character strokes and a
+stronger opacity curve make the face clearer. Dark mode retains light-feature
+shading in the theme's blue. A theme observer repaints the canvas immediately,
+including when reduced motion stops animation. Scatter physics and sampling
+positions remain unchanged.
+
+The shop now has two category levels. Parent chips select the collection; a
+second labelled chip row narrows it to a child, with All in this category as the
+reset. Changing parent clears the child filter. Both rows wrap on narrow screens.
+Product labels show complete paths such as Clothing → Kids, keeping the two
+Kids groups distinct. Admin uses a parent selector for category creation and
+grouped product checkboxes. Selecting a child includes its parent; clearing a
+parent clears its children. Existing form, loading, error and inquiry flows remain.
+
 Reference: https://www.gazijarin.com/ / character portrait interaction and personal editorial presentation, implemented with original blue styling.
 
 ## Setup

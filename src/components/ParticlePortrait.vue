@@ -28,8 +28,7 @@ type Particle = {
 	homeY: number
 	vx: number
 	vy: number
-	alpha: number
-	glyph: string
+	luminance: number
 }
 let particles: Particle[] = []
 let frame = 0
@@ -37,6 +36,7 @@ let generation = 0
 let visible = true
 let observer: IntersectionObserver | undefined
 let motion: MediaQueryList | undefined
+let themeObserver: MutationObserver | undefined
 let pointer = { x: -1000, y: -1000 }
 const size = 460
 
@@ -44,9 +44,11 @@ function draw() {
 	const ctx = canvas.value?.getContext('2d')
 	if (!ctx) return
 	ctx.clearRect(0, 0, size, size)
-	ctx.font = `${Math.max(5, props.density)}px monospace`
+	ctx.font = `700 ${Math.max(7, props.density * 1.25)}px monospace`
 	ctx.textAlign = 'center'
-	ctx.fillStyle = '#5599ff'
+	const dark = document.documentElement.dataset.theme === 'secondary'
+	ctx.fillStyle = getComputedStyle(canvas.value!).getPropertyValue('--folio-accent').trim() || '#1855ce'
+	const chars = '.:+=*#@'
 	let moving = false
 	for (const p of particles) {
 		if (!motion?.matches) {
@@ -67,8 +69,10 @@ function draw() {
 			p.x = p.homeX
 			p.y = p.homeY
 		}
-		ctx.globalAlpha = p.alpha
-		ctx.fillText(p.glyph, p.x, p.y)
+		// Use dark image features as ink on white; use light features on navy.
+		const tone = dark ? p.luminance : 1 - p.luminance
+		ctx.globalAlpha = Math.pow(tone, 0.65)
+		ctx.fillText(chars[Math.round(tone * (chars.length - 1))], p.x, p.y)
 	}
 	ctx.globalAlpha = 1
 	frame = visible && !motion?.matches && moving ? requestAnimationFrame(draw) : 0
@@ -135,7 +139,6 @@ async function build() {
 		const data = ctx.getImageData(0, 0, size, size).data
 		const next: Particle[] = []
 		const step = Math.max(4, Math.min(10, props.density))
-		const chars = '.:+=*#@'
 		for (let y = 0; y < size; y += step)
 			for (let x = 0; x < size; x += step * 0.72) {
 				const i = (Math.floor(y) * size + Math.floor(x)) * 4
@@ -148,8 +151,7 @@ async function build() {
 					homeY: y,
 					vx: 0,
 					vy: 0,
-					alpha: 0.3 + luminance * 0.7,
-					glyph: chars[Math.floor(luminance * (chars.length - 1))],
+					luminance,
 				})
 			}
 		particles = next
@@ -161,6 +163,8 @@ async function build() {
 onMounted(() => {
 	motion = matchMedia('(prefers-reduced-motion: reduce)')
 	motion.addEventListener('change', wake)
+	themeObserver = new MutationObserver(wake)
+	themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
 	const ratio = Math.min(devicePixelRatio || 1, 2)
 	canvas.value!.width = canvas.value!.height = size * ratio
 	canvas.value!.getContext('2d')!.scale(ratio, ratio)
@@ -180,6 +184,7 @@ onBeforeUnmount(() => {
 	generation++
 	cancelAnimationFrame(frame)
 	observer?.disconnect()
+	themeObserver?.disconnect()
 	motion?.removeEventListener('change', wake)
 })
 </script>
