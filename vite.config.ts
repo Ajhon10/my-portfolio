@@ -5,7 +5,7 @@ import { cloudflare } from '@cloudflare/vite-plugin'
 
 export default defineConfig({
 	plugins: [
-		vue(),
+		vue({ template: { compilerOptions: { isCustomElement: (tag) => tag === 'model-viewer' } } }),
 		cloudflare({
 			...(process.env.PORTFOLIO_LOCAL_STATE ? { persistState: { path: process.env.PORTFOLIO_LOCAL_STATE } } : {}),
 		}),

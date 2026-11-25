@@ -141,9 +141,10 @@ try {
 	const draft = await api('/projects/create', {
 		token: owner,
 		method: 'POST',
-		data: { title: 'Private draft', description: 'This draft must stay private.', published: false },
+		data: { title: 'Private draft', description: 'This draft must stay private.', published: false, company: 'Fixture employer' },
 	})
 	status(draft, 201)
+	assert.equal(draft.body.data.company, 'Fixture employer')
 	status(await api('/projects/' + draft.body.data.id), 404)
 	const request = await api('/client-requests/submit', {
 		method: 'POST',
@@ -392,6 +393,60 @@ try {
 	const shopProduct = await api('/shop/products', { token: owner, method: 'POST', data: shopInput })
 	status(shopProduct, 201)
 	const shopId = shopProduct.body.data.id
+	assert.equal(shopProduct.body.data.soldCount, 0)
+	assert.equal(shopProduct.body.data.ratingCount, 0)
+	assert.equal(shopProduct.body.data.ratingAverage, null)
+	for (const invalid of [
+		{ soldCount: -1 },
+		{ soldCount: 1.5 },
+		{ ratingAverage: 4.5 },
+		{ ratingCount: 2 },
+		{ ratingAverage: 5.1, ratingCount: 2 },
+	]) {
+		status(
+			await api('/shop/products/' + shopId, { token: owner, method: 'PUT', data: { ...shopInput, ...invalid } }),
+			422,
+		)
+	}
+	status(
+		await api('/shop/products/' + shopId, {
+			token: owner,
+			method: 'PUT',
+			data: { ...shopInput, soldCount: 12, ratingAverage: 4.5, ratingCount: 2 },
+		}),
+		200,
+	)
+	const ratedFixture = (await api('/shop/products/' + shopId, { token: owner })).body.data
+	assert.equal(ratedFixture.soldCount, 12)
+	assert.equal(ratedFixture.ratingAverage, 4.5)
+	assert.equal(ratedFixture.ratingCount, 2)
+	for (const value of ['particles', 'portrait', 'model', 'bogus']) {
+		const savedVisual = await api('/site-content/upsert', {
+				token: owner,
+				method: 'POST',
+				data: { key: 'hero_visual_mode', label: 'Home visual', value },
+			})
+		status(savedVisual, value === 'bogus' ? 422 : 200)
+		if (value !== 'bogus') {
+			assert.equal(savedVisual.body.data.key, 'hero_visual_mode')
+			assert.equal(savedVisual.body.data.value, value)
+		}
+	}
+	for (const value of [
+		'/seed/models/jhon-figurine.glb',
+		'https://example.com/model.glb',
+		'javascript:alert(1)',
+		'https://example.com/model.html',
+		'https://name:secret@example.com/file.glb',
+	])
+		status(
+			await api('/site-content/upsert', {
+				token: owner,
+				method: 'POST',
+				data: { key: 'hero_model_url', label: 'Model', value },
+			}),
+			value === '/seed/models/jhon-figurine.glb' || value === 'https://example.com/model.glb' ? 200 : 422,
+		)
 	assert.equal(shopProduct.body.data.categories.length, 2)
 	status(await api('/shop/products/' + shopId), 404)
 	assert.equal(

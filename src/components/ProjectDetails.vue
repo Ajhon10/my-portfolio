@@ -38,6 +38,9 @@ function enlarge(url: string) {
 			</router-link>
 		</div>
 		<p v-if="project.shortSummary" class="text-brand-gray-300 mt-5 text-lg">{{ project.shortSummary }}</p>
+		<p v-if="project.company" class="text-sm text-brand-gray-400 mt-3">
+			Developed while employed at {{ project.company }}
+		</p>
 		<div v-if="media.length" class="grid sm:grid-cols-2 gap-4 mt-6" aria-label="Project gallery">
 			<template v-for="(url, index) in media" :key="url">
 				<figure

@@ -6,8 +6,7 @@ let frame = 0
 let observer: ResizeObserver | undefined
 const update = () => {
 	frame = 0
-	visible.value =
-		window.scrollY > 0 && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 160
+	visible.value = window.scrollY >= 320
 }
 const schedule = () => {
 	if (!frame) frame = requestAnimationFrame(update)

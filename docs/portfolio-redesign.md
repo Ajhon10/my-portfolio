@@ -90,6 +90,53 @@ be deleted. Empty, loading, error and filtered-empty states are included.
 
 # Portfolio redesign
 
+## Admin home visual, project curation and shop cards — November 25, 2026
+
+Admin → Site Content → Hero Section → Home visual selects Particles, Portrait,
+or 3D model for every visitor. Save publishes the choice; visitor storage no
+longer overrides it. The model URL and accessible description are independently
+editable. The preview uses the current drafts. The original particle settings
+and directional portrait uploads remain available.
+
+The free, pinned `@google/model-viewer` viewer loads in a separate chunk only
+for a model or its admin preview. It supports pointer/keyboard rotation,
+preserves page scrolling, and does not auto-rotate. A failed load shows the
+portrait. The bundled 66 KB GLB is original procedural geometry referencing
+Jhon's bundled portrait: tousled black hair, warm skin, light facial hair and
+a white polo with red collar/accent. Its pose and lower body are illustrative;
+it is a stylized sample, not an exact reconstruction. Regenerate with
+`python scripts/generate-figurine.py`; no image upload or generation account is
+required. The source portrait and model live in `public/seed/`.
+
+For a closer likeness, a model artist can refine it in
+[Blender](https://www.blender.org/) and export GLB. Optional image-to-3D services
+include [Meshy](https://docs.meshy.ai/en/webapp/image-to-3d) and
+[Tripo](https://www.tripo3d.ai/product-doc/model-generation/image-to-3d).
+Multiple angles provide more reference information than this one portrait;
+Meshy's [multi-view workflow](https://help.meshy.ai/en/articles/12634481-how-to-use-multi-view)
+accepts additional angle images. Neither service was installed, paid for, or
+sent the owner's photo. A public HTTPS GLB needs CORS enabled. The web viewer
+is already installed; no additional website plugin is required.
+
+Migration 0010 adds project employment attribution and bounded sales/rating
+fields. Migration 0011 is the requested one-time curation: only DEOS, PDEA and
+OADR remain featured, classified Web Application and attributed to WWC Yellow
+Bumblebee Corp. The CSV reflects those choices for new installs. Fields remain
+editable in admin. Category badges use white text on a dark opaque background
+in both themes. Back-to-top now appears after 320 px of scrolling. The footer
+is no longer hidden by reveal animations, hidden sections are re-observed after
+navigation, and the final section/footer spacing is reduced.
+
+Shop cards show an image, title, price, sold count and rating. Their descriptions,
+gallery, downloads, inquiry and optional purchase actions open at `/shop/:id`.
+The listing uses the first image in gallery order, with a bag placeholder for
+items without images; detail galleries retain videos. Mobile shows two cards
+per row, desktop three. Sales and ratings are owner-maintained verified totals,
+not checkout tracking or a review collection system. Existing items start at
+0 sold and No ratings yet. Admin cannot save a rating average without its
+count or a negative/fractional sold count. No production sales/reviews were
+invented. See [model-viewer](https://modelviewer.dev/) for the viewer API.
+
 ## Portrait contrast and shop subcategories — November 25, 2026
 
 Light-mode particles now use dark photo features as blue ink, rather than

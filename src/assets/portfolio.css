@@ -305,6 +305,12 @@
 .work-cover {
 	position: relative;
 }
+.public-portfolio #contact.section {
+	padding-bottom: 40px;
+}
+.public-portfolio footer {
+	margin-top: 0;
+}
 @media (max-width: 767px) {
 	.folio-nav {
 		padding: 20px 24px;

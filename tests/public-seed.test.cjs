@@ -22,6 +22,21 @@ test('public CSV seed restores page data and galleries idempotently without repl
 		for (const file of (await readdir('migrations')).filter((f) => f.endsWith('.sql')).sort())
 			db.exec(await readFile('migrations/' + file, 'utf8'))
 		const projects = readSeedCsv('Project', 'projects.csv')
+		assert.deepEqual(
+			projects
+				.filter((p) => p.featured)
+				.map((p) => p.slug)
+				.sort(),
+			[
+				'designated-establishment-online-submission-deos',
+				'office-for-alternative-dispute-resolution-oadr',
+				'pdea-virtual-museum',
+			].sort(),
+		)
+		for (const project of projects.filter((p) => p.featured)) {
+			assert.equal(project.category, 'Web Application')
+			assert.equal(project.company, 'WWC Yellow Bumblebee Corp.')
+		}
 		const customId = randomUUID()
 		db.exec(
 			insertSql('Project', { ...projects[0], id: customId, description: 'Customized locally; preserve this text.' }),
@@ -107,6 +122,8 @@ test('subcategory migration preserves existing catalog rows and seeds scoped chi
 		db.prepare('INSERT INTO shop_product_category(product_id,category_id) VALUES(?,?)').run(productId, parentId)
 		db.exec(await readFile('migrations/0008_shop_subcategories.sql', 'utf8'))
 		db.exec(await readFile('migrations/0009_shop_downloads.sql', 'utf8'))
+		db.exec(await readFile('migrations/0010_presentation_and_shop_stats.sql', 'utf8'))
+		db.exec(await readFile('migrations/0011_curate_featured_projects.sql', 'utf8'))
 		db.exec(seedSql())
 		db.exec(seedSql())
 		assert.equal(db.prepare('SELECT COUNT(*) n FROM shop_category').get().n, 2)
@@ -115,6 +132,9 @@ test('subcategory migration preserves existing catalog rows and seeds scoped chi
 		const free = db.prepare("SELECT * FROM shop_product WHERE name='ATS-friendly Resume Template'").get()
 		assert.equal(free.price_label, 'Free')
 		assert.equal(free.download_url, '/downloads/ats-friendly-resume-template.zip')
+		assert.equal(free.sold_count, 0)
+		assert.equal(free.rating_count, 0)
+		assert.equal(free.rating_average, null)
 		assert.equal(
 			db
 				.prepare('SELECT COUNT(*) n FROM shop_product_category WHERE product_id=? AND category_id=?')
@@ -162,4 +182,22 @@ test('the four owner photographs retain their locations, order and bundled JPEG 
 		assert.deepEqual([...bytes.subarray(0, 3)], [255, 216, 255])
 		assert.ok(bytes.length > 0 && bytes.length < 8 * 1024 * 1024)
 	}
+})
+
+test('one-time curation changes only featured flags and the three requested category/company fields', async () => {
+	const { DatabaseSync } = await import('node:sqlite')
+	const { seedSql } = await import('../scripts/seed.mjs')
+	const db = new DatabaseSync(':memory:')
+	try {
+		for (const file of (await readdir('migrations')).filter(f=>f.endsWith('.sql') && f<'0011').sort()) db.exec(await readFile('migrations/'+file,'utf8'))
+		db.exec(seedSql())
+		db.exec("UPDATE project SET featured=1,category='Old category',company='';")
+		const before = db.prepare('SELECT id,description,thumbnail_url,published FROM project ORDER BY id').all()
+		db.exec(await readFile('migrations/0011_curate_featured_projects.sql','utf8'))
+		assert.deepEqual(db.prepare('SELECT id,description,thumbnail_url,published FROM project ORDER BY id').all(),before)
+		const selected = db.prepare('SELECT category,company FROM project WHERE featured=1').all()
+		assert.equal(selected.length,3)
+		for(const row of selected) { assert.equal(row.category,'Web Application');assert.equal(row.company,'WWC Yellow Bumblebee Corp.') }
+		assert.equal(db.prepare("SELECT COUNT(*) n FROM project WHERE featured=0 AND category='Old category' AND company=''").get().n,6)
+	} finally { db.close() }
 })

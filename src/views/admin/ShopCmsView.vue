@@ -60,6 +60,9 @@ const empty = (): ShopInput => ({
 	priceLabel: '',
 	purchaseUrl: '',
 	downloadUrl: '',
+	soldCount: 0,
+	ratingAverage: null,
+	ratingCount: 0,
 	published: false,
 	sortOrder: 0,
 	categoryIds: [],
@@ -111,6 +114,9 @@ const edit = (product: ShopProduct) => {
 		priceLabel: product.priceLabel,
 		purchaseUrl: product.purchaseUrl,
 		downloadUrl: product.downloadUrl,
+		soldCount: product.soldCount,
+		ratingAverage: product.ratingAverage,
+		ratingCount: product.ratingCount,
 		published: product.published,
 		sortOrder: product.sortOrder,
 		categoryIds: product.categories.map((c) => c.id),
@@ -128,7 +134,16 @@ const save = async () => {
 	}
 	busy.value = true
 	try {
-		const result = await api.save(form.value, editing.value)
+		const result = await api.save(
+			{
+				...form.value,
+				ratingAverage:
+					form.value.ratingCount === 0 || typeof form.value.ratingAverage !== 'number'
+						? null
+						: Number(form.value.ratingAverage),
+			},
+			editing.value,
+		)
 		if (result.success) {
 			edit(result.data)
 			await load()
@@ -310,6 +325,45 @@ const changePage = (next: number) => {
 					/>
 					<span class="block mt-2 text-sm text-brand-gray-400">Add a direct link to a free file or sample.</span>
 				</label>
+				<fieldset class="space-y-2">
+					<legend class="label">Sales &amp; ratings</legend>
+					<p class="text-sm text-brand-gray-400">
+						Use verified totals from your sales channel. Leave the average empty when there are no ratings.
+					</p>
+					<div class="grid sm:grid-cols-3 gap-3">
+						<label class="label"
+							>Units sold<input
+								v-model.number="form.soldCount"
+								type="number"
+								min="0"
+								max="1000000000"
+								step="1"
+								required
+								class="input mt-2"
+						/></label>
+						<label class="label"
+							>Rating count<input
+								v-model.number="form.ratingCount"
+								type="number"
+								min="0"
+								max="1000000000"
+								step="1"
+								required
+								class="input mt-2"
+						/></label>
+						<label class="label"
+							>Average rating<input
+								v-model.number="form.ratingAverage"
+								type="number"
+								min="0"
+								max="5"
+								step="0.1"
+								:disabled="form.ratingCount === 0"
+								:required="form.ratingCount > 0"
+								class="input mt-2"
+						/></label>
+					</div>
+				</fieldset>
 				<fieldset class="space-y-2">
 					<legend class="label">Categories (choose 1–10)</legend>
 					<p v-if="!categories.length" class="text-sm text-brand-gray-400">

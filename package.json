@@ -27,6 +27,7 @@
 		"test:browser": "node scripts/test-browser.mjs"
 	},
 	"dependencies": {
+		"@google/model-viewer": "4.4.0",
 		"@noble/hashes": "2.4.0",
 		"@vueuse/core": "^10.9.0",
 		"axios": "^1.13.2",

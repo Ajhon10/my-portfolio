@@ -10,6 +10,7 @@ export interface ProjectInput {
 	liveUrl?: string
 	repoUrl?: string
 	category?: string
+	company?: string
 	featured?: boolean
 	published?: boolean
 	sortOrder?: number

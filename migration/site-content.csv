@@ -37,3 +37,6 @@ dc250a1a-7ac3-4de0-ab45-b258618c7112,2026-05-03T00:14:35.925Z,2026-05-03T00:21:4
 c39b80ac-e369-4e39-8b75-84e8f91595ad,2026-05-03T00:14:35.939Z,2026-05-03T00:21:41.686Z,\N,false,social_tiktok,Social – TikTok URL,https://www.tiktok.com/@ajan_jrsn
 26a90778-3f9c-4fd1-b352-25b7fe3ceafa,2026-05-03T00:14:35.933Z,2026-05-03T00:14:35.933Z,\N,false,social_twitter,Social – Twitter/X URL,
 c0f61495-8f9c-48ad-84ec-eff9f6195001,2026-05-03T00:14:35.936Z,2026-05-03T00:14:35.936Z,\N,false,social_youtube,Social – YouTube URL,
+f01b5e87-e37f-42ab-8fd1-a51fc341622e,2026-11-25 00:00:00,2026-11-25 00:00:00,\N,false,hero_visual_mode,Home visual,particles
+225b5235-e124-46ef-8a32-475adf0fba92,2026-11-25 00:00:00,2026-11-25 00:00:00,\N,false,hero_model_url,3D model URL,/seed/models/jhon-figurine.glb
+8883a1f0-1e01-45c7-834b-68c0ffac5058,2026-11-25 00:00:00,2026-11-25 00:00:00,\N,false,hero_model_alt,3D model description,Stylized sample figurine of Jhon in a white and red polo

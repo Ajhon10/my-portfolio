@@ -43,7 +43,13 @@ export function parseCsv(source) {
 	return rows
 }
 
-export function readSeedCsv(model, filename, fields = metadata.models[model]?.fields) {
+export function readSeedCsv(
+	model,
+	filename,
+	fields = model === 'Project'
+		? { ...metadata.models.Project.fields, company: metadata.models.Experience.fields.company }
+		: metadata.models[model]?.fields,
+) {
 	const [columns, ...rows] = parseCsv(readFileSync(new URL('../migration/' + filename, import.meta.url), 'utf8'))
 	if (!columns?.length || new Set(columns).size !== columns.length || columns.some((key) => !fields[key]))
 		throw new Error(`Invalid seed CSV columns: ${filename}`)
@@ -114,6 +120,11 @@ export function seedSql() {
 		}
 	// Fill newly supplied covers on older installs, preserving chosen covers,
 	// descriptions and soft-deleted rows.
+	for (const project of projects)
+		if (project.company)
+			sql.push(
+				`UPDATE project SET company=${literal(project.company)} WHERE slug=${literal(project.slug)} AND deleted=0 AND company='';`,
+			)
 	for (const project of projects)
 		if (project.thumbnailUrl)
 			sql.push(

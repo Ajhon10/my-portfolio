@@ -56,7 +56,7 @@ captured read-only from the production public API at
 | `projects.csv` | 9 |
 | `tech-stack.csv` | 24 |
 | `experiences.csv` | 3 |
-| `site-content.csv` | 38 |
+| `site-content.csv` | 41 |
 | `chatbot-tags.csv` | 10 |
 | `chatbot-knowledge.csv` | 13 |
 | `project-media.csv` | 17 |
@@ -97,7 +97,7 @@ records without changing proficiency ratings. Project media now includes the
 original MemeCam studio screenshot and MuniAlert's desktop/mobile demo captures.
 FableSplice uses an authored SVG prototype cover illustrating its actual pipeline,
 not an application screenshot. These assets live under `public/seed/projects/`.
-No live URLs were invented. The seed now contains 138 CSV rows overall; a shop
+No live URLs were invented. The seed now contains 141 CSV rows overall; a shop
 category-link row creates both its parent and optional child association.
 
 The shop includes one published **ATS-friendly Resume Template**, priced Free.
@@ -138,9 +138,26 @@ disables both animations. The button is visible beside Menu on mobile.
 Run `npm.cmd run db:seed` after local migrations. Repeated seeding adds missing
 content without overwriting customized records. Missing project covers are filled
 from the seed; existing chosen covers and soft-deleted projects are preserved.
+Migration 0011 performs the requested featured-project correction once; the CSV
+also features only DEOS, PDEA and OADR, with Web Application classification and
+WWC Yellow Bumblebee Corp. employment attribution. Migration 0010 adds the
+company and shop sales/rating fields. The three new home-visual settings are
+seeded without replacing an existing admin choice.
 Gallery relationships resolve
 projects by slug so existing local IDs remain valid. Updating the CSVs does not
 modify production data or publish the site.
+
+Admin → Site Content → Hero Section → Home visual now selects particles,
+portrait or the bundled sample 3D figurine. Save applies that choice for all
+visitors. Model URL and description can be changed there, with a live preview.
+The original sample references the existing portrait's hair, facial features
+and white/red polo; its likeness is approximate. The viewer is installed and
+loads only for 3D. See [visual setup and model tools](docs/portfolio-redesign.md).
+
+Shop cards show title, image, price, sold count and ratings, linking to the full
+description/gallery at `/shop/:id`. Admin → Shop accepts verified sales/rating
+totals; zero sold and No ratings yet are the defaults. These totals are manually
+maintained because the shop uses inquiries and optional external purchases.
 
 ## Automatic checks and deployment
 

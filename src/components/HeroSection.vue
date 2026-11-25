@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import SiteIcon from './SiteIcon.vue'
 import InteractivePortrait from './InteractivePortrait.vue'
 import ParticlePortrait from './ParticlePortrait.vue'
@@ -8,7 +8,10 @@ import { useViewerPresenceState } from '@/composables/useSocket'
 import { usePortfolioGame } from '@/composables/usePortfolioGame'
 
 const content = ref<Record<string, string>>({})
-const portraitMode = ref<'particles' | 'portrait'>('particles')
+const ModelPortrait = defineAsyncComponent(() => import('./ModelPortrait.vue'))
+const portraitMode = computed(() =>
+	['portrait', 'model'].includes(content.value.hero_visual_mode) ? content.value.hero_visual_mode : 'particles',
+)
 const staticPortrait = ref(false)
 const { viewerCount, viewerConnected } = useViewerPresenceState()
 const { gameEnabled, toggleGame } = usePortfolioGame()
@@ -46,13 +49,8 @@ const portraitAdjustments = computed<Partial<Record<PortraitDirection, PortraitA
 })
 
 onMounted(async () => {
-	const savedMode = localStorage.getItem('portfolio_portrait_mode')
-	if (savedMode === 'particles' || savedMode === 'portrait') portraitMode.value = savedMode
 	const res = await useSiteContentProvider().list()
 	if (res.success && res.data) content.value = Object.fromEntries(res.data.map((i) => [i.key, i.value]))
-})
-watch(portraitMode, (mode) => {
-	localStorage.setItem('portfolio_portrait_mode', mode)
 })
 </script>
 <template>
@@ -107,43 +105,37 @@ watch(portraitMode, (mode) => {
 			<div class="hero-art">
 				<div class="portrait-topline">
 					<div class="portrait-coordinate">JLJ / HUMAN BEHIND THE CODE</div>
-					<div class="portrait-mode" role="group" aria-label="Profile artwork mode">
-						<button
-							type="button"
-							:class="{ active: portraitMode === 'particles' }"
-							:aria-pressed="portraitMode === 'particles'"
-							@click="portraitMode = 'particles'"
-						>
-							Particles
-						</button>
-						<button
-							type="button"
-							:class="{ active: portraitMode === 'portrait' }"
-							:aria-pressed="portraitMode === 'portrait'"
-							@click="portraitMode = 'portrait'"
-						>
-							Portrait
-						</button>
-					</div>
 				</div>
 				<div class="portrait-stage">
 					<ParticlePortrait
-						v-show="portraitMode === 'particles'"
+						v-if="portraitMode === 'particles'"
 						:src="content.hero_photo_url || content.hero_portrait_center_url"
 						:density="Number(content.hero_particle_density) || 6"
 						:strength="Number(content.hero_particle_strength) || 5"
 						@fallback="staticPortrait = $event"
 					/>
 					<InteractivePortrait
-						v-show="portraitMode === 'portrait'"
+						v-else-if="portraitMode === 'portrait'"
 						:images="portraitImages"
 						:adjustments="portraitAdjustments"
+					/>
+					<ModelPortrait
+						v-else
+						:src="content.hero_model_url || '/seed/models/jhon-figurine.glb'"
+						:poster="content.hero_photo_url || content.hero_portrait_center_url"
+						:alt="content.hero_model_alt"
 					/>
 				</div>
 				<div class="portrait-caption">
 					<span>&#8593; a little code, a little curiosity</span
 					><span>{{
-						portraitMode === 'particles' ? (staticPortrait ? 'PORTRAIT PREVIEW' : 'HOVER TO SCATTER') : 'MOVE TO FOLLOW'
+						portraitMode === 'particles'
+							? staticPortrait
+								? 'PORTRAIT PREVIEW'
+								: 'HOVER TO SCATTER'
+							: portraitMode === 'model'
+								? 'DRAG TO ROTATE'
+								: 'MOVE TO FOLLOW'
 					}}</span>
 				</div>
 			</div>
@@ -238,33 +230,6 @@ watch(portraitMode, (mode) => {
 	transform: translateX(12px);
 }
 
-.portrait-mode {
-	display: inline-flex;
-	padding: 3px;
-	border: 1px solid var(--folio-line);
-	border-radius: 999px;
-	background: var(--folio-surface);
-}
-.portrait-mode button {
-	min-height: 36px;
-	padding: 0 12px;
-	border-radius: 999px;
-	font:
-		9px 'JetBrains Mono',
-		monospace;
-	letter-spacing: 0.6px;
-	color: var(--folio-muted);
-	transition:
-		background-color 160ms ease,
-		color 160ms ease;
-}
-.portrait-mode button:hover {
-	color: var(--folio-ink);
-}
-.portrait-mode button.active {
-	background: var(--folio-selected);
-	color: var(--folio-soft);
-}
 .viewer-pulse {
 	width: 7px;
 	height: 7px;
@@ -305,13 +270,8 @@ watch(portraitMode, (mode) => {
 		align-items: stretch;
 		flex-direction: column;
 	}
-	.portrait-mode button {
-		min-height: 40px;
-		padding-inline: 10px;
-	}
 }
 @media (prefers-reduced-motion: reduce) {
-	.portrait-mode button,
 	.hero-game-toggle,
 	.nav-switch span {
 		transition: none;

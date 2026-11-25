@@ -32,6 +32,8 @@ for (const [name, table, fields, soft] of [
 			priceLabel: 'String',
 			purchaseUrl: 'String',
 			downloadUrl: 'String',
+			soldCount: 'Int',
+			ratingCount: 'Int',
 			published: 'Boolean',
 			sortOrder: 'Int',
 		},
@@ -55,10 +57,25 @@ for (const [name, table, fields, soft] of [
 			primary: key === 'id',
 			unique: key === 'id',
 			...(['createdAt', 'updatedAt'].includes(key) ? { now: true } : {}),
-			...(['sortOrder', 'deleted', 'published'].includes(key) ? { default: 0 } : {}),
+			...(['sortOrder', 'deleted', 'published', 'soldCount', 'ratingCount'].includes(key) ? { default: 0 } : {}),
 			...(['priceLabel', 'purchaseUrl', 'altText'].includes(key) ? { default: '' } : {}),
 		}
 	models[name] = { table, fields: mapped, relations: {}, uniques: [] }
+}
+models.Project.fields.company = {
+	column: 'company',
+	type: 'String',
+	nullable: false,
+	primary: false,
+	unique: false,
+	default: '',
+}
+models.ShopProduct.fields.ratingAverage = {
+	column: 'rating_average',
+	type: 'Float',
+	nullable: true,
+	primary: false,
+	unique: false,
 }
 export const quote = (name: string) => '"' + name.replaceAll('"', '""') + '"'
 export function encode(value: unknown, field?: Field): D1DatabaseBindingValue {

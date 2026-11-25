@@ -29,8 +29,8 @@ const observePageSections = () => {
 	if (!root) return
 
 	const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-	root.querySelectorAll<HTMLElement>('main .section, footer').forEach((section) => {
-		if (section.dataset.scrollReveal !== undefined) return
+	root.querySelectorAll<HTMLElement>('main .section').forEach((section) => {
+		if (section.classList.contains('is-revealed') || observedSections.has(section)) return
 
 		section.dataset.scrollReveal = ''
 		if (reduceMotion || !revealObserver) {
@@ -58,7 +58,7 @@ onMounted(async () => {
 					observedSections.delete(section)
 				})
 			},
-			{ threshold: 0.12, rootMargin: '0px 0px -8% 0px' },
+			{ threshold: 0.01, rootMargin: '0px 0px -3% 0px' },
 		)
 	}
 

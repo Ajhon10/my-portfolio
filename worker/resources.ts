@@ -54,6 +54,7 @@ const projectSchema = z.object({
 	liveUrl: urlSchema.nullable().optional(),
 	repoUrl: urlSchema.nullable().optional(),
 	category: nullableText(100),
+	company: text(0, 200).optional(),
 	featured: z.boolean().optional(),
 	published: z.boolean().optional(),
 	sortOrder,
@@ -263,12 +264,30 @@ resourceRoutes.post('/site-content/upsert', async (c) => {
 		z.object({ key: text(1, 120).regex(/^[a-zA-Z0-9_.-]+$/), label: text(1, 200), value: z.string().max(60000) }),
 	)
 	const row = makeRow('SiteContent', input)
-	await c.env.DB.prepare(
-		'INSERT INTO site_content(id,created_at,updated_at,deleted,key,label,value) VALUES(?,?,?,0,?,?,?) ON CONFLICT(key) DO UPDATE SET label=excluded.label,value=excluded.value,deleted=0,deleted_at=NULL,updated_at=excluded.updated_at',
+	if (input.key === 'hero_visual_mode') z.enum(['particles', 'portrait', 'model']).parse(input.value)
+	if (input.key === 'hero_model_alt') z.string().max(500).parse(input.value)
+	if (input.key === 'hero_model_url') {
+		z.string()
+			.max(2000)
+			.refine((value) => {
+				if (value === '/seed/models/jhon-figurine.glb') return true
+				try {
+					const url = new URL(value)
+					return (
+						url.protocol === 'https:' && !url.username && !url.password && url.pathname.toLowerCase().endsWith('.glb')
+					)
+				} catch {
+					return false
+				}
+			}, 'Use the bundled sample or a public HTTPS .glb URL.')
+			.parse(input.value)
+	}
+	const saved = await c.env.DB.prepare(
+		'INSERT INTO site_content(id,created_at,updated_at,deleted,key,label,value) VALUES(?,?,?,0,?,?,?) ON CONFLICT(key) DO UPDATE SET label=excluded.label,value=excluded.value,deleted=0,deleted_at=NULL,updated_at=excluded.updated_at RETURNING *',
 	)
 		.bind(row.id, row.createdAt, row.updatedAt, input.key, input.label, input.value)
-		.run()
-	return ok(c, undefined, 'Content saved')
+		.first<Row>()
+	return ok(c, decode('SiteContent', saved), 'Content saved')
 })
 resourceRoutes.delete('/site-content/:key', async (c) => {
 	admin(c)

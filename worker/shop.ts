@@ -6,25 +6,33 @@ import { projectMediaType } from '../shared/project-media'
 import type { AppEnv, Row } from './types'
 
 const order = z.number().int().min(0).max(10000).default(0)
-const productSchema = z.object({
-	name: text(1, 160),
-	description: text(1, 10000),
-	priceLabel: z.string().trim().max(100).default(''),
-	purchaseUrl: urlSchema.default(''),
-	downloadUrl: urlSchema.or(z.literal('/downloads/ats-friendly-resume-template.zip')).default(''),
-	published: z.boolean().default(false),
-	sortOrder: order,
-	categoryIds: z
-		.array(idSchema)
-		.min(1)
-		.max(10)
-		.transform((ids) => [...new Set(ids)]),
-	subcategoryIds: z
-		.array(idSchema)
-		.max(10)
-		.default([])
-		.transform((ids) => [...new Set(ids)]),
-})
+const productSchema = z
+	.object({
+		name: text(1, 160),
+		description: text(1, 10000),
+		priceLabel: z.string().trim().max(100).default(''),
+		purchaseUrl: urlSchema.default(''),
+		downloadUrl: urlSchema.or(z.literal('/downloads/ats-friendly-resume-template.zip')).default(''),
+		published: z.boolean().default(false),
+		sortOrder: order,
+		soldCount: z.number().int().min(0).max(1000000000).default(0),
+		ratingAverage: z.number().min(0).max(5).nullable().default(null),
+		ratingCount: z.number().int().min(0).max(1000000000).default(0),
+		categoryIds: z
+			.array(idSchema)
+			.min(1)
+			.max(10)
+			.transform((ids) => [...new Set(ids)]),
+		subcategoryIds: z
+			.array(idSchema)
+			.max(10)
+			.default([])
+			.transform((ids) => [...new Set(ids)]),
+	})
+	.refine((product) => (product.ratingCount === 0 ? product.ratingAverage === null : product.ratingAverage !== null), {
+		message: 'Enter an average only when there are ratings, and include the rating count.',
+		path: ['ratingAverage'],
+	})
 const categorySchema = z.object({ name: text(1, 100), sortOrder: order })
 const subcategorySchema = categorySchema.extend({ categoryId: idSchema })
 export const shopRoutes = new Hono<AppEnv>()

@@ -64,7 +64,7 @@ try {
 	const page = await context.newPage(),
 		errors = [],
 		failures = []
-	page.on('pageerror', (e) => errors.push(e.message))
+	page.on('pageerror', (e) => errors.push(e.stack || e.message))
 	page.on('response', (r) => {
 		if (r.url().includes('/api/') && r.status() >= 400)
 			failures.push({ url: new URL(r.url()).pathname, status: r.status() })
@@ -524,7 +524,9 @@ try {
 		await resume.locator('img').evaluate((image) => image.decode())
 		await resume.screenshot({ path: artifact + '/free-resume.png' })
 		const downloadPromise = visitor.waitForEvent('download')
-		await resume.getByRole('link', { name: 'Free download', exact: true }).click()
+		await resume.getByRole('link', { name: 'View ATS-friendly Resume Template', exact: true }).click()
+		await visitor.getByRole('heading', { name: 'ATS-friendly Resume Template', exact: true }).waitFor()
+		await visitor.getByRole('link', { name: 'Free download', exact: true }).click()
 		const download = await downloadPromise
 		assert.equal(download.suggestedFilename(), 'ats-friendly-resume-template.zip')
 		await download.saveAs(artifact + '/resume-download.zip')
@@ -562,6 +564,20 @@ try {
 		.getByRole('button', { name: 'Kids', exact: true })
 		.click()
 	await page.getByRole('heading', { name: 'Clothing fixture for kids', exact: true }).waitFor({ state: 'hidden' })
+	await page.getByRole('searchbox', { name: 'Search shop' }).fill('no such item')
+	await page.getByRole('heading', { name: 'No matching items' }).waitFor()
+	await page.getByRole('button', { name: 'Show all items' }).click()
+	await page.getByRole('heading', { name: 'Browser shop template' }).waitFor()
+	await page.screenshot({ path: artifact + '/shop-desktop.png', fullPage: true })
+	assert.equal(await page.locator('.shop-description').count(), 0)
+	const compactCard = page
+		.locator('.shop-product')
+		.filter({ has: page.getByRole('heading', { name: 'Browser shop template', exact: true }) })
+	await compactCard.getByText('0 sold', { exact: true }).waitFor()
+	await compactCard.getByText('No ratings yet', { exact: true }).waitFor()
+	await compactCard.getByRole('link', { name: 'View Browser shop template', exact: true }).click()
+	await page.getByRole('heading', { name: 'Browser shop template', exact: true }).waitFor()
+
 	await page.getByRole('button', { name: 'Show video 3 for Browser shop template' }).click()
 	assert.ok(await page.locator('.shop-cover video').isVisible())
 	await page.locator('.shop-cover video').evaluate(async (video) => {
@@ -570,16 +586,8 @@ try {
 		video.pause()
 	})
 	await page.getByRole('button', { name: 'Show image 2 for Browser shop template' }).click()
-	await page.getByRole('searchbox', { name: 'Search shop' }).fill('no such item')
-	await page.getByRole('heading', { name: 'No matching items' }).waitFor()
-	await page.getByRole('button', { name: 'Show all items' }).click()
-	await page.getByRole('heading', { name: 'Browser shop template' }).waitFor()
-	await page.screenshot({ path: artifact + '/shop-desktop.png', fullPage: true })
-	await page
-		.locator('.shop-product')
-		.filter({ has: page.getByRole('heading', { name: 'Browser shop template', exact: true }) })
-		.getByRole('link', { name: 'Inquire about this' })
-		.click()
+	await page.screenshot({ path: artifact + '/shop-detail-desktop.png', fullPage: true })
+	await page.getByRole('link', { name: 'Inquire about this' }).click()
 	assert.match(await page.getByPlaceholder('Goals, audience, key features...').inputValue(), /Browser shop template/)
 	await page.setViewportSize({ width: 390, height: 844 })
 	await page.goto('http://127.0.0.1:5179/shop', { waitUntil: 'networkidle' })
@@ -645,16 +653,65 @@ try {
 	assert.ok(await mobile.getByRole('button', { name: 'Open chat', exact: true }).isVisible())
 	assert.ok(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
 	await mobile.screenshot({ path: artifact + '/public-mobile.png', fullPage: false })
+	// Home visual is configured by the owner; visitor storage cannot override it.
+	await page.goto('http://127.0.0.1:5179/admin/site-content', { waitUntil: 'networkidle' })
+	const visualRow = page.locator('[data-content-key="hero_visual_mode"]')
+	await visualRow.getByLabel('Home visual', { exact: true }).selectOption('model')
+	await page.waitForFunction(() => document.querySelector('model-viewer')?.loaded === true, null, { timeout: 60000 })
+	await page.screenshot({ path: artifact + '/admin-model-preview.png' })
+	const visualSaved = page.waitForResponse(
+		(r) => r.url().endsWith('/api/site-content/upsert') && r.request().postDataJSON().key === 'hero_visual_mode',
+	)
+	await visualRow.getByRole('button', { name: 'Save', exact: true }).click()
+	assert.equal((await visualSaved).status(), 200)
+	assert.equal((await (await visualSaved).json()).data.key, 'hero_visual_mode')
+	await visualRow.getByRole('button', { name: 'Save', exact: true }).waitFor()
+	await page.waitForFunction(() => document.querySelector('[data-content-key="hero_visual_mode"] button').disabled)
+	await page.evaluate(() => localStorage.setItem('portfolio_portrait_mode', 'portrait'))
+	await page.goto('http://127.0.0.1:5179/', { waitUntil: 'networkidle' })
+	assert.equal(await page.getByRole('group', { name: 'Profile artwork mode' }).count(), 0)
+	await page.waitForFunction(() => document.querySelector('.hero-art model-viewer')?.loaded === true, null, {
+		timeout: 60000,
+	})
+	await page.screenshot({ path: artifact + '/figurine-desktop.png' })
+	await page.setViewportSize({ width: 390, height: 844 })
+	await page.locator('.hero-art').scrollIntoViewIfNeeded()
+	await page.screenshot({ path: artifact + '/figurine-mobile.png' })
+	await page.setViewportSize({ width: 1440, height: 1000 })
+	await page.goto('http://127.0.0.1:5179/admin/site-content', { waitUntil: 'networkidle' })
+	await visualRow.getByLabel('Home visual', { exact: true }).selectOption('portrait')
+	await visualRow.getByRole('button', { name: 'Save', exact: true }).click()
+	await page.goto('http://127.0.0.1:5179/', { waitUntil: 'networkidle' })
+	assert.equal(await page.locator('.hero-art .interactive-portrait').count(), 1)
+	await page.goto('http://127.0.0.1:5179/admin/site-content', { waitUntil: 'networkidle' })
+	await visualRow.getByLabel('Home visual', { exact: true }).selectOption('particles')
+	await visualRow.getByRole('button', { name: 'Save', exact: true }).click()
+	await page.goto('http://127.0.0.1:5179/shop', { waitUntil: 'networkidle' })
+	await page.emulateMedia({ reducedMotion: 'no-preference' })
+	await page.locator('footer').getByRole('link', { name: 'Home', exact: true }).click()
+	await page.waitForURL('http://127.0.0.1:5179/')
+	await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }))
+	await page.waitForFunction(() => getComputedStyle(document.querySelector('footer')).opacity === '1')
+	const footerGap = await page.evaluate(
+		() =>
+			document.querySelector('footer').getBoundingClientRect().top -
+			document.querySelector('#contact').getBoundingClientRect().bottom,
+	)
+	assert.ok(footerGap <= 40, `Unexpected footer gap ${footerGap}`)
+	await page.screenshot({ path: artifact + '/footer-after-navigation.png' })
+	await page.emulateMedia({ reducedMotion: 'reduce' })
+
 	// Back-to-top shares the floating-action column with chat, without overlap.
 	await page.goto('http://127.0.0.1:5179/', { waitUntil: 'networkidle' })
 	assert.equal(await page.getByRole('button', { name: 'Back to top', exact: true }).count(), 0)
-	await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }))
+	await page.evaluate(() => window.scrollTo({ top: 500, behavior: 'instant' }))
 	const backToTop = page.getByRole('button', { name: 'Back to top', exact: true })
 	await backToTop.waitFor()
 	const topRect = await backToTop.boundingBox(),
 		chatRect = await page.getByRole('button', { name: 'Open chat', exact: true }).boundingBox()
 	assert.ok(topRect.y + topRect.height <= chatRect.y - 8)
 	assert.ok(Math.abs(topRect.x + topRect.width / 2 - chatRect.x - chatRect.width / 2) < 1)
+	await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }))
 	await page.screenshot({ path: artifact + '/public-bottom-desktop.png' })
 	await page.getByRole('button', { name: 'Open chat', exact: true }).click()
 	await backToTop.waitFor({ state: 'hidden' })

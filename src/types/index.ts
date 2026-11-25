@@ -78,6 +78,7 @@ export interface Project {
 	liveUrl?: string | null
 	repoUrl?: string | null
 	category?: string | null
+	company?: string
 	featured: boolean
 	published: boolean
 	sortOrder: number

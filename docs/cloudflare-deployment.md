@@ -2,6 +2,14 @@
 
 Updated: 25 November 2026 (Asia/Manila).
 
+Home/shop presentation release: also apply `0010_presentation_and_shop_stats.sql`
+and `0011_curate_featured_projects.sql` before deploying this source. The first
+adds fields with zero/empty defaults; the second deliberately updates featured
+flags and the three WWC project categories/company. It does not replace their
+descriptions or galleries. Seed afterward to add the three missing home-visual
+settings from the existing CSV. Ordinary seeding preserves existing settings.
+The sample figurine is a bundled GLB and needs no separate upload service.
+
 Shop update (November 25, 2026): before releasing source that includes the shop,
 back up the intended D1 target and apply pending additive migrations, including
 `0007_shop.sql`, `0008_shop_subcategories.sql` and `0009_shop_downloads.sql`.

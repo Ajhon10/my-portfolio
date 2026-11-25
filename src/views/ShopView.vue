@@ -2,13 +2,13 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import {
 	useShopProvider,
-	shopCategoryLabel,
 	type ShopProduct,
 	type ShopCategory,
 	type ShopSubcategory,
 } from '@/composables/provider/shop.provider'
 import { useSiteBranding } from '@/composables/useSiteBranding'
 import SiteIcon from '@/components/SiteIcon.vue'
+import ShopStats from '@/components/ShopStats.vue'
 
 const provider = useShopProvider()
 const { resolveAssetUrl } = useSiteBranding()
@@ -25,10 +25,9 @@ const chooseCategory = (id: string) => {
 const search = ref('')
 const loading = ref(true)
 const failed = ref(false)
-const selected = ref<Record<string, string>>({})
+const cover = (product: ShopProduct) => product.media.find((media) => media.mediaType === 'image')
 const page = ref(1)
 let loadVersion = 0
-const currentMedia = (p: ShopProduct) => p.media.find((m) => m.id === selected.value[p.id]) || p.media[0]
 const load = async () => {
 	loading.value = true
 	const version = ++loadVersion
@@ -147,75 +146,22 @@ onMounted(load)
 				</p>
 				<div class="shop-grid">
 					<article v-for="product in products" :key="product.id" class="shop-product">
-						<div class="shop-cover">
-							<video
-								v-if="currentMedia(product)?.mediaType === 'video'"
-								:key="currentMedia(product)!.id"
-								:src="resolveAssetUrl(currentMedia(product)!.url)"
-								:aria-label="currentMedia(product)!.altText || product.name"
-								controls
-								playsinline
-								preload="metadata"
-							/>
-							<img
-								v-else-if="currentMedia(product)"
-								:src="resolveAssetUrl(currentMedia(product)!.url)"
-								:alt="currentMedia(product)!.altText || product.name"
-								loading="lazy"
-							/>
-							<SiteIcon v-else name="bag" :size="48" />
-						</div>
-						<div
-							v-if="product.media.length > 1"
-							class="shop-thumbnails"
-							role="group"
-							:aria-label="`${product.name} gallery`"
-						>
-							<button
-								v-for="(media, index) in product.media"
-								:key="media.id"
-								type="button"
-								:aria-label="`Show ${media.mediaType} ${index + 1} for ${product.name}`"
-								:aria-pressed="currentMedia(product)?.id === media.id"
-								@click="selected[product.id] = media.id"
-							>
-								<img v-if="media.mediaType === 'image'" :src="resolveAssetUrl(media.url)" alt="" loading="lazy" /><span
-									v-else
-									>Video {{ index + 1 }}</span
-								>
-							</button>
-						</div>
-						<div class="shop-product-copy">
-							<p class="shop-category-label">{{ shopCategoryLabel(product) }}</p>
-							<div class="shop-product-title">
+						<router-link :to="`/shop/${product.id}`" class="shop-card-link" :aria-label="`View ${product.name}`">
+							<div class="shop-cover">
+								<img
+									v-if="cover(product)"
+									:src="resolveAssetUrl(cover(product)!.url)"
+									:alt="cover(product)!.altText || product.name"
+									loading="lazy"
+								/>
+								<SiteIcon v-else name="bag" :size="40" />
+							</div>
+							<div class="shop-product-copy">
 								<h2>{{ product.name }}</h2>
-								<span v-if="product.priceLabel">{{ product.priceLabel }}</span>
+								<p class="shop-price">{{ product.priceLabel || 'Price on inquiry' }}</p>
+								<ShopStats :product="product" />
 							</div>
-							<p class="shop-description">{{ product.description }}</p>
-							<div class="shop-actions">
-								<a
-									v-if="product.downloadUrl"
-									:href="product.downloadUrl"
-									download
-									target="_blank"
-									rel="noopener noreferrer"
-									class="folio-button"
-									>Free download <SiteIcon name="download" :size="18"
-								/></a>
-								<router-link
-									:to="{ path: '/', hash: '#contact', query: { item: product.name } }"
-									:class="product.downloadUrl ? 'folio-text-link' : 'folio-button'"
-									>Inquire about this <SiteIcon name="mail" :size="18" /></router-link
-								><a
-									v-if="product.purchaseUrl"
-									:href="product.purchaseUrl"
-									target="_blank"
-									rel="noopener noreferrer"
-									class="folio-text-link"
-									>Purchase <SiteIcon name="bag" :size="16"
-								/></a>
-							</div>
-						</div>
+						</router-link>
 					</article>
 				</div>
 			</template>
@@ -313,15 +259,15 @@ onMounted(load)
 }
 .shop-grid {
 	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 48px 32px;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 28px 24px;
 	align-items: start;
 }
 .shop-product {
 	min-width: 0;
 }
 .shop-cover {
-	aspect-ratio: 4/3;
+	aspect-ratio: 1;
 	background: var(--folio-surface);
 	border: 1px solid var(--folio-line);
 	border-radius: 6px;
@@ -337,68 +283,8 @@ onMounted(load)
 	object-fit: contain;
 	max-height: 100%;
 }
-.shop-thumbnails {
-	display: flex;
-	gap: 8px;
-	overflow-x: auto;
-	padding: 12px 3px 6px;
-}
-.shop-thumbnails button {
-	width: 64px;
-	height: 52px;
-	flex: 0 0 auto;
-	border: 1px solid var(--folio-line);
-	border-radius: 3px;
-	overflow: hidden;
-	background: var(--folio-surface);
-	font-size: 12px;
-}
-.shop-thumbnails button[aria-pressed='true'] {
-	outline: 2px solid var(--folio-accent);
-	outline-offset: 1px;
-}
-.shop-thumbnails img {
-	width: 100%;
-	height: 100%;
-	object-fit: cover;
-}
 .shop-product-copy {
 	padding-top: 20px;
-}
-.shop-category-label {
-	font-size: 12px;
-	color: var(--folio-accent);
-	margin-bottom: 10px;
-	overflow-wrap: anywhere;
-}
-.shop-product-title {
-	display: flex;
-	justify-content: space-between;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: 12px;
-}
-.shop-product-title h2 {
-	font:
-		500 25px 'Space Grotesk',
-		sans-serif;
-	overflow-wrap: anywhere;
-}
-.shop-product-title > span {
-	color: var(--folio-accent);
-}
-.shop-description {
-	margin: 16px 0 24px;
-	color: var(--folio-muted);
-	line-height: 1.8;
-	white-space: pre-line;
-	overflow-wrap: anywhere;
-}
-.shop-actions {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 20px;
 }
 @media (max-width: 767px) {
 	.shop-heading {
@@ -406,10 +292,69 @@ onMounted(load)
 		gap: 24px;
 	}
 	.shop-grid {
-		grid-template-columns: 1fr;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 20px 12px;
 	}
 	.shop-search {
 		width: 100%;
+	}
+}
+
+.shop-card-link {
+	display: block;
+	height: 100%;
+	border: 1px solid var(--folio-line);
+	border-radius: 8px;
+	overflow: hidden;
+	background: var(--folio-bg);
+	transition:
+		box-shadow 180ms,
+		border-color 180ms;
+}
+.shop-card-link:hover,
+.shop-card-link:focus-visible {
+	border-color: var(--folio-accent);
+	box-shadow: 0 8px 24px rgb(20 50 90 / 0.08);
+}
+.shop-card-link .shop-cover {
+	border: 0;
+	border-radius: 0;
+	border-bottom: 1px solid var(--folio-line);
+}
+.shop-product-copy {
+	padding: 16px;
+}
+.shop-product-copy h2 {
+	font:
+		500 18px/1.4 'Space Grotesk',
+		sans-serif;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	min-height: 2.8em;
+	overflow-wrap: anywhere;
+}
+.shop-price {
+	color: var(--folio-accent);
+	font-size: 21px;
+	font-weight: 600;
+	margin: 12px 0 8px;
+}
+@media (max-width: 767px) {
+	.shop-product-copy {
+		padding: 12px;
+	}
+	.shop-product-copy h2 {
+		font-size: 15px;
+	}
+	.shop-price {
+		font-size: 19px;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.shop-card-link {
+		transition: none;
 	}
 }
 </style>

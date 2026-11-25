@@ -22,6 +22,9 @@ export interface ShopProduct {
 	priceLabel: string
 	purchaseUrl: string
 	downloadUrl: string
+	soldCount: number
+	ratingAverage: number | null
+	ratingCount: number
 	published: boolean
 	sortOrder: number
 	categories: ShopCategory[]
@@ -30,7 +33,7 @@ export interface ShopProduct {
 }
 export type ShopInput = Pick<
 	ShopProduct,
-	'name' | 'description' | 'priceLabel' | 'purchaseUrl' | 'downloadUrl' | 'published' | 'sortOrder'
+	'name' | 'description' | 'priceLabel' | 'purchaseUrl' | 'downloadUrl' | 'published' | 'sortOrder' | 'soldCount' | 'ratingAverage' | 'ratingCount'
 > & { categoryIds: string[]; subcategoryIds: string[] }
 export const shopCategoryLabel = (product: ShopProduct) =>
 	product.categories
@@ -42,6 +45,7 @@ export const shopCategoryLabel = (product: ShopProduct) =>
 export const useShopProvider = () => {
 	const api = useApiProvider()
 	return {
+		product: (id: string) => api.GET<ShopProduct>(`/shop/products/${encodeURIComponent(id)}`, {}, { silent: true }),
 		products: (
 			admin = false,
 			filters: { page?: number; search?: string; category?: string; subcategory?: string } = {},

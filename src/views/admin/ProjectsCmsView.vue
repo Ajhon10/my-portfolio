@@ -36,6 +36,7 @@ const form = reactive<ProjectInput>({
 	liveUrl: '',
 	repoUrl: '',
 	category: '',
+	company: '',
 	featured: false,
 	published: true,
 	sortOrder: 0,
@@ -194,6 +195,7 @@ const resetForm = () => {
 		liveUrl: '',
 		repoUrl: '',
 		category: '',
+		company: '',
 		featured: false,
 		published: true,
 		sortOrder: 0,
@@ -219,6 +221,7 @@ const openEdit = (p: Project) => {
 		liveUrl: p.liveUrl || '',
 		repoUrl: p.repoUrl || '',
 		category: p.category || '',
+		company: p.company || '',
 		featured: p.featured,
 		published: p.published,
 		sortOrder: p.sortOrder,
@@ -254,6 +257,7 @@ const save = async () => {
 		liveUrl: form.liveUrl?.trim() || undefined,
 		repoUrl: form.repoUrl?.trim() || undefined,
 		category: form.category?.trim() || undefined,
+		company: form.company?.trim() || '',
 		featured: form.featured,
 		published: form.published,
 		sortOrder: form.sortOrder,
@@ -481,6 +485,9 @@ const toggleTech = (id: string) => {
 					</FormField>
 					<FormField label="Live URL">
 						<input v-model="form.liveUrl" type="url" class="input" placeholder="https://..." />
+					</FormField>
+					<FormField label="Company / employer (optional)" hint="For work completed during employment; leave empty for personal projects.">
+						<input v-model="form.company" maxlength="200" class="input" placeholder="WWC Yellow Bumblebee Corp." />
 					</FormField>
 					<FormField label="Repo URL">
 						<input v-model="form.repoUrl" type="url" class="input" placeholder="https://github.com/..." />

@@ -7,23 +7,16 @@ import { useProjectProvider } from '@/composables/provider/project.provider'
 import { useSiteContentProvider } from '@/composables/provider/site-content.provider'
 import { useSiteBranding } from '@/composables/useSiteBranding'
 import type { SiteContent } from '@/types'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue'
 import { toast } from 'vue3-toastify'
 
 const provider = useSiteContentProvider()
+const ModelPortrait = defineAsyncComponent(() => import('@/components/ModelPortrait.vue'))
 const uploadProvider = useProjectProvider()
 const { refreshBranding, resolveAssetUrl } = useSiteBranding()
 
 type PortraitDirection =
-	| 'center'
-	| 'up'
-	| 'down'
-	| 'left'
-	| 'right'
-	| 'up-left'
-	| 'up-right'
-	| 'down-left'
-	| 'down-right'
+	'center' | 'up' | 'down' | 'left' | 'right' | 'up-left' | 'up-right' | 'down-left' | 'down-right'
 type PortraitAdjustment = { scale: number; x: number; y: number }
 
 const PORTRAIT_DIRECTIONS: { direction: PortraitDirection; key: string; label: string }[] = [
@@ -42,6 +35,19 @@ const PORTRAIT_ADJUSTMENTS_KEY = 'hero_portrait_adjustments'
 const defaultPortraitAdjustment = (): PortraitAdjustment => ({ scale: 1, x: 50, y: 50 })
 
 const defaultItems: SiteContent[] = [
+	{ id: 'default-hero_visual_mode', key: 'hero_visual_mode', label: 'Home visual', value: 'particles' },
+	{
+		id: 'default-hero_model_url',
+		key: 'hero_model_url',
+		label: '3D model URL',
+		value: '/seed/models/jhon-figurine.glb',
+	},
+	{
+		id: 'default-hero_model_alt',
+		key: 'hero_model_alt',
+		label: '3D model description',
+		value: 'Stylized sample figurine of Jhon in a white and red polo',
+	},
 	{
 		id: 'default-hero_particle_density',
 		key: 'hero_particle_density',
@@ -130,6 +136,9 @@ const BRAND_KEYS = [
 ]
 
 const HERO_KEYS = [
+	'hero_visual_mode',
+	'hero_model_url',
+	'hero_model_alt',
 	'hero_particle_density',
 	'hero_particle_strength',
 	'hero_title',
@@ -154,6 +163,8 @@ const IMAGE_KEYS = new Set(['site_logo_url', 'site_favicon_url', 'hero_photo_url
 const SITE_ASSET_KEYS = new Set(['site_logo_url', 'site_favicon_url'])
 const BOOLEAN_KEYS = new Set(['hero_freelance_available'])
 const SINGLE_LINE_KEYS = new Set([
+	'hero_model_url',
+	'hero_model_alt',
 	'site_logo_text',
 	'site_logo_subtitle',
 	'site_title',
@@ -175,6 +186,11 @@ const SOCIAL_META: Record<string, { label: string; placeholder: string; color: s
 }
 
 const hints: Record<string, string> = {
+	hero_visual_mode:
+		'Choose what every visitor sees: particles, interactive portrait, or 3D model. Save to publish the choice.',
+	hero_model_url:
+		'The bundled sample references your portrait. Replace with a public HTTPS .glb URL with cross-origin access enabled. Keep models small for mobile visitors.',
+	hero_model_alt: 'Describe the figurine for visitors using a screen reader.',
 	site_logo_url: 'Upload a transparent PNG, SVG, or WebP logo for the navbar.',
 	site_favicon_url:
 		'Upload an ICO, PNG, SVG, or WebP icon (up to 8 MB). Saving refreshes the browser tab icon and other open portfolio tabs.',
@@ -592,7 +608,26 @@ const toggleBoolean = (item: SiteContent) => {
 					</button>
 				</div>
 
-				<div v-if="item.key.startsWith('hero_particle_')">
+				<div v-if="item.key === 'hero_visual_mode'">
+					<label :for="item.key" class="label">Home visual</label>
+					<select :id="item.key" v-model="drafts[item.key]" class="input">
+						<option value="particles">Particles</option>
+						<option value="portrait">Portrait</option>
+						<option value="model">3D model</option>
+					</select>
+					<div v-if="drafts[item.key] === 'model'" class="mt-4 max-w-sm">
+						<ModelPortrait
+							:src="drafts.hero_model_url"
+							:poster="drafts.hero_photo_url || drafts.hero_portrait_center_url"
+							:alt="drafts.hero_model_alt"
+						/>
+						<p class="text-xs text-brand-gray-400 mt-2">
+							Drag to rotate. This is a stylized sample, with an approximate likeness. The preview uses unsaved values;
+							Save publishes each setting.
+						</p>
+					</div>
+				</div>
+				<div v-else-if="item.key.startsWith('hero_particle_')">
 					<label :for="item.key" class="label">{{ item.label }}</label
 					><input
 						:id="item.key"

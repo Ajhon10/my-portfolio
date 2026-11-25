@@ -28,6 +28,7 @@ const router = createRouter({
 			meta: { requiresAuth: false },
 		},
 		{ path: '/shop', name: 'shop', component: () => import('@/views/ShopView.vue') },
+		{ path: '/shop/:id', name: 'shop-product', component: () => import('@/views/ShopProductView.vue') },
 		{
 			path: '/admin/shop',
 			name: 'admin-shop',

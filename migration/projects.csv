@@ -1,4 +1,4 @@
-id,createdAt,updatedAt,deletedAt,deleted,title,slug,description,shortSummary,thumbnailUrl,liveUrl,repoUrl,category,featured,published,sortOrder
+id,createdAt,updatedAt,deletedAt,deleted,title,slug,description,shortSummary,thumbnailUrl,liveUrl,repoUrl,category,featured,published,sortOrder,company
 3e468d45-43e3-4533-93d5-83aff91ab7c7,2026-09-27T12:59:45.133Z,2026-09-27T13:02:58.174Z,\N,false,Designated Establishment Online Submission (DEOS),designated-establishment-online-submission-deos,"DEOS - Designated Establishment Online Submission
 WWC Yellow Bumblebee Corp. - Fullstack contributor
 Contributor: Jhon Lisley Jeresano
@@ -13,7 +13,7 @@ My contributions
 - Built user-manual features on the client and server, including guidance content and seed data.
 - Updated public content and FAQs, admin submission access, analytics integration, and client-requested interface improvements.
 
-Attribution is based on commits authored by Jhon Lisley Jeresano in the DEOS client and server repositories. This is a team project; these are my contributions, not a claim of sole authorship.","Fullstack contributions to government energy reporting: submission forms, PDF reports, spatial analytics, and user guidance.",\N,\N,\N,WWC Yellow Bumblebee Corp.,true,true,0
+Attribution is based on commits authored by Jhon Lisley Jeresano in the DEOS client and server repositories. This is a team project; these are my contributions, not a claim of sole authorship.","Fullstack contributions to government energy reporting: submission forms, PDF reports, spatial analytics, and user guidance.",\N,\N,\N,Web Application,true,true,0,WWC Yellow Bumblebee Corp.
 497f93bd-61c9-458a-848d-a966cf7bf0f1,2026-09-27T12:59:45.133Z,2026-09-27T13:02:58.174Z,\N,false,PDEA Virtual Museum,pdea-virtual-museum,"PDEA Virtual Museum
 WWC Yellow Bumblebee Corp. - Fullstack website developer
 Developer: Jhon Lisley Jeresano
@@ -26,7 +26,7 @@ My contributions
 - Installed and integrated the Unity 3D application into the website so visitors could access the virtual museum experience.
 
 Scope of ownership
-The Unity 3D application itself was built by other developers. My responsibility covered the entire website and the installation and integration of that application into the web experience.",Built the complete museum website and integrated the separately developed Unity 3D museum experience.,\N,\N,\N,WWC Yellow Bumblebee Corp.,true,true,1
+The Unity 3D application itself was built by other developers. My responsibility covered the entire website and the installation and integration of that application into the web experience.",Built the complete museum website and integrated the separately developed Unity 3D museum experience.,\N,\N,\N,Web Application,true,true,1,WWC Yellow Bumblebee Corp.
 4c841cba-46e3-4747-9590-5973615bc437,2026-09-27T12:59:45.133Z,2026-09-27T13:02:58.174Z,\N,false,Office for Alternative Dispute Resolution (OADR),office-for-alternative-dispute-resolution-oadr,"Office for Alternative Dispute Resolution (OADR)
 WWC Yellow Bumblebee Corp. - Fullstack developer
 Developer: Jhon Lisley Jeresano
@@ -39,7 +39,7 @@ My contributions
 - Developed the awards and recognition pages.
 
 Scope of ownership
-My work covers the recruitment process and the named supporting pages. The wider OADR platform is a team project.","Developed the complete recruitment process and the performance management, awards, and recognition pages.",https://my-portfolio.itsajhon.workers.dev/uploads/cd5bea88-338c-48cc-8476-35f7e42fb7d2.png,\N,\N,WWC Yellow Bumblebee Corp.,true,true,2
+My work covers the recruitment process and the named supporting pages. The wider OADR platform is a team project.","Developed the complete recruitment process and the performance management, awards, and recognition pages.",https://my-portfolio.itsajhon.workers.dev/uploads/cd5bea88-338c-48cc-8476-35f7e42fb7d2.png,\N,\N,Web Application,true,true,2,WWC Yellow Bumblebee Corp.
 6e04caac-977a-4150-948a-543b81b884c4,2026-11-05T09:24:37.009Z,2026-11-05T09:24:37.009Z,\N,false,SSS Archive v2,sss-archive-v2,"SSS Archive v2 / SSS Records
 
 An offline-first Windows desktop application for organizing archive records and their supporting documents. Each computer keeps its own local SQLite workspace, with no internet connection required for normal use.
@@ -53,7 +53,7 @@ Implemented features
 
 Technology: Vue 3, TypeScript, Electron, Node.js, SQLite, and Tesseract.js.
 
-Platform: Windows desktop. This is the standalone version 2 project, separate from the original version 1 application.","An offline Windows archive workspace with connected classifications, document management, local AI/OCR assistance, and reviewable database transfers.",https://my-portfolio.itsajhon.workers.dev/uploads/c4e28123-5a7f-4985-b842-4faa82723dda.png,\N,https://github.com/Ajhon10/SSS-archive-v2,Desktop Application,true,true,3
+Platform: Windows desktop. This is the standalone version 2 project, separate from the original version 1 application.","An offline Windows archive workspace with connected classifications, document management, local AI/OCR assistance, and reviewable database transfers.",https://my-portfolio.itsajhon.workers.dev/uploads/c4e28123-5a7f-4985-b842-4faa82723dda.png,\N,https://github.com/Ajhon10/SSS-archive-v2,Desktop Application,false,true,3,
 f975cd8a-695b-4426-aff6-f24cffab3116,2026-11-05T09:24:37.009Z,2026-11-05T09:24:37.009Z,\N,false,Kiko's Order Planner,kikos-order-planner,"Kiko's Order Planner
 
 An internal web application for organizing food orders from booking through preparation and handoff. Owner and Staff permissions separate daily operations from account, menu, payment, cancellation, and financial-report administration.
@@ -68,7 +68,7 @@ Implemented features
 
 Technology: Vue 3, TypeScript, Laravel, PHP, and Tailwind CSS. MySQL is the production database target.
 
-Status: implemented and locally verified. Production hosting and live business acceptance remain pending; no public application URL is listed.","An internal food-order planner with customer contacts, fulfillment calendars, preparation tracking, payment records, and operational reports.",https://my-portfolio.itsajhon.workers.dev/uploads/493477c2-9161-44e6-9d71-c432c6845533.png,\N,\N,Web Application,true,true,4
+Status: implemented and locally verified. Production hosting and live business acceptance remain pending; no public application URL is listed.","An internal food-order planner with customer contacts, fulfillment calendars, preparation tracking, payment records, and operational reports.",https://my-portfolio.itsajhon.workers.dev/uploads/493477c2-9161-44e6-9d71-c432c6845533.png,\N,\N,Web Application,false,true,4,
 93940431-21fa-4fa7-a4ed-31c4a9538656,2026-11-05T09:24:37.009Z,2026-11-05T09:24:37.009Z,\N,false,Blank,blank-personal-finance,"Blank / Personal Finance Tracker
 
 A Windows-first desktop application for managing personal finances in a local workspace. Its interface combines customizable wallet cards, clear financial summaries, and a Liquid Glass visual style.
@@ -82,7 +82,7 @@ Implemented features
 
 Technology: React, TypeScript, Tauri 2, Rust, SQLite, and Recharts.
 
-Platform: Windows desktop. Web and mobile clients are planned; this entry does not present them as released applications.","A local-first personal finance desktop app for accounts, income and expenses, transfers, budgets, goals, receipts, and financial insights.",https://my-portfolio.itsajhon.workers.dev/uploads/92c69359-53f1-43f3-8d2e-a084e6939011.png,\N,\N,Desktop Application,true,true,5
+Platform: Windows desktop. Web and mobile clients are planned; this entry does not present them as released applications.","A local-first personal finance desktop app for accounts, income and expenses, transfers, budgets, goals, receipts, and financial insights.",https://my-portfolio.itsajhon.workers.dev/uploads/92c69359-53f1-43f3-8d2e-a084e6939011.png,\N,\N,Desktop Application,false,true,5,
 189c96e7-e10c-4324-a6c5-0120d592b656,2026-11-25T00:00:00.000Z,2026-11-25T00:00:00.000Z,\N,false,FableSplice Studio,fablesplice,"FableSplice Studio
 
 A personal, offline-first English story-to-video prototype for Windows. The current implementation focuses on a headless pipeline and private local API.
@@ -96,7 +96,7 @@ Implemented features
 
 Technology: Python, FastAPI, Pydantic, SQLite, FFmpeg, and explicitly configured local AI engines.
 
-Status: Phase 0 prototype. The desktop scene-board interface and cinematic character-animation quality remain development targets; this is not a finished desktop release.","A Windows story-to-video prototype with local AI story planning, approved media workflows, captions, and experimental character animation.",/seed/projects/fablesplice/cover.svg,\N,https://github.com/Ajhon10/FableSplice,AI Prototype,false,true,6
+Status: Phase 0 prototype. The desktop scene-board interface and cinematic character-animation quality remain development targets; this is not a finished desktop release.","A Windows story-to-video prototype with local AI story planning, approved media workflows, captions, and experimental character animation.",/seed/projects/fablesplice/cover.svg,\N,https://github.com/Ajhon10/FableSplice,AI Prototype,false,true,6,
 f5ca7067-156e-4582-9a9c-17b7cf627850,2026-11-25T00:00:00.000Z,2026-11-25T00:00:00.000Z,\N,false,MemeCam,meme-camera,"MemeCam / meme-camera
 
 A Windows-first desktop camera studio that attaches image reactions to tracked faces, hands, and body positions. Camera processing and effect storage run locally.
@@ -111,7 +111,7 @@ Implemented features
 
 Technology: Vue 3, TypeScript, Electron, Vite, Pinia, MediaPipe, Canvas 2D, and native C++ camera components.
 
-Platform: Windows desktop; the native virtual camera requires Windows 11. Physical-camera accuracy and meeting-app compatibility depend on device testing.","A local Windows camera studio that turns face, hand, and body gestures into live image effects, with a native Windows 11 virtual camera.",/seed/projects/meme-camera/studio.png,\N,https://github.com/Ajhon10/meme-camera,Desktop Application,false,true,7
+Platform: Windows desktop; the native virtual camera requires Windows 11. Physical-camera accuracy and meeting-app compatibility depend on device testing.","A local Windows camera studio that turns face, hand, and body gestures into live image effects, with a native Windows 11 virtual camera.",/seed/projects/meme-camera/studio.png,\N,https://github.com/Ajhon10/meme-camera,Desktop Application,false,true,7,
 604aefd5-5dbf-4509-ad4a-a7836561c3d0,2026-11-25T00:00:00.000Z,2026-11-25T00:00:00.000Z,\N,false,MuniAlert,munialert,"MuniAlert - Municipal Emergency and Public Hazard Reporting
 
 A responsive web and Android project for Basista, Pangasinan, supporting photo and location-based incident reporting across its 13 barangays.
@@ -126,4 +126,4 @@ Implemented features
 
 Technology: Vue 3, TypeScript, Vite, Capacitor Android, MapLibre, Laravel, PHP, and MySQL.
 
-Status: web and Android implementation with a Hostinger deployment target. Production delivery and physical-device acceptance remain separate verification steps; no public live URL is listed.","A municipal hazard-reporting system for Basista with photo and location-based reports, citizen updates, and an administrator review workspace.",/seed/projects/munialert/desktop.png,\N,https://github.com/Ajhon10/MuniAlert,Web & Mobile Application,false,true,8
+Status: web and Android implementation with a Hostinger deployment target. Production delivery and physical-device acceptance remain separate verification steps; no public live URL is listed.","A municipal hazard-reporting system for Basista with photo and location-based reports, citizen updates, and an administrator review workspace.",/seed/projects/munialert/desktop.png,\N,https://github.com/Ajhon10/MuniAlert,Web & Mobile Application,false,true,8,

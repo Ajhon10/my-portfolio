@@ -44,12 +44,13 @@ const imgSrc = computed(() => resolveAssetUrl(props.project.thumbnailUrl || prop
 			</div>
 			<div
 				v-if="project.category"
-				class="absolute bottom-3 left-3 right-3 w-fit max-w-[calc(100%-1.5rem)] px-2.5 py-1 rounded-full bg-black/70 backdrop-blur text-[10px] font-mono text-brand-blueLight"
+				class="project-category-badge absolute bottom-3 left-3 right-3 w-fit max-w-[calc(100%-1.5rem)] px-2.5 py-1 rounded-full text-[10px] font-mono"
 			>
 				{{ project.category }}
 			</div>
 		</div>
 		<div class="work-copy p-5">
+			<p v-if="project.company" class="project-company">Developed at {{ project.company }}</p>
 			<h3 class="font-display font-semibold text-lg mb-2 group-hover:text-brand-blueLight transition-colors">
 				{{ project.title }}
 			</h3>
@@ -71,3 +72,16 @@ const imgSrc = computed(() => resolveAssetUrl(props.project.thumbnailUrl || prop
 		</div>
 	</router-link>
 </template>
+<style scoped>
+.project-category-badge {
+	color: #fff;
+	background: #14253ef2;
+	border: 1px solid #ffffff30;
+}
+.project-company {
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--folio-muted);
+	margin-bottom: 8px;
+}
+</style>

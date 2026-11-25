@@ -17,6 +17,15 @@ server, PostgreSQL server, Redis service, PHP runtime or Laravel application.
 
 ## Cloudflare components
 
+The home visual has an admin-controlled particle/portrait/GLB setting. A pinned,
+lazy `@google/model-viewer` chunk renders a bundled original sample or a public
+HTTPS GLB; it does not require a server renderer, paid generation API or new
+storage service. The current CMS accepts a replacement model URL, not GLB
+uploads. The sample is deliberately versioned under `public/seed/models/`.
+Migration 0010 adds optional project company attribution and honest shop sales/
+rating aggregates; 0011 performs the specifically requested featured curation.
+Shop cards link to `/shop/:id`, retaining the same public/draft authorization.
+
 - Static Assets serves the compiled Vue interface.
 - A TypeScript Worker validates HTTP requests, authorizes roles and accesses D1.
 - D1 stores application records, revocable sessions, challenges and bounded media.

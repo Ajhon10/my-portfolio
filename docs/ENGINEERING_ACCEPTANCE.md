@@ -826,3 +826,42 @@ Public-row hash comparisons and recovery metadata remain under ignored
 `.wrangler/private/`, without private database payloads. This establishes the
 observed live flows; traffic capacity and optional email/AI delivery remain
 separate acceptance questions.
+
+## Admin home visual and catalog presentation — November 25, 2026
+
+The owner selected a sample figurine referencing the existing portrait. Added
+original reproducible GLB geometry and a pinned, lazy `@google/model-viewer`
+viewer. Admin controls particles/portrait/model and the replacement GLB URL;
+visitor visual controls and their local-storage override are removed. A CMS
+save-response mismatch discovered by the new browser checks is fixed: upsert
+now returns the actual stored row using SQL RETURNING, including its original
+ID, rather than a confirmation envelope that broke subsequent editor rendering.
+
+Implemented the requested DEOS/PDEA/OADR-only featured curation, Web Application
+category and separate WWC employment attribution in migration 0011 and the
+existing CSV. Company is editable and appears on cards/details. Light-mode
+thumbnail labels now have white text on a dark background. Back-to-top appears
+after 320 px; footer reveal observation and final spacing were corrected.
+Shop uses compact cards and dedicated product details. Zero sales/no ratings
+are explicit; owner-maintained verified totals are validated server-side and
+constrained in SQL. No automatic checkout/review collection is implied.
+
+Local verification: `npm.cmd run build` passed 53 Node tests, 205 Worker checks,
+typechecks and Vite production builds. `npm.cmd run test:browser` passed all
+existing flows plus real GLB loads in admin/public at 1440/390px, all three
+persisted admin modes, disabled Save after success, removal of visitor controls,
+compact shop cards, detail media/playback/inquiry, guest resume download, an
+earlier back-to-top trigger and the normal-motion Shop→Home footer regression.
+No page errors or unexpected API failures remained. Screenshots of the actual
+figurine, shop and footer were reviewed. The new migration test verifies that
+curation preserves descriptions, covers and publication flags.
+
+Evidence: `.test-artifacts/presentation-build.log`,
+`.test-artifacts/presentation-browser.log` and
+`.test-artifacts/browser-42e5a6cc-ce85-4d51-9be0-20fd7d096ef4/report.json`.
+Deployment dry run passed. Local migrations/seeds were applied. Recorded a fresh
+production D1 Time Travel bookmark and public-row hash baseline under ignored
+`.wrangler/private/presentation-*` metadata, without private database export.
+Production migrations 0010/0011 were applied successfully before the code push.
+Production seeding/deployment must additionally be confirmed against the exact
+GitHub commit; source push and local tests alone do not establish a live rollout.
