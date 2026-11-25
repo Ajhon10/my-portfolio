@@ -3,6 +3,8 @@ import Navbar from '@/components/Navbar.vue'
 import Footer from '@/components/Footer.vue'
 import ChatbotWidget from '@/components/ChatbotWidget.vue'
 import PortfolioGame from '@/components/PortfolioGame.vue'
+import BackToTop from '@/components/BackToTop.vue'
+import { providePortfolioGame } from '@/composables/usePortfolioGame'
 import { releaseVisitorPresence, retainVisitorPresence } from '@/composables/useSocket'
 import { useChatbotStore } from '@/stores/chatbot'
 import { useRoute } from 'vue-router'
@@ -12,7 +14,7 @@ const route = useRoute()
 const chatbot = useChatbotStore()
 const showChatbot = computed(() => !route.path.startsWith('/admin') && !route.path.startsWith('/client'))
 const layoutRoot = ref<HTMLElement | null>(null)
-const gameEnabled = ref(false)
+const { gameEnabled } = providePortfolioGame()
 
 let revealObserver: IntersectionObserver | undefined
 const observedSections = new Set<HTMLElement>()
@@ -82,11 +84,12 @@ onBeforeUnmount(() => {
 
 <template>
 	<div ref="layoutRoot" class="public-portfolio min-h-screen flex flex-col">
-		<Navbar :game-enabled="gameEnabled" @toggle-game="gameEnabled = !gameEnabled" />
+		<Navbar />
 		<main class="flex-1">
 			<slot />
 		</main>
 		<Footer />
+		<BackToTop v-if="showChatbot && !chatbot.isOpen" />
 		<ChatbotWidget v-if="showChatbot" />
 		<PortfolioGame v-if="gameEnabled" @exit="gameEnabled = false" />
 	</div>

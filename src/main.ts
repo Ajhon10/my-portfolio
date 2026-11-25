@@ -22,7 +22,7 @@ app.use(Vue3Toastify, {
 	autoClose: 3000,
 	position: toast.POSITION.TOP_RIGHT,
 	transition: toast.TRANSITIONS.SLIDE,
-	theme: 'dark',
+	theme: 'colored',
 	hideProgressBar: false,
 	closeButton: true,
 	clearOnUrlChange: false,
@@ -31,3 +31,5 @@ app.use(Vue3Toastify, {
 app.mount('#app')
 
 import './assets/portfolio.css'
+
+import './assets/themes.css'

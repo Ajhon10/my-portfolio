@@ -476,3 +476,150 @@ tests pass for the update/cascade behavior, preservation of unrelated settings,
 wrong-repository rejection and secret-free errors. Actual configuration and
 automatic Preview acceptance still require the user-scoped Builds permission
 that the workstation's Wrangler OAuth session does not provide.
+
+## Primary / Secondary themes and shop — November 25, 2026
+
+Implemented locally: white/blue Primary and navy Secondary themes, persistent
+public/admin selectors, SVG logo/action icons, public shop, category/product
+administration and multiple image/video uploads. The owner selected inquiry
+plus optional external purchase links. See portfolio-redesign.md and
+cloudflare-unified-architecture.md for the interaction/data contracts.
+
+Final local verification passed:
+
+- `npm.cmd run build`: 46 Node tests, 143 isolated Worker checks, all TypeScript
+  checks and Worker/client production compilation.
+- `npm.cmd run test:browser`: desktop/mobile public pages, all 12 CMS pages,
+  theme persistence, SVG icon presence, navigation overflow checks at 768, 920,
+  921 and 1024 pixels, multiple shop categories, draft privacy, three-file
+  image/video selection, actual WebM playback, category/search filtering and
+  inquiry prefill. No page errors or failed page API responses.
+- Worker checks cover unauthorized/client mutations, invalid categories and
+  atomic rollback, unsafe purchase URLs, published-only lists, media signature
+  checks, gallery/file-reference limits, soft deletion, and 81-product pagination
+  with filters applied before paging.
+- `npm.cmd run deploy:check`: successful dry run; no publication.
+- `git diff --check`: passed.
+
+Reviewed the saved Primary/Secondary desktop and shop/mobile screenshots.
+Final browser evidence is kept in the ignored directory
+`.test-artifacts/browser-40c9ef50-e23c-47a8-96a5-b155d9f9d54f`.
+Initial checks exposed Windows sandbox access restrictions, formatting-sensitive
+Vue handlers and a browser assertion that needed to await server filtering;
+the final runs above passed after those issues were resolved.
+
+The configured local D1 target was verified to contain only migration/runtime
+metadata before applying all seven schema migrations. No seeds, accounts or
+remote data were changed. Previously restored local state under other database
+identities was preserved. Before remote release, back up and apply
+`0007_shop.sql` to the intended staging/production database, then deploy through
+the existing release process. Remote deployment and workload acceptance remain
+separate; this work did not publish, push or commit source changes.
+
+## Production content CSVs, viewer controls and Light/Dark labels — November 25, 2026
+
+Read current published portfolio data from the production public API and enabled
+chatbot answers through one read-only D1 content query. Added 11 CSV files under
+`migration/`, containing 107 records in total. Original seed filenames and the
+`npm run db:seed` entry point remain unchanged. README.md records individual
+counts and empty sections. Accounts, inquiries, conversations, notifications,
+disabled answers and binary uploads were excluded. Production data was not
+modified; no remote seed or deployment was run. All 23 referenced production
+upload URLs passed HEAD checks. CSV media references point to those live assets.
+
+The CSV reader preserves quoted multiline text, commas, quotes, UTF-8 and nullable
+values. Isolated SQLite tests confirm complete page/gallery imports, foreign-key
+integrity, idempotence, preservation of customized rows and parent-ID resolution.
+The latest snapshot, including the enabled chatbot CSV, passed 48 Node tests and
+143 isolated Worker checks with `npm.cmd test`.
+
+Game mode moved from the header navigation to the hero's live viewer controls.
+Five distinct visitor sessions display "You and 4 others are currently viewing";
+two use singular "other"; one displays "You are currently viewing". The layout
+owns game state, including Exit. Header theme labels are Light mode / Dark mode,
+with Light default for new visitors and legacy dark defaults. New selector
+choices persist. CSS transitions animate for 280 ms and respect reduced motion.
+Linked portraits blocked from canvas by cross-origin restrictions remain visible
+as static images with a matching preview caption.
+
+Final local UI verification passed: `npm.cmd run typecheck`, production Vite
+compilation, `npm.cmd run test:browser`, and `npm.cmd run deploy:check`.
+Browser checks exercised fresh/legacy Light defaults, saved Dark choices,
+reduced-motion behavior, a real CSS transition sampled at its midpoint, one/two/
+five viewer sessions, game enable/disable, visible imported portrait, desktop/
+mobile reflow, and the existing CMS/shop/inquiry/media flows. The animation test
+samples the CSS animation directly to avoid a busy host missing a timed frame.
+No page errors or failed page API responses were recorded. Reviewed rendered
+desktop/mobile screenshots. Evidence:
+`.test-artifacts/browser-ca9b2806-8b14-41d7-8ef1-58ae6d228b0f`.
+
+`git diff --check` passed. Source remains local and uncommitted. The prior shop
+migration's remote release requirement remains applicable; production deployment
+and workload acceptance have not been performed as part of this update.
+
+## Supplied photography seeds and animated sun/moon control — November 25, 2026
+
+Added the four supplied JPEGs as deliberate source assets in
+`public/seed/photography/`, preserving original filenames and SHA-256-matched
+bytes. Added their published records to the existing `migration/photography.csv`
+in the supplied order: Sorsogon Capitol Park; Makati City; Sorsogon City;
+Rompeolas, Sorsogon City. Captions, accessible descriptions, categories and
+display order are seeded and editable through Photography administration.
+The seed now contains 111 records. The repeatable local seed command succeeded;
+all four supplied IDs were verified as published and non-deleted locally.
+
+The photograph API accepts only the bounded UUID/JPEG path shape under
+`/seed/photography/` in addition to its existing media URLs. CMS edits of a seeded
+photo succeed; client writes, traversal paths and unsupported asset extensions
+are rejected. Runtime upload limits and permissions remain intact. Bundled
+photos are served by Static Assets without creating upload or owner records.
+
+`ThemeSelect.vue` keeps its filename and now renders a 44px sun/moon button with
+accessible name, pressed state and action title. Rotation/fade accompanies the
+existing color transition; reduced motion disables both. The public button is
+visible beside Menu on mobile, with DOM order matching visual navigation order.
+The four-photo gallery uses two columns on desktop and one on mobile.
+
+Verification passed: 49 Node tests, 150 isolated Worker checks, TypeScript,
+production compilation, complete browser flows and deployment dry run. Browser
+checks cover the four loaded originals, filtering, native lightbox/Escape,
+seed-photo CMS edits, real icon/color animation midpoints, reduced motion and
+keyboard activation. Final built-Worker checks independently confirmed four
+loaded photos, two/one columns at 1440/390px, no horizontal overflow after reflow,
+and no page errors. Desktop/mobile screenshots were reviewed. Evidence:
+`.test-artifacts/browser-99cf6a17-9f2a-4af1-8e18-23c7edfb450b`, including the
+`photography-*-final.png` and theme-header captures.
+
+`git diff --check` passed. Production was not changed or seeded, and this update
+was not deployed, committed or pushed. Existing remote-release prerequisites
+remain applicable.
+
+## Connection feedback, header actions and back-to-top — November 25, 2026
+
+Added a global connection bar with the requested offline/reconnected copy. It
+starts quietly online, remains visible offline, dismisses recovery after four
+seconds, cancels stale dismissal when connectivity changes again, and announces
+updates accessibly. Moved Let's connect into the right-side controls beside the
+sun/moon button, retaining an accessible icon-only contact action at 320px.
+Near the page bottom, a back-to-top control sits above the chatbot launcher;
+opening chat hides it to avoid overlap. Activation restores logo focus and
+respects reduced motion.
+
+The complete browser suite passed with no page errors or failed page API
+responses. Checks include offline/online transitions, timer cancellation,
+automatic recovery dismissal, 320/390px header reflow, chat collision avoidance,
+back-to-top scrolling and focus, plus all existing CMS, shop, gallery, theme,
+viewer and inquiry flows. Reviewed rendered mobile/desktop screenshots. Evidence:
+`.test-artifacts/browser-1d7d5c8d-427f-473e-9758-7ad4bb1db68b/report.json`.
+The final production build passed 49 Node tests, 150 isolated Worker checks,
+TypeScript and Vite compilation; log: `.test-artifacts/final-build.log`.
+`npm.cmd run deploy:check` also passed without deploying. The staged-file audit
+found no private environment files, database artifacts or credential patterns.
+
+Read-only GitHub verification confirmed both Portfolio CI and Workers Builds
+succeeded for current main revision `e72a782`. The deployment guide now explains
+the existing automatic main deployment and the shop migration-before-release /
+public seed-after-assets sequence. No production database or build settings
+were changed. Prepared the accumulated authorized changes on
+`feat/portfolio-experience`, based on current `origin/main`, for the requested
+GitHub push. No merge into main or production release is included.

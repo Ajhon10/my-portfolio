@@ -7,9 +7,12 @@ const props = withDefaults(defineProps<{ src?: string; density?: number; strengt
 	density: 6,
 	strength: 5,
 })
+const emit = defineEmits<{ (event: 'fallback', active: boolean): void }>()
 const { resolveAssetUrl } = useSiteBranding()
 const canvas = ref<HTMLCanvasElement>()
 const error = ref(false)
+const fallbackFailed = ref(false)
+watch(error, (active) => emit('fallback', active))
 type Particle = {
 	x: number
 	y: number
@@ -81,6 +84,7 @@ function reset() {
 async function build() {
 	const token = ++generation
 	error.value = false
+	fallbackFailed.value = false
 	const buffer = document.createElement('canvas')
 	buffer.width = buffer.height = size
 	const ctx = buffer.getContext('2d', { willReadFrequently: true })!
@@ -175,6 +179,7 @@ onBeforeUnmount(() => {
 <template>
 	<div class="particle-portrait">
 		<canvas
+			v-show="!error || fallbackFailed"
 			ref="canvas"
 			role="img"
 			aria-label="Interactive blue character portrait; move your mouse over it to scatter the characters"
@@ -182,9 +187,14 @@ onBeforeUnmount(() => {
 			@pointerleave="reset"
 			@pointercancel="reset"
 		/>
-		<p v-if="error" class="portrait-error" role="status">
-			Portrait unavailable. Try a PNG or WebP uploaded through Site Content.
-		</p>
+		<img
+			v-if="error && props.src && !fallbackFailed"
+			:src="resolveAssetUrl(props.src)"
+			alt="Profile portrait"
+			class="static-portrait"
+			@error="fallbackFailed = true"
+		/>
+		<p v-if="error && fallbackFailed" class="portrait-error" role="status">Portrait unavailable.</p>
 	</div>
 </template>
 
@@ -200,10 +210,16 @@ canvas {
 	display: block;
 	cursor: crosshair;
 }
+.static-portrait {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	padding: 6%;
+}
 .portrait-error {
 	position: absolute;
 	inset: 40% 10% auto;
-	color: #9db8df;
+	color: var(--folio-muted);
 	text-align: center;
 	font-size: 13px;
 }

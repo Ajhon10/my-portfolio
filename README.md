@@ -44,7 +44,66 @@ records, secrets, uploads, local database state and backup archives stay out of 
 Historical NestJS/Vercel documents are under `docs/legacy/`; the original source
 is recoverable from Git and the private pre-conversion backup.
 
+## Current public seed data
+
+The existing `scripts/seed.mjs` command and all original `migration/*.mjs`
+filenames are retained. The seeder now reads the CSV files in `migration/`,
+captured read-only from the production public API at
+`https://my-portfolio.itsajhon.workers.dev` on November 25, 2026 (Asia/Manila).
+
+| CSV | Seed records |
+| --- | ---: |
+| `projects.csv` | 6 |
+| `tech-stack.csv` | 24 |
+| `experiences.csv` | 3 |
+| `site-content.csv` | 38 |
+| `chatbot-tags.csv` | 10 |
+| `chatbot-knowledge.csv` | 13 |
+| `project-media.csv` | 13 |
+| `project-technologies.csv` | 0 |
+| `certifications.csv` | 0 |
+| `photography.csv` | 4 |
+| `gears.csv` | 0 |
+
+The empty CSVs retain their column headers because production exposes no records
+for those sections. Production does not yet expose a shop API; no shop rows were
+invented. The 13 enabled chatbot answers were read through a narrowly scoped,
+read-only production D1 query because the knowledge-management API requires
+administrator access. Disabled answers and visitor conversations were excluded.
+
+The four owner-supplied photographs are additions to that production snapshot:
+Sorsogon Capitol Park, Makati City, Sorsogon City, and Rompeolas in Sorsogon City,
+in that order. Their published records, captions, accessible descriptions and
+categories live in the existing `photography.csv`. The original JPEGs are
+bundled under `public/seed/photography/` with their original filenames and bytes,
+so they work in fresh installs without uploading media or creating an account.
+These deliberately supplied seed assets are distinct from runtime upload files
+and backups, which remain ignored. The seed now contains 111 records overall.
+
+CSV fields support quoted multiline text, commas, quotes, UTF-8 and `\N` for
+database null (distinct from an empty string). Uploaded-asset references use
+absolute URLs to the existing production files; binary uploads are not copied
+into Git or recreated in D1. This is a public-content bootstrap, not a full
+database/media backup. Canvas-based portraits need the asset origin's CORS
+permission when used from another origin; local previews show a static portrait
+when those permissions prevent particle rendering. Account credentials, inquiries, private
+chat and notifications are excluded.
+
+The header uses an accessible sun/moon button for Light/Dark mode. Light remains
+the default; the icon rotates/fades while the theme colors change. Reduced motion
+disables both animations. The button is visible beside Menu on mobile.
+
+Run `npm.cmd run db:seed` after local migrations. Repeated seeding adds missing
+content without overwriting customized records. Gallery relationships resolve
+projects by slug so existing local IDs remain valid. Updating the CSVs does not
+modify production data or publish the site.
+
 ## Automatic checks and deployment
+
+The existing connection is active: the latest `main` commit checked on
+November 25, 2026 passed both Portfolio CI and Workers Builds. Push a feature
+branch for verification; merge to `main` for automatic production deployment.
+See [push-to-deploy settings and this release's database steps](docs/cloudflare-deployment.md#push-to-deploy-without-opening-cloudflare).
 
 Every push runs **Portfolio CI** in GitHub Actions: locked dependency install,
 Node/Worker tests, TypeScript checks, production build and a Cloudflare deployment

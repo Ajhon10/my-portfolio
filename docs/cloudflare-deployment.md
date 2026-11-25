@@ -2,6 +2,14 @@
 
 Updated: 5 November 2026 (Asia/Manila).
 
+Shop update (November 25, 2026): before releasing source that includes the shop,
+back up the intended D1 target and apply the additive `0007_shop.sql` migration.
+Use `npm.cmd run db:migrate` for local development, `npm.cmd run db:migrate:preview`
+for the isolated staging target, or the established production migration process
+(`npm.cmd run db:migrate:remote`) when production release is authorized. Apply
+the schema before deploying the new Worker. Tests use their own isolated schema;
+passing them does not apply this migration to your development or remote database.
+
 Finish the existing **my-portfolio** Worker; keep its current workers.dev address.
 The Vue interface, API and live chat deploy together from this repository root.
 Core hosting uses Cloudflare Workers, D1 and a SQLite Durable Object on Workers
@@ -62,6 +70,53 @@ Sources: [existing Worker connection](https://developers.cloudflare.com/workers/
 [Node version and dependency installation](https://developers.cloudflare.com/workers/ci-cd/builds/build-image/).
 
 ## Automatic checks and production deployments
+
+### Push to deploy without opening Cloudflare
+
+Verified November 25, 2026: the latest `main` revision, `e72a782`, passed both
+[Portfolio CI](https://github.com/Ajhon10/my-portfolio/actions/runs/42029970138)
+and [Workers Builds](https://github.com/Ajhon10/my-portfolio/runs/127254833450).
+The GitHub/Cloudflare pipeline is already connected. Keep the existing Worker
+and repository connection; a second GitHub deployment job is unnecessary.
+
+For ordinary changes, push your feature branch, review its checks, then merge
+into `main`. GitHub Actions runs the tests, types, production build and dry run.
+Cloudflare Workers Builds independently runs the tested build and deploys `main`.
+There is no dashboard visit or manual Deploy click for each code update.
+Feature-branch pushes do not replace the production deployment.
+
+If setting up the connection again, confirm these once under **Workers & Pages
+→ my-portfolio → Settings → Builds**:
+
+| Setting | Value |
+| --- | --- |
+| Git repository | `Ajhon10/my-portfolio` |
+| Production branch | `main` |
+| Root directory | `/` |
+| Build command | `npm run build` |
+| Deploy command | `npx wrangler deploy` |
+| Preview command | `npm run deploy:preview` |
+| Build variable | `NODE_VERSION=22` |
+
+Runtime secrets remain in the existing Worker configuration. The GitHub CI job
+needs no Cloudflare production token. Check both GitHub Actions and Workers
+Builds for the exact commit; a completed source push alone is not deployment.
+
+This pending portfolio update includes the additive shop migration and new
+seeded photos. After backing up the intended production D1 target, apply
+`npm.cmd run db:migrate:remote` **before merging this release**. Once the new
+Worker and its bundled image assets have deployed, run
+`npm.cmd run db:seed -- --remote` once to add missing public content and the four
+photos. Existing customized rows are preserved. These are explicit database/
+content release steps, not commands to run against production from CI tests.
+Future ordinary code updates deploy automatically; future schema/content changes
+still need their corresponding reviewed database step. This task did not apply
+production migrations, seed production, change build settings or merge `main`.
+
+Cloudflare sources: [connect an existing Worker](https://developers.cloudflare.com/workers/ci-cd/builds/#connect-an-existing-worker)
+and [build/deploy configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/).
+
+### Existing verification and preview setup
 
 `.github/workflows/ci.yml` runs Portfolio CI on every push and on pull requests
 targeting `main`. It installs from the lockfile using Node 22, runs

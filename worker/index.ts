@@ -3,6 +3,7 @@ import { ZodError } from 'zod'
 import { authenticate, authRoutes, rateLimit } from './auth'
 import { ApiError, ok } from './http'
 import { resourceRoutes } from './resources'
+import { shopRoutes } from './shop'
 import { uploadRoutes, serveMedia } from './media'
 import { requestRoutes } from './requests'
 import { chatRoutes } from './chat'
@@ -39,6 +40,7 @@ app.route('/api/auth', authRoutes)
 app.route('/api/upload', uploadRoutes)
 app.route('/api/client-requests', requestRoutes)
 app.route('/api/chatbot', chatRoutes)
+app.route('/api/shop', shopRoutes)
 app.route('/api', resourceRoutes)
 app.all('/socket', (c) => {
 	if (c.req.header('Upgrade')?.toLowerCase() !== 'websocket')
@@ -71,6 +73,9 @@ app.onError((error, c) => {
 	} else if (/MEDIA_STORAGE_LIMIT/.test(String(error))) {
 		status = 413
 		message = 'Media storage is full. Remove unused uploads before adding more.'
+	} else if (/SHOP_CATEGORY_UNAVAILABLE|SHOP_PRODUCT_UNAVAILABLE/.test(String(error))) {
+		status = 422
+		message = 'The selected shop category or product is no longer available.'
 	} else if (/FOREIGN KEY constraint failed/.test(String(error))) {
 		status = 422
 		message = 'A referenced record does not exist.'

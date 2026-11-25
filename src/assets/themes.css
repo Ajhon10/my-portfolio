@@ -1,0 +1,148 @@
+/* Primary is the default. Secondary preserves the original navy identity. */
+:root {
+	color-scheme: light;
+	--folio-bg: #ffffff;
+	--folio-surface: #f2f6fc;
+	--folio-ink: #14253e;
+	--folio-muted: #52647c;
+	--folio-soft: #344d70;
+	--folio-line: #ccd8e8;
+	--folio-accent: #1659c7;
+	--folio-accent-hover: #10469f;
+	--folio-on-accent: #ffffff;
+	--folio-selected: #dfebfd;
+	--folio-overlay: #eaf0f8ed;
+}
+:root[data-theme='secondary'] {
+	color-scheme: dark;
+	--folio-bg: #090f1b;
+	--folio-surface: #101a2b;
+	--folio-ink: #edf3ff;
+	--folio-muted: #9aaac1;
+	--folio-soft: #bbc9dd;
+	--folio-line: #34445c;
+	--folio-accent: #83adff;
+	--folio-accent-hover: #abc9ff;
+	--folio-on-accent: #0a1730;
+	--folio-selected: #19345d;
+	--folio-overlay: #030913ed;
+}
+html,
+body {
+	background: var(--folio-bg);
+	color: var(--folio-ink);
+}
+.folio-nav nav {
+	gap: 20px;
+}
+.folio-logo .site-icon {
+	color: var(--folio-accent);
+}
+.folio-text-link,
+.nav-contact {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+.public-portfolio footer {
+	background: var(--folio-bg);
+	border-color: var(--folio-line);
+}
+.public-portfolio .folio-button {
+	color: var(--folio-on-accent);
+}
+.public-portfolio .portrait-mode button.active {
+	color: var(--folio-ink);
+}
+html[data-theme='primary'] .text-white {
+	color: var(--folio-ink);
+}
+html[data-theme='primary'] :is(.text-brand-gray-200, .text-brand-gray-300) {
+	color: var(--folio-soft);
+}
+html[data-theme='primary'] :is(.text-brand-gray-400, .text-brand-gray-500) {
+	color: var(--folio-muted);
+}
+html[data-theme='primary'] :is(.text-brand-blueLight, .text-blue-300, .text-blue-400) {
+	color: var(--folio-accent);
+}
+html[data-theme='primary'] :is(.bg-brand-gray-950, .bg-brand-black, .bg-black) {
+	background-color: var(--folio-bg);
+}
+html[data-theme='primary']
+	:is(
+		[class~='bg-black/40'],
+		[class~='bg-black/60'],
+		[class~='bg-black/30'],
+		[class~='bg-black/25'],
+		[class~='bg-white/5'],
+		[class~='bg-white/[0.02]']
+	) {
+	background-color: var(--folio-surface);
+}
+html[data-theme='primary']
+	:is(
+		[class~='border-white/5'],
+		[class~='border-white/10'],
+		[class~='divide-white/10'] > :not([hidden]) ~ :not([hidden])
+	) {
+	border-color: var(--folio-line);
+}
+html[data-theme='primary'] :is(.btn-primary, .btn-danger) {
+	color: #ffffff;
+}
+html[data-theme='primary'] .bg-brand-blue.text-white {
+	color: #ffffff;
+}
+html[data-theme='primary'] .text-blue-200 {
+	color: var(--folio-accent);
+}
+html[data-theme='primary'] .btn-outline:hover {
+	color: var(--folio-accent);
+}
+html[data-theme='primary'] .input::placeholder {
+	color: var(--folio-muted);
+}
+html[data-theme='primary'] .public-portfolio .text-gradient-blue {
+	color: var(--folio-accent);
+}
+html[data-theme='primary'] .public-portfolio .portrait-fallback {
+	background: var(--folio-surface);
+}
+:is(button, a, input, select, textarea):focus-visible {
+	outline: 2px solid var(--folio-accent);
+	outline-offset: 3px;
+}
+@media (min-width: 921px) and (max-width: 1100px) {
+	.folio-nav {
+		padding-inline: 24px;
+	}
+	.folio-nav nav {
+		gap: 12px;
+	}
+}
+@media (max-width: 920px) {
+	.folio-nav nav.open {
+		background: var(--folio-surface);
+	}
+}
+
+/* Animate only an explicit theme change; startup and reduced motion stay instant. */
+html.theme-changing,
+html.theme-changing *,
+html.theme-changing *::before,
+html.theme-changing *::after {
+	transition:
+		background-color 280ms ease,
+		color 280ms ease,
+		border-color 280ms ease,
+		box-shadow 280ms ease !important;
+}
+@media (prefers-reduced-motion: reduce) {
+	html.theme-changing,
+	html.theme-changing *,
+	html.theme-changing *::before,
+	html.theme-changing *::after {
+		transition: none !important;
+	}
+}

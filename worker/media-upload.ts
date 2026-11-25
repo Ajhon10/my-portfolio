@@ -41,20 +41,22 @@ export async function storeUpload(request: Request, env: Env): Promise<Response>
 	try {
 		const url = new URL(request.url)
 		const kind = url.searchParams.get('kind') || ''
-		if (!['image', 'site-asset', 'certification', 'project-image', 'project-media'].includes(kind))
+		if (!['image', 'site-asset', 'certification', 'project-image', 'project-media', 'shop-media'].includes(kind))
 			throw new ApiError(400, 'Invalid upload type.')
 		const userId = idSchema.parse(request.headers.get('X-Portfolio-Upload-User'))
 		const projectId = url.searchParams.get('project')
+		const productId = url.searchParams.get('product')
+		if (kind === 'shop-media' && !productId) throw new ApiError(400, 'Choose a product before uploading.')
+		if (productId) await need(env.DB, 'ShopProduct', idSchema.parse(productId))
 		if (kind.startsWith('project-') && !projectId) throw new ApiError(400, 'Choose a project before uploading.')
 		if (projectId) await need(env.DB, 'Project', idSchema.parse(projectId))
 		const contentType = request.headers.get('Content-Type') || ''
 		if (!contentType.startsWith('multipart/form-data')) throw new ApiError(415, 'Use multipart/form-data.')
-		const maximum =
-			kind === 'project-media'
-				? MAX_PROJECT_VIDEO_BYTES
-				: kind === 'certification'
-					? 12 * 1024 * 1024
-					: MAX_PROJECT_IMAGE_BYTES
+		const maximum = ['project-media', 'shop-media'].includes(kind)
+			? MAX_PROJECT_VIDEO_BYTES
+			: kind === 'certification'
+				? 12 * 1024 * 1024
+				: MAX_PROJECT_IMAGE_BYTES
 		if (!request.body) throw new ApiError(422, 'Supply one file within the upload size limit.')
 		const declared = Number(request.headers.get('Content-Length') || 0)
 		if (!Number.isFinite(declared) || declared > maximum + 65536)
@@ -93,7 +95,7 @@ export async function storeUpload(request: Request, env: Env): Promise<Response>
 		if (!types[extension]?.includes(file.type)) throw new ApiError(422, 'Unsupported file extension or content type.')
 		const video = file.type.startsWith('video/')
 		if (
-			(video && kind !== 'project-media') ||
+			(video && !['project-media', 'shop-media'].includes(kind)) ||
 			(extension === '.pdf' && kind !== 'certification') ||
 			(['.svg', '.ico'].includes(extension) && kind !== 'site-asset')
 		)
@@ -121,6 +123,13 @@ export async function storeUpload(request: Request, env: Env): Promise<Response>
 					.first<{ n: number }>()
 			: null
 		if (count && count.n >= MAX_PROJECT_MEDIA) throw new ApiError(422, 'This project already has 50 gallery items.')
+		const shopCount = productId
+			? await env.DB.prepare('SELECT COUNT(*) AS n FROM shop_media WHERE product_id=?')
+					.bind(productId)
+					.first<{ n: number }>()
+			: null
+		if (shopCount && shopCount.n >= MAX_PROJECT_MEDIA)
+			throw new ApiError(422, 'This product already has 50 gallery items.')
 		const id = crypto.randomUUID(),
 			filename = id + extension,
 			chunkBytes = video ? 1048576 : 524288
@@ -151,10 +160,24 @@ export async function storeUpload(request: Request, env: Env): Promise<Response>
 			statements.push(item.statement)
 			media = { ...item.row, mediaType: video ? 'video' : 'image' }
 		}
+		if (productId) {
+			const item = insert(env.DB, 'ShopMedia', {
+				productId,
+				url: fileUrl,
+				sortOrder: shopCount?.n || 0,
+				altText: file.name.replace(/\.[^.]+$/, '').slice(0, 500),
+			})
+			statements.push(item.statement)
+			media = { ...item.row, mediaType: video ? 'video' : 'image' }
+		}
 		// Metadata, all chunks and the gallery reference commit or roll back together.
 		await env.DB.batch(statements)
 		return Response.json(
-			{ success: true, message: projectId ? 'Gallery media added' : 'File uploaded', data: media || { url: fileUrl } },
+			{
+				success: true,
+				message: projectId || productId ? 'Gallery media added' : 'File uploaded',
+				data: media || { url: fileUrl },
+			},
 			{ status: 201 },
 		)
 	} catch (error) {
@@ -163,7 +186,7 @@ export async function storeUpload(request: Request, env: Env): Promise<Response>
 				? error.status
 				: /MEDIA_STORAGE_LIMIT/.test(String(error))
 					? 413
-					: /PROJECT_GALLERY_LIMIT/.test(String(error))
+					: /PROJECT_GALLERY_LIMIT|SHOP_GALLERY_LIMIT|SHOP_PRODUCT_UNAVAILABLE/.test(String(error))
 						? 422
 						: 500
 		const message =
@@ -172,7 +195,7 @@ export async function storeUpload(request: Request, env: Env): Promise<Response>
 				: status === 413
 					? 'Media storage is full. Remove unused uploads before adding more.'
 					: status === 422
-						? 'This project already has 50 gallery items.'
+						? 'This gallery is full or its item is no longer available.'
 						: 'The upload could not be completed.'
 		if (status === 500) console.error('Upload failed', { name: error instanceof Error ? error.name : 'Error' })
 		return Response.json({ success: false, message }, { status })

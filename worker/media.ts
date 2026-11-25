@@ -33,6 +33,7 @@ uploadRoutes.delete('/files/:id', async (c) => {
 		['photograph', 'image_url'],
 		['gear', 'image_url'],
 		['project_image', 'url'],
+		['shop_media', 'url'],
 		['site_content', 'value'],
 		['chatbot_message', 'sender_avatar'],
 	]
@@ -65,7 +66,7 @@ async function acceptUpload(c: import('hono').Context<AppEnv>, kind: string, pro
 	const user = admin(c)
 	const url = new URL('https://internal/media/upload')
 	url.searchParams.set('kind', kind)
-	if (projectId) url.searchParams.set('project', projectId)
+	if (projectId) url.searchParams.set(kind === 'shop-media' ? 'product' : 'project', projectId)
 	const headers = new Headers({
 		'Content-Type': c.req.header('Content-Type') || '',
 		'X-Portfolio-Upload-User': user.id,
@@ -75,6 +76,9 @@ async function acceptUpload(c: import('hono').Context<AppEnv>, kind: string, pro
 	return stub.fetch(url.toString(), { method: 'POST', headers, body: c.req.raw.body })
 }
 for (const kind of ['image', 'site-asset', 'certification']) uploadRoutes.post('/' + kind, (c) => acceptUpload(c, kind))
+uploadRoutes.post('/shop-media/:productId', (c) =>
+	acceptUpload(c, 'shop-media', idSchema.parse(c.req.param('productId'))),
+)
 async function projectGallery(c: import('hono').Context<AppEnv>, imagesOnly = false) {
 	admin(c)
 	const projectId = idSchema.parse(c.req.param('projectId'))

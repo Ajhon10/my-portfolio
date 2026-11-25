@@ -27,6 +27,13 @@ const router = createRouter({
 			component: () => import('@/views/HomeView.vue'),
 			meta: { requiresAuth: false },
 		},
+		{ path: '/shop', name: 'shop', component: () => import('@/views/ShopView.vue') },
+		{
+			path: '/admin/shop',
+			name: 'admin-shop',
+			component: () => import('@/views/admin/ShopCmsView.vue'),
+			meta: { requiresAuth: true },
+		},
 		{
 			path: '/gears',
 			name: 'gears',

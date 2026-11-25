@@ -86,6 +86,7 @@ const socialLinks = computed(() => [
 					<li><router-link to="/#projects" class="hover:text-brand-blueLight">Projects</router-link></li>
 					<li><router-link to="/#photography" class="hover:text-brand-blueLight">Photography</router-link></li>
 					<li><a href="/#certifications" class="hover:text-brand-blueLight">Certifications</a></li>
+					<li><router-link to="/shop" class="hover:text-brand-blueLight">Shop</router-link></li>
 					<li><router-link to="/login" class="hover:text-brand-blueLight">Admin</router-link></li>
 				</ul>
 			</div>

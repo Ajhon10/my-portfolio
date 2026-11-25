@@ -45,7 +45,7 @@ onMounted(load)
 				<h2>A little space for new perspectives.</h2>
 				<p>Photographs will appear here as the collection grows.</p>
 			</div>
-			<div v-else class="photo-grid">
+			<div v-else class="photo-grid" :class="{ 'photo-pairs': filtered.length <= 4 }">
 				<button v-for="photo in filtered" :key="photo.id" class="photo-item" @click="open(photo)">
 					<img :src="resolveAssetUrl(photo.imageUrl)" :alt="photo.altText" loading="lazy" /><span class="photo-label"
 						><strong>{{ photo.title }}</strong
@@ -68,7 +68,7 @@ onMounted(load)
 <style scoped>
 .photo-intro {
 	max-width: 580px;
-	color: #9aafcd;
+	color: var(--folio-muted);
 	line-height: 1.9;
 	margin: 25px 0 50px;
 }
@@ -79,18 +79,21 @@ onMounted(load)
 	margin-bottom: 35px;
 }
 .photo-filters button {
-	border: 1px solid #2d4262;
+	border: 1px solid var(--folio-line);
 	padding: 8px 16px;
 	border-radius: 30px;
 	font-size: 13px;
 }
 .photo-filters button[aria-pressed='true'] {
-	color: #101b30;
-	background: #92b9ff;
+	color: var(--folio-surface);
+	background: var(--folio-accent);
 }
 .photo-grid {
 	columns: 3;
 	column-gap: 25px;
+}
+.photo-pairs {
+	columns: 2;
 }
 .photo-item {
 	display: block;
@@ -115,14 +118,14 @@ onMounted(load)
 	font-size: 12px;
 }
 .photo-label > span {
-	color: #8da8cc;
+	color: var(--folio-muted);
 }
 .gallery-empty {
-	border-top: 1px solid #263750;
+	border-top: 1px solid var(--folio-line);
 	padding: 70px 0;
 }
 .gallery-empty > span {
-	color: #83adff;
+	color: var(--folio-accent);
 	font-size: 40px;
 }
 .gallery-empty h2 {
@@ -130,19 +133,19 @@ onMounted(load)
 	margin: 18px 0 10px;
 }
 .gallery-empty p {
-	color: #9aafcd;
+	color: var(--folio-muted);
 }
 .photo-dialog {
 	max-width: 95vw;
 	width: 1000px;
 	max-height: 95vh;
 	padding: 28px;
-	background: #0d1727;
-	color: #edf3ff;
-	border: 1px solid #354d71;
+	background: var(--folio-surface);
+	color: var(--folio-ink);
+	border: 1px solid var(--folio-line);
 }
 .photo-dialog::backdrop {
-	background: #030913ed;
+	background: var(--folio-overlay);
 }
 .photo-dialog img {
 	max-height: 70vh;
@@ -154,7 +157,7 @@ onMounted(load)
 	font-size: 22px;
 }
 .photo-dialog p {
-	color: #adbed7;
+	color: var(--folio-muted);
 	margin-top: 8px;
 }
 .photo-close {
