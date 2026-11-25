@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PasswordInput from '@/components/PasswordInput.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DataTable, { type DataTableColumn } from '@/components/DataTable.vue'
 import FormField from '@/components/FormField.vue'
@@ -163,7 +164,12 @@ const resetUser2FA = async (u: User) => {
 					:error="errors.password"
 					:required="!editingId"
 				>
-					<input v-model="form.password" type="password" class="input" />
+					<PasswordInput
+						v-model="form.password"
+						label="temporary password"
+						aria-label="Temporary password"
+						autocomplete="new-password"
+					/>
 				</FormField>
 				<FormField label="Role">
 					<select v-model="form.role" class="input">

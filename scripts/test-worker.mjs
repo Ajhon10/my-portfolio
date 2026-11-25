@@ -13,7 +13,7 @@ await build({
 	format: 'esm',
 	platform: 'browser',
 	target: 'es2023',
-	external: ['cloudflare:workers', 'node:*'],
+	external: ['cloudflare:workers', 'cloudflare:sockets', 'node:*'],
 })
 const mf = new Miniflare(
 	convertV4MiniflareOptions({

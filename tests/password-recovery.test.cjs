@@ -12,7 +12,14 @@ test('email recovery queues a short-lived link without exposing accounts or trus
 	const directory = resolve('.test-artifacts/recovery-unit', randomUUID())
 	await mkdir(directory, { recursive: true })
 	const filename = resolve(directory, 'auth.mjs')
-	await build({ entryPoints: ['worker/auth.ts'], outfile: filename, bundle: true, format: 'esm', platform: 'browser' })
+	await build({
+		entryPoints: ['worker/auth.ts'],
+		outfile: filename,
+		bundle: true,
+		format: 'esm',
+		platform: 'browser',
+		external: ['cloudflare:sockets'],
+	})
 	const { authRoutes } = await import(pathToFileURL(filename).href)
 	const db = new DatabaseSync(':memory:')
 	const originalFetch = globalThis.fetch

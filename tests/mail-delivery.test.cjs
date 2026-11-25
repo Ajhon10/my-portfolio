@@ -11,7 +11,25 @@ test('email queue preserves saved replies and reports provider acceptance honest
 	const directory = resolve('.test-artifacts/mail-delivery', randomUUID())
 	await mkdir(directory, { recursive: true })
 	const filename = resolve(directory, 'mail.mjs')
-	await build({ entryPoints: ['worker/mail.ts'], outfile: filename, bundle: true, format: 'esm', platform: 'browser' })
+	await build({
+		entryPoints: ['worker/mail.ts'],
+		outfile: filename,
+		bundle: true,
+		format: 'esm',
+		platform: 'browser',
+		plugins: [
+			{
+				name: 'isolated-smtp-transport',
+				setup(build) {
+					build.onResolve({ filter: /^\.\/smtp$/ }, () => ({ path: 'smtp-fixture', namespace: 'test-only' }))
+					build.onLoad({ filter: /.*/, namespace: 'test-only' }, () => ({
+						contents: 'export const sendSmtp = (config, message) => globalThis.smtpQueueFixture(config, message)',
+						loader: 'js',
+					}))
+				},
+			},
+		],
+	})
 	const { queueMail, flushMail, replyMailStatus, expiredRecoveryMail } = await import(pathToFileURL(filename).href)
 	const schema = (await readFile('database/migrations/0002_runtime.sql', 'utf8')).match(
 		/^CREATE TABLE mail_outbox[^\r\n]+/m,
@@ -73,6 +91,40 @@ test('email queue preserves saved replies and reports provider acceptance honest
 		})
 	}
 	try {
+		await scenario(
+			'explicit SMTP selection uses the same durable queue and never falls back to Resend',
+			async ({ db, env }) => {
+				Object.assign(env, {
+					MAIL_TRANSPORT: 'smtp',
+					SMTP_HOST: 'smtp.example.com',
+					SMTP_USERNAME: 'fixture',
+					SMTP_PASSWORD: 'fixture-secret',
+				})
+				const submitted = []
+				globalThis.smtpQueueFixture = async (config, message) => {
+					assert.equal(config.port, 587)
+					submitted.push(message)
+				}
+				await queueMail(env.DB, 'recipient@example.test', 'Fixture', 'Fixture message', 'smtp-reply').run()
+				assert.equal((await flushMail(env, 'smtp-reply')).delivered, 1)
+				assert.equal(calls.length, 0)
+				assert.equal(submitted[0].id, 'smtp-reply')
+				assert.ok(db.prepare('SELECT delivered_at FROM mail_outbox').get().delivered_at)
+				assert.equal((await flushMail(env, 'smtp-reply')).delivered, 0)
+				assert.equal(submitted.length, 1)
+				await queueMail(env.DB, 'recipient@example.test', 'Fixture', 'Keep saved on rejection', 'smtp-failed').run()
+				globalThis.smtpQueueFixture = async () => {
+					throw new Error('Fixture SMTP failure')
+				}
+				assert.equal((await flushMail(env, 'smtp-failed')).delivered, 0)
+				assert.equal(
+					db.prepare("SELECT content FROM mail_outbox WHERE id='smtp-failed'").get().content,
+					'Keep saved on rejection',
+				)
+				assert.equal(warnings.length, 1)
+				assert.equal(calls.length, 0)
+			},
+		)
 		await scenario('expired recovery links are not delivered by the retry worker', async ({ db, env }) => {
 			await queueMail(
 				env.DB,
@@ -143,6 +195,7 @@ test('email queue preserves saved replies and reports provider acceptance honest
 			assert.equal(replyMailStatus(env, {}), 'unknown')
 		})
 	} finally {
+		delete globalThis.smtpQueueFixture
 		globalThis.fetch = originalFetch
 		console.warn = originalWarn
 	}

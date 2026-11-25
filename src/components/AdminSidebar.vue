@@ -2,11 +2,13 @@
 import { useUserStore } from '@/stores/user'
 import { Role } from '@/types'
 import { computed } from 'vue'
+import { useSiteBranding } from '@/composables/useSiteBranding'
 
 defineProps<{ open: boolean }>()
 defineEmits<{ (e: 'close'): void }>()
 
 const userStore = useUserStore()
+const { logoText, logoUrl } = useSiteBranding()
 
 const links = computed(() => [
 	{ to: '/admin/dashboard', label: 'Dashboard', icon: 'grid' },
@@ -45,11 +47,19 @@ const icons: Record<string, string> = {
 
 <template>
 	<aside
-		class="fixed inset-y-0 left-0 z-30 w-64 bg-black/60 backdrop-blur-md border-r border-white/5 transform transition-transform duration-300 md:relative md:translate-x-0"
+		class="fixed inset-y-0 left-0 z-30 w-64 shrink-0 bg-black/60 backdrop-blur-md border-r border-white/5 transform transition-transform duration-300 md:sticky md:top-0 md:h-dvh md:translate-x-0"
 		:class="open ? 'translate-x-0' : '-translate-x-full'"
 	>
 		<div class="h-16 flex items-center justify-between px-5 border-b border-white/5">
-			<router-link to="/" class="font-display text-lg font-bold text-gradient-blue">JLJ Admin</router-link>
+			<router-link
+				to="/"
+				class="flex min-w-0 items-center gap-2 font-display text-lg font-bold text-brand-blueLight"
+				:aria-label="`${logoText} Admin — view site`"
+			>
+				<img v-if="logoUrl" :src="logoUrl" :alt="logoText" class="max-w-[140px] h-8 object-contain" />
+				<span v-else class="truncate">{{ logoText }}</span>
+				<span class="text-xs font-normal text-brand-gray-400">Admin</span>
+			</router-link>
 			<button class="md:hidden text-brand-gray-400 hover:text-white" aria-label="Close menu" @click="$emit('close')">
 				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 					<line x1="6" y1="6" x2="18" y2="18" />

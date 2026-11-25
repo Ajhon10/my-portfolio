@@ -965,3 +965,65 @@ omit stored Authorization. Chrome verified a cold reset-link load with an
 expired stored session, URL-token removal, validation and both theme contrasts;
 typechecks passed. The shared browser regression includes cold forgot/reset
 loads with stale storage. No account authentication checks were weakened.
+
+## Admin navigation, inquiry workspace, SMTP and figurine study — November 25, 2026
+
+Notification clicks now resolve the exact request from existing metadata or new
+query links, navigate without waiting for a read receipt, and reject external
+destinations. Admin/client request views follow same-route request changes;
+server-side role/ownership checks remain authoritative. The admin workspace uses
+a bounded request list and a naturally growing detail/conversation/composer,
+with mobile reflow and clearer light-mode warning/status colors. Reset, profile
+and temporary-password inputs have independent accessible visibility controls.
+The sidebar reads saved branding text/image and updates through the established
+branding store; it starts closed on mobile.
+
+SMTP is an explicit alternative to Resend, with no provider or credentials
+configured automatically. Local settings stay in `.dev.vars`; deployed settings
+are Worker runtime secrets. Only public configured DNS hosts and encrypted
+submission ports 465/587 are supported. STARTTLS is mandatory before credentials
+on 587. PLAIN/LOGIN, bounded responses, a 15-second connection deadline, MIME
+encoding and header validation are covered with isolated socket fixtures.
+The existing outbox/leases/retries/expiry remain in use, and a lost SMTP final
+acknowledgement can still cause a retry duplicate. No real email was sent.
+Browser fixtures explicitly exclude local runtime secrets and disable external
+mail/AI integrations even if the developer configures them during development.
+
+The 3D integration stays Vue and uses the pinned model-viewer Three.js mixer.
+It supports embedded clips, crossfades, return to Idle, rotation/reset, reduced
+motion, explicit gestures, portrait fallback and teardown. A Vue custom-element
+binding bug found in Chrome was corrected: the literal attribute `false` must
+not leave auto-rotation enabled after pointer interaction.
+
+Portable Blender 4.5.3 LTS was downloaded from the official archive and checked
+against its published SHA-256, inside ignored test tooling. The original local
+workflow creates a self-contained ~3.8 MiB GLB, 48-joint skin, shirt artwork and
+six clips, with editable `.blend` source under `assets/figurine/`. Renders cover
+front/back/sides/three-quarter and action holds. Wrist gaps and shirt panel
+stair-stepping found during inspection were corrected through fused surfaces
+and UV artwork. This remains an **approximate likeness study**. It does not meet
+the professionally sculpted premium likeness criterion; facial/hair/clothing
+and hand-pose polish still require artist-led refinement and owner acceptance.
+The saved public visual mode is not changed by this release.
+
+Local build passed 65 Node tests, 220 Worker integration checks, typechecks and
+both Vite builds. Deployment dry run passed with the existing D1/DO/Assets
+bindings and the SMTP module. Evidence: `.test-artifacts/admin-figurine-build.log`,
+`.test-artifacts/admin-figurine-deploy-check.log`, `.test-artifacts/figurine/`.
+The complete browser suite passed with no page errors or failed API responses:
+`.test-artifacts/browser-97baa664-9b30-4767-a82c-d5edc31bb9d2/report.json` and
+`.test-artifacts/admin-figurine-browser.log`. Screenshots were inspected at
+1280/1440px and 390px. It covers existing portfolio/shop/media/chat flows plus
+old-metadata notification selection on the same route, inquiry layout, saved
+text/image branding, password visibility, every action clip, rapid switching,
+auto-rotation stop and actual touch input. A focused follow-up after the camera
+reset/mobile-spacing refinement passed repeated reset, gestures, reduced motion,
+rotation stop, touch, chatbot clearance and forced-load portrait fallback:
+`.test-artifacts/model-focus/`. The final build succeeded with npm's actual exit
+code preserved; PowerShell redirection otherwise marked Rollup warning text as
+a shell error despite a successful npm build.
+
+No database migration, account reset, credential change or external email is
+part of this update. Release verification belongs in the local
+`.test-artifacts/admin-figurine-release.json` receipt after push/deployment;
+structural/browser checks do not establish premium likeness or workload capacity.

@@ -2,9 +2,13 @@
 import { useNotificationStore } from '@/stores/notification'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
+import type { AppNotification } from '@/composables/provider/notification.provider'
+import { notificationDestination } from '../../shared/notification-destination'
 
 const store = useNotificationStore()
 const router = useRouter()
+const user = useUserStore()
 
 const open = ref(false)
 const dropdown = ref<HTMLElement | null>(null)
@@ -14,7 +18,7 @@ const panelStyle = ref<Record<string, string>>({})
 const updatePosition = () => {
 	if (!dropdown.value) return
 	const rect = dropdown.value.getBoundingClientRect()
-	const panelWidth = 360
+	const panelWidth = Math.min(360, window.innerWidth - 16)
 	const right = Math.max(8, window.innerWidth - rect.right)
 	panelStyle.value = {
 		top: `${rect.bottom + 8}px`,
@@ -50,10 +54,12 @@ const toggle = () => {
 	open.value = !open.value
 }
 
-const onItemClick = async (id: string, link?: string | null) => {
-	await store.markRead(id)
+const onItemClick = (notification: AppNotification) => {
 	open.value = false
-	if (link) router.push(link)
+	const destination = notificationDestination(notification, user.user?.role)
+	if (destination) void router.push(destination)
+	// A slow or failed read receipt must not hold up navigation.
+	void store.markRead(notification.id).catch(() => {})
 }
 
 const fmtTime = (iso: string) => {
@@ -90,6 +96,8 @@ const visible = computed(() => store.sorted.slice(0, 20))
 		<button
 			class="relative p-2 rounded-lg text-brand-gray-400 hover:text-white hover:bg-white/5 transition-colors"
 			:title="store.unread ? `${store.unread} unread` : 'Notifications'"
+			aria-label="Notifications"
+			:aria-expanded="open"
 			@click.stop="toggle"
 		>
 			<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -119,57 +127,57 @@ const visible = computed(() => store.sorted.slice(0, 20))
 					:style="panelStyle"
 					class="fixed w-[360px] max-h-[480px] flex flex-col bg-brand-gray-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[100]"
 				>
-				<div class="flex items-center justify-between px-4 py-3 border-b border-white/5">
-					<h3 class="font-semibold text-sm">Notifications</h3>
-					<button
-						v-if="store.unread > 0"
-						class="text-xs text-brand-blueLight hover:text-brand-blue"
-						@click="store.markAllRead()"
-					>
-						Mark all as read
-					</button>
-				</div>
+					<div class="flex items-center justify-between px-4 py-3 border-b border-white/5">
+						<h3 class="font-semibold text-sm">Notifications</h3>
+						<button
+							v-if="store.unread > 0"
+							class="text-xs text-brand-blueLight hover:text-brand-blue"
+							@click="store.markAllRead()"
+						>
+							Mark all as read
+						</button>
+					</div>
 
-				<div class="flex-1 overflow-y-auto">
-					<div v-if="store.loading && !visible.length" class="p-6 text-center text-sm text-brand-gray-500">
-						Loading…
-					</div>
-					<div v-else-if="!visible.length" class="p-8 text-center">
-						<div class="text-4xl mb-2 opacity-50">🔔</div>
-						<p class="text-sm text-brand-gray-500">No notifications yet</p>
-					</div>
-					<div
-						v-for="n in visible"
-						:key="n.id"
-						class="w-full border-b border-white/5 transition-colors flex group"
-						:class="{ 'bg-brand-blue/5': !n.read }"
-					>
-						<button
-							class="min-w-0 flex-1 text-left px-4 py-3 hover:bg-white/5 transition-colors flex gap-3"
-							@click="onItemClick(n.id, n.link)"
+					<div class="flex-1 overflow-y-auto">
+						<div v-if="store.loading && !visible.length" class="p-6 text-center text-sm text-brand-gray-500">
+							Loading…
+						</div>
+						<div v-else-if="!visible.length" class="p-8 text-center">
+							<div class="text-4xl mb-2 opacity-50">🔔</div>
+							<p class="text-sm text-brand-gray-500">No notifications yet</p>
+						</div>
+						<div
+							v-for="n in visible"
+							:key="n.id"
+							class="w-full border-b border-white/5 transition-colors flex group"
+							:class="{ 'bg-brand-blue/5': !n.read }"
 						>
-							<div class="text-lg shrink-0 leading-none mt-0.5">{{ iconFor(n.type) }}</div>
-							<div class="flex-1 min-w-0">
-								<div class="flex items-start gap-2">
-									<p class="text-sm font-medium leading-tight flex-1">{{ n.title }}</p>
-									<span v-if="!n.read" class="w-2 h-2 mt-1.5 rounded-full bg-brand-blueLight shrink-0" />
+							<button
+								class="min-w-0 flex-1 text-left px-4 py-3 hover:bg-white/5 transition-colors flex gap-3"
+								@click="onItemClick(n)"
+							>
+								<div class="text-lg shrink-0 leading-none mt-0.5">{{ iconFor(n.type) }}</div>
+								<div class="flex-1 min-w-0">
+									<div class="flex items-start gap-2">
+										<p class="text-sm font-medium leading-tight flex-1">{{ n.title }}</p>
+										<span v-if="!n.read" class="w-2 h-2 mt-1.5 rounded-full bg-brand-blueLight shrink-0" />
+									</div>
+									<p class="text-xs text-brand-gray-400 mt-0.5 line-clamp-2">{{ n.message }}</p>
+									<p class="text-[11px] text-brand-gray-500 mt-1">{{ fmtTime(n.createdAt) }}</p>
 								</div>
-								<p class="text-xs text-brand-gray-400 mt-0.5 line-clamp-2">{{ n.message }}</p>
-								<p class="text-[11px] text-brand-gray-500 mt-1">{{ fmtTime(n.createdAt) }}</p>
-							</div>
-						</button>
-						<button
-							class="opacity-0 group-hover:opacity-100 focus:opacity-100 text-brand-gray-500 hover:text-red-400 text-xs px-3 self-stretch"
-							title="Remove"
-							:aria-label="`Remove ${n.title} notification`"
-							@click.stop="store.remove(n.id)"
-						>
-							✕
-						</button>
+							</button>
+							<button
+								class="opacity-0 group-hover:opacity-100 focus:opacity-100 text-brand-gray-500 hover:text-red-400 text-xs px-3 self-stretch"
+								title="Remove"
+								:aria-label="`Remove ${n.title} notification`"
+								@click.stop="store.remove(n.id)"
+							>
+								✕
+							</button>
+						</div>
 					</div>
 				</div>
-			</div>
-		</transition>
+			</transition>
 		</teleport>
 	</div>
 </template>

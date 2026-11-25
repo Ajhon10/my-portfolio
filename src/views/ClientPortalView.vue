@@ -7,9 +7,17 @@ import { ClientRequestStatus, Role, type ClientRequest, type ClientRequestMessag
 import type { Socket } from '@/composables/worker-socket'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { toast } from 'vue3-toastify'
+import { useRoute, useRouter } from 'vue-router'
 
 const provider = useClientRequestProvider()
 const userStore = useUserStore()
+const route = useRoute()
+const router = useRouter()
+const selectLinkedRequest = () => {
+	const id = route.query.requestId
+	if (typeof id === 'string') selectedId.value = requests.value.some((request) => request.id === id) ? id : null
+}
+watch(() => route.query.requestId, selectLinkedRequest)
 
 const requests = ref<ClientRequest[]>([])
 const selectedId = ref<string | null>(null)
@@ -40,7 +48,15 @@ const form = reactive<ClientRequestInput>({
 const errors = reactive<Record<string, string>>({})
 
 const selected = computed(() => requests.value.find((request) => request.id === selectedId.value) || null)
-const projectTypes = ['Web Application', 'Mobile App', 'Landing Page', 'API / Backend', 'E-commerce', 'System Automation', 'Other']
+const projectTypes = [
+	'Web Application',
+	'Mobile App',
+	'Landing Page',
+	'API / Backend',
+	'E-commerce',
+	'System Automation',
+	'Other',
+]
 const budgets = ['< $500', '$500 - $1,500', '$1,500 - $5,000', '$5,000 - $10,000', '$10,000+']
 const timelines = ['ASAP', '1-2 weeks', '1 month', '2-3 months', 'Flexible']
 
@@ -49,7 +65,8 @@ const load = async () => {
 	const res = await provider.myRequests()
 	if (res.success && res.data) {
 		requests.value = res.data
-		if (!selectedId.value && requests.value.length) selectedId.value = requests.value[0].id
+		if (route.query.requestId) selectLinkedRequest()
+		else if (!selectedId.value && requests.value.length) selectedId.value = requests.value[0].id
 	}
 	loading.value = false
 }
@@ -80,12 +97,15 @@ const connectSocket = () => {
 		scrollMessages()
 	})
 
-	socket.on('project-chat:typing', ({ requestId, sender, typing }: { requestId: string; sender: string; typing: boolean }) => {
-		if (requestId === selectedId.value && sender === 'admin') {
-			adminTyping.value = typing
-			scrollMessages()
-		}
-	})
+	socket.on(
+		'project-chat:typing',
+		({ requestId, sender, typing }: { requestId: string; sender: string; typing: boolean }) => {
+			if (requestId === selectedId.value && sender === 'admin') {
+				adminTyping.value = typing
+				scrollMessages()
+			}
+		},
+	)
 }
 
 const joinSelected = async (requestId: string | null) => {
@@ -281,7 +301,12 @@ const senderName = (message: ClientRequestMessage) => {
 				</div>
 				<div>
 					<label class="label">Project details *</label>
-					<textarea v-model="form.description" class="input resize-none" rows="5" placeholder="Tell me the goals, pages, features, audience, and any deadlines." />
+					<textarea
+						v-model="form.description"
+						class="input resize-none"
+						rows="5"
+						placeholder="Tell me the goals, pages, features, audience, and any deadlines."
+					/>
 					<p v-if="errors.description" class="text-xs text-red-400 mt-1">{{ errors.description }}</p>
 				</div>
 				<div class="flex justify-end">
@@ -307,11 +332,16 @@ const senderName = (message: ClientRequestMessage) => {
 							:key="request.id"
 							class="w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition"
 							:class="selectedId === request.id ? 'bg-brand-blue/10 border-l-2 border-l-brand-blue' : ''"
-							@click="selectedId = request.id"
+							@click="router.replace({ query: { ...route.query, requestId: request.id } })"
 						>
 							<div class="flex items-center justify-between gap-3 mb-1">
 								<div class="font-medium truncate">{{ request.projectType }}</div>
-								<span :class="['px-2 py-0.5 rounded-full text-[10px] border whitespace-nowrap', statusClass(request.status)]">
+								<span
+									:class="[
+										'px-2 py-0.5 rounded-full text-[10px] border whitespace-nowrap',
+										statusClass(request.status),
+									]"
+								>
 									{{ request.status }}
 								</span>
 							</div>
@@ -355,9 +385,11 @@ const senderName = (message: ClientRequestMessage) => {
 								</div>
 								<div
 									class="max-w-[82%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap"
-									:class="message.sender?.role === Role.CLIENT
-										? 'bg-brand-blue text-white rounded-br-sm'
-										: 'bg-white/5 text-brand-gray-200 border border-white/5 rounded-bl-sm'"
+									:class="
+										message.sender?.role === Role.CLIENT
+											? 'bg-brand-blue text-white rounded-br-sm'
+											: 'bg-white/5 text-brand-gray-200 border border-white/5 rounded-bl-sm'
+									"
 								>
 									{{ message.message }}
 								</div>
@@ -365,8 +397,14 @@ const senderName = (message: ClientRequestMessage) => {
 							<div v-if="adminTyping" class="flex items-start">
 								<div class="px-3.5 py-2.5 rounded-2xl bg-white/5 border border-white/5 flex items-center gap-1">
 									<span class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft" />
-									<span class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft" style="animation-delay: 0.15s" />
-									<span class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft" style="animation-delay: 0.3s" />
+									<span
+										class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft"
+										style="animation-delay: 0.15s"
+									/>
+									<span
+										class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft"
+										style="animation-delay: 0.3s"
+									/>
 								</div>
 							</div>
 						</div>
@@ -380,9 +418,7 @@ const senderName = (message: ClientRequestMessage) => {
 								:disabled="sending"
 								@input="onTyping"
 							/>
-							<button class="btn btn-primary !py-2 !px-4" :disabled="sending || !replyText.trim()">
-								Send
-							</button>
+							<button class="btn btn-primary !py-2 !px-4" :disabled="sending || !replyText.trim()">Send</button>
 						</form>
 					</template>
 				</div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import PasswordInput from '@/components/PasswordInput.vue'
 import { useAuthProvider } from '@/composables/provider/auth.provider'
 const props = defineProps<{ token: string }>()
 const emit = defineEmits<{ done: [] }>()
@@ -29,10 +30,10 @@ async function submit() {
 		<p v-if="error" role="alert" class="text-sm auth-error">{{ error }}</p>
 		<div>
 			<label for="reset-password" class="label">New password</label
-			><input
+			><PasswordInput
 				id="reset-password"
 				v-model="password"
-				type="password"
+				label="new password"
 				class="input"
 				required
 				minlength="8"
@@ -46,10 +47,10 @@ async function submit() {
 		</div>
 		<div>
 			<label for="reset-confirm" class="label">Confirm new password</label
-			><input
+			><PasswordInput
 				id="reset-confirm"
 				v-model="confirmation"
-				type="password"
+				label="password confirmation"
 				class="input"
 				required
 				minlength="8"

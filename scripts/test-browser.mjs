@@ -35,7 +35,7 @@ await child(process.execPath, ['scripts/create-owner.mjs'], {
 assert.equal((await queryD1(['--command', 'SELECT COUNT(*) n FROM "user" WHERE role=\'OWNER\'']))[0].results[0].n, 1)
 await executeSql('UPDATE "user" SET two_factor_enabled=0;')
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5179'], {
-	env: process.env,
+	env: { ...process.env, PORTFOLIO_BROWSER_TEST: '1' },
 	windowsHide: true,
 	stdio: ['ignore', 'pipe', 'pipe'],
 })
@@ -236,6 +236,7 @@ try {
 	const inquiryResponse = page.waitForResponse((r) => r.url().endsWith('/api/client-requests/submit'))
 	await page.getByRole('button', { name: 'Send Request', exact: true }).click()
 	assert.equal((await inquiryResponse).status(), 201)
+	const originalInquiry = (await (await inquiryResponse).json()).data
 	await page.screenshot({ path: artifact + '/public-desktop.png', fullPage: false })
 	await page.goto('http://127.0.0.1:5179/login')
 	await page.locator('#login-email').fill(email)
@@ -498,6 +499,7 @@ try {
 	assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
 	await page.locator('.Toastify__close-button').evaluateAll((buttons) => buttons.forEach((button) => button.click()))
 	await page.waitForFunction(() => !document.querySelector('.Toastify__toast'))
+	await page.getByRole('button', { name: 'Toggle menu', exact: true }).click()
 	await page.getByRole('button', { name: 'Close menu', exact: true }).click()
 	await page.waitForFunction(() => document.querySelector('aside').getBoundingClientRect().right <= 0)
 	await page.getByLabel('Digital collection → Kids', { exact: true }).scrollIntoViewIfNeeded()
@@ -638,6 +640,26 @@ try {
 	await page.getByText('Email not sent: delivery is not set up', { exact: true }).waitFor()
 	await page.reload({ waitUntil: 'networkidle' })
 	await page.getByText('Email not sent: delivery is not set up', { exact: true }).waitFor()
+	// Existing notifications must select the intended inquiry, including same-route navigation.
+	await executeSql(
+		`UPDATE notification SET link='/admin/client-requests' WHERE json_extract(metadata,'$.requestId')=${literal(originalInquiry.id)};`,
+	)
+	await page.reload({ waitUntil: 'networkidle' })
+	await page.getByRole('button', { name: 'Notifications', exact: true }).click()
+	await page.getByRole('button').filter({ hasText: 'Browser inquiry submitted a project inquiry.' }).click()
+	await page.waitForURL('**/admin/client-requests?requestId=' + originalInquiry.id)
+	await page.locator('.request-detail h3').filter({ hasText: 'Browser inquiry' }).waitFor()
+	assert.ok(await page.locator('.inquiry-conversation').evaluate((el) => el.getBoundingClientRect().height >= 320))
+	await page.setViewportSize({ width: 1280, height: 720 })
+	await page.screenshot({ path: artifact + '/inquiry-desktop.png', fullPage: true })
+	assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
+	await page.setViewportSize({ width: 390, height: 844 })
+	await page.locator('.request-detail').scrollIntoViewIfNeeded()
+	await page.waitForFunction(() => document.querySelector('aside').getBoundingClientRect().right <= 1)
+	assert.ok(await page.locator('.inquiry-conversation').evaluate((el) => el.scrollHeight <= el.clientHeight + 1))
+	assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
+	await page.screenshot({ path: artifact + '/inquiry-mobile.png', fullPage: true })
+	await page.setViewportSize({ width: 1440, height: 1000 })
 	await page.goto('http://127.0.0.1:5179/admin/tech-stack', { waitUntil: 'networkidle' })
 	await page.getByRole('button', { name: '+ New tech', exact: true }).click()
 	await page.locator('form input[type=text]').first().fill('Browser-created technology')
@@ -655,6 +677,24 @@ try {
 	await mobile.screenshot({ path: artifact + '/public-mobile.png', fullPage: false })
 	// Home visual is configured by the owner; visitor storage cannot override it.
 	await page.goto('http://127.0.0.1:5179/admin/site-content', { waitUntil: 'networkidle' })
+	const logoTextRow = page.locator('[data-content-key="site_logo_text"]')
+	const previousLogo = await logoTextRow.locator('input').inputValue()
+	await logoTextRow.locator('input').fill('Browser brand')
+	await logoTextRow.getByRole('button', { name: 'Save', exact: true }).click()
+	await page.locator('aside').getByRole('link', { name: 'Browser brand Admin — view site', exact: true }).waitFor()
+	const logoImageRow = page.locator('[data-content-key="site_logo_url"]')
+	await logoImageRow.locator('input[type=file]').setInputFiles(fixtureImage)
+	await page.locator('aside img[alt="Browser brand"]').waitFor()
+	await page.reload({ waitUntil: 'networkidle' })
+	await page.locator('aside img[alt="Browser brand"]').waitFor()
+	await logoImageRow.getByRole('button', { name: 'x', exact: true }).click()
+	await page.locator('aside img').waitFor({ state: 'hidden' })
+	await logoTextRow.locator('input').fill(previousLogo)
+	await logoTextRow.getByRole('button', { name: 'Save', exact: true }).click()
+	await page
+		.locator('aside')
+		.getByRole('link', { name: `${previousLogo} Admin — view site`, exact: true })
+		.waitFor()
 	const visualRow = page.locator('[data-content-key="hero_visual_mode"]')
 	await visualRow.getByLabel('Home visual', { exact: true }).selectOption('model')
 	await page.waitForFunction(() => document.querySelector('model-viewer')?.loaded === true, null, { timeout: 60000 })
@@ -673,10 +713,92 @@ try {
 	await page.waitForFunction(() => document.querySelector('.hero-art model-viewer')?.loaded === true, null, {
 		timeout: 60000,
 	})
+	const figurine = page.locator('.hero-art .figurine-experience')
+	assert.ok(await figurine.getByRole('button', { name: 'Auto rotate', exact: true }).isDisabled())
+	for (const [label, clip] of [
+		['Say hi', 'Wave'],
+		['Thumbs up', 'ThumbsUp'],
+		['Salute', 'Salute'],
+		['Point', 'Point'],
+		['Celebrate', 'Celebrate'],
+	]) {
+		await figurine.getByRole('button', { name: label, exact: true }).click()
+		await page.waitForFunction((name) => {
+			const model = document.querySelector('.hero-art model-viewer')
+			return model.animationName === name && !model.paused && model.currentTime > 0.2
+		}, clip)
+		await page.waitForFunction(() => document.querySelector('.hero-art model-viewer').animationName === 'Idle')
+	}
+	await figurine.getByRole('button', { name: 'Say hi', exact: true }).click()
+	await figurine.getByRole('button', { name: 'Salute', exact: true }).click()
+	await figurine.getByRole('button', { name: 'Thumbs up', exact: true }).click()
+	await page.waitForFunction(() => document.querySelector('.hero-art model-viewer').animationName === 'ThumbsUp')
+	await page.waitForFunction(() => document.querySelector('.hero-art model-viewer').animationName === 'Idle')
+	const orbitBefore = await page.locator('.hero-art model-viewer').evaluate((model) => model.getCameraOrbit().theta)
+	const stage = await page.locator('.hero-art model-viewer').boundingBox()
+	await page.mouse.move(stage.x + stage.width * 0.6, stage.y + stage.height * 0.5)
+	await page.mouse.down()
+	await page.mouse.move(stage.x + stage.width * 0.2, stage.y + stage.height * 0.5, { steps: 12 })
+	await page.mouse.up()
+	await page.waitForFunction(
+		(before) => Math.abs(document.querySelector('.hero-art model-viewer').getCameraOrbit().theta - before) > 0.1,
+		orbitBefore,
+	)
+	await figurine.getByRole('button', { name: 'Reset view', exact: true }).click()
+	await page.waitForFunction(
+		() => Math.abs(document.querySelector('.hero-art model-viewer').getCameraOrbit().theta) < 0.02,
+	)
+	await page.emulateMedia({ reducedMotion: 'no-preference' })
+	await figurine.getByRole('button', { name: 'Auto rotate', exact: true }).click()
+	assert.equal(
+		await figurine.getByRole('button', { name: 'Auto rotate', exact: true }).getAttribute('aria-pressed'),
+		'true',
+	)
+	await page.locator('.hero-art model-viewer').dispatchEvent('pointerdown')
+	assert.equal(
+		await figurine.getByRole('button', { name: 'Auto rotate', exact: true }).getAttribute('aria-pressed'),
+		'false',
+	)
+	assert.equal(await page.locator('.hero-art model-viewer').evaluate((model) => model.autoRotate), false)
+	await page.emulateMedia({ reducedMotion: 'reduce' })
 	await page.screenshot({ path: artifact + '/figurine-desktop.png' })
 	await page.setViewportSize({ width: 390, height: 844 })
 	await page.locator('.hero-art').scrollIntoViewIfNeeded()
 	await page.screenshot({ path: artifact + '/figurine-mobile.png' })
+	const touchContext = await browser.newContext({
+		viewport: { width: 390, height: 844 },
+		hasTouch: true,
+		isMobile: true,
+		reducedMotion: 'reduce',
+	})
+	try {
+		const touch = await touchContext.newPage()
+		await touch.goto('http://127.0.0.1:5179/', { waitUntil: 'networkidle' })
+		await touch.waitForFunction(() => document.querySelector('.hero-art model-viewer')?.loaded, null, {
+			timeout: 60000,
+		})
+		await touch.locator('.hero-art model-viewer').scrollIntoViewIfNeeded()
+		const bounds = await touch.locator('.hero-art model-viewer').boundingBox()
+		const before = await touch.locator('.hero-art model-viewer').evaluate((model) => model.getCameraOrbit().theta)
+		const session = await touchContext.newCDPSession(touch)
+		await session.send('Input.dispatchTouchEvent', {
+			type: 'touchStart',
+			touchPoints: [{ x: bounds.x + bounds.width * 0.8, y: bounds.y + bounds.height * 0.5 }],
+		})
+		for (let step = 1; step <= 8; step++)
+			await session.send('Input.dispatchTouchEvent', {
+				type: 'touchMove',
+				touchPoints: [{ x: bounds.x + bounds.width * (0.8 - step * 0.07), y: bounds.y + bounds.height * 0.5 }],
+			})
+		await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+		await touch.waitForFunction(
+			(value) => Math.abs(document.querySelector('.hero-art model-viewer').getCameraOrbit().theta - value) > 0.1,
+			before,
+		)
+		assert.ok(await touch.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
+	} finally {
+		await touchContext.close()
+	}
 	await page.setViewportSize({ width: 1440, height: 1000 })
 	await page.goto('http://127.0.0.1:5179/admin/site-content', { waitUntil: 'networkidle' })
 	await visualRow.getByLabel('Home visual', { exact: true }).selectOption('portrait')
@@ -800,7 +922,7 @@ try {
 		await recovery.evaluate(() => localStorage.setItem('portfolio_token', 'expired-session-fixture'))
 		await recovery.getByRole('link', { name: 'Forgot password?', exact: true }).click()
 		await recovery.waitForURL('**/forgot-password')
-		await recovery.getByRole('heading',{name:'Forgot password?',exact:true}).waitFor()
+		await recovery.getByRole('heading', { name: 'Forgot password?', exact: true }).waitFor()
 		await recovery.evaluate(() => localStorage.setItem('portfolio_token', 'expired-session-fixture'))
 		await recovery.reload({ waitUntil: 'networkidle' })
 		assert.equal(new URL(recovery.url()).pathname, '/forgot-password')
@@ -814,6 +936,11 @@ try {
 		await recovery.getByRole('heading', { name: 'Choose your password', exact: true }).waitFor()
 		assert.equal(await recovery.evaluate(() => localStorage.getItem('portfolio_token')), null)
 		await recovery.locator('#reset-password').fill(rotatedPassword)
+		await recovery.getByRole('button', { name: 'Show new password', exact: true }).click()
+		assert.equal(await recovery.locator('#reset-password').getAttribute('type'), 'text')
+		assert.equal(await recovery.locator('#reset-confirm').getAttribute('type'), 'password')
+		await recovery.getByRole('button', { name: 'Hide new password', exact: true }).click()
+		assert.equal(await recovery.locator('#reset-password').getAttribute('type'), 'password')
 		await recovery.locator('#reset-confirm').fill('different-confirmation')
 		await recovery.getByRole('button', { name: 'Save new password', exact: true }).click()
 		await recovery.getByText('Passwords do not match.', { exact: true }).waitFor()
@@ -898,6 +1025,12 @@ try {
 		'Browser verification passed: public desktop/mobile, themes, shop, chat, inquiry, owner login, 12 admin pages, media uploads, reply email status and CMS persistence. Evidence: ' +
 			artifact,
 	)
+} catch (error) {
+	try {
+		for (const [index, activePage] of (browser?.contexts().flatMap((context) => context.pages()) || []).entries())
+			await activePage.screenshot({ path: `${artifact}/failure-${index}.png`, fullPage: true })
+	} catch {}
+	throw error
 } finally {
 	await browser?.close()
 	if (process.platform === 'win32') {

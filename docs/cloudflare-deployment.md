@@ -649,9 +649,14 @@ host are unnecessary for this implementation.
 | MAIL_API_TOKEN          | Resend HTTP API token.                                                                  |
 | MAIL_FROM               | Sender verified with the mail provider.                                                 |
 | MAIL_TO                 | Owner address for inquiry notifications.                                                |
+| MAIL_TRANSPORT          | `resend` (default) or `smtp`; choose one transport explicitly.                             |
+| SMTP_HOST               | Public SMTP submission hostname.                                                        |
+| SMTP_PORT               | `587` (STARTTLS, default) or `465` (implicit TLS).                                        |
+| SMTP_USERNAME           | SMTP account username.                                                                  |
+| SMTP_PASSWORD           | SMTP password or provider app password.                                                 |
 
 These providers have their own limits/billing and were not called in local tests.
-Do not copy the retired NestJS/SMTP environment wholesale into Workers. Email
+Use the current variable names below rather than retired NestJS settings. Email
 intent persists in mail_outbox; scheduled retries run every 15 minutes, at most
 five attempts, with failed rows retained for review. Saved/queued is distinct
 from delivered.
@@ -659,7 +664,7 @@ from delivered.
 ### Enable reply emails
 
 Cloudflare hosting does not automatically configure outbound email. This app
-uses Resend's HTTP API; old SMTP settings do not configure this implementation.
+supports Resend's HTTP API and authenticated SMTP submission.
 The admin Client Requests page shows whether email sending is configured and
 displays a status on newly saved replies. A saved reply remains available even
 when email is unavailable. Earlier replies without a linked outbox identifier
@@ -696,6 +701,52 @@ controls owner notifications about new inquiries, not replies to clients.
 
 Sources: [Resend sender restrictions](https://resend.com/docs/knowledge-base/403-error-resend-dev-domain),
 [provider errors](https://resend.com/docs/api-reference/errors).
+
+### Local environment and SMTP setup
+
+Local runtime configuration belongs in **`.dev.vars` at the repository root**,
+beside `wrangler.jsonc` and `package.json`. Copy missing names from
+`.dev.vars.example` without overwriting an existing file or AUTH_SECRET.
+This project uses `.dev.vars`; do not add a competing `.env` file. Restart
+`npm.cmd run dev` after editing. Never put server credentials in `VITE_` variables.
+
+For an existing SMTP mailbox, set these names privately in `.dev.vars`:
+
+```dotenv
+MAIL_TRANSPORT=smtp
+MAIL_FROM="Portfolio <your-sender@your-domain.com>"
+SMTP_HOST=smtp.your-provider.com
+SMTP_PORT=587
+SMTP_USERNAME=your-mailbox@your-domain.com
+SMTP_PASSWORD=your-provider-app-password
+# Optional owner notification recipient:
+MAIL_TO=your-address@your-domain.com
+```
+
+Use your provider's actual submission hostname, allowed sender and credentials.
+Port 587 must advertise and accept STARTTLS before authentication; port 465 uses
+TLS from connection start. Plaintext and port 25 are deliberately unsupported.
+PLAIN/LOGIN password authentication is supported over TLS; OAuth-only mailboxes
+need a provider-supported app password or another mail transport.
+
+For the deployed website, `.dev.vars` is not uploaded by Git. In Cloudflare,
+open **Workers & Pages → my-portfolio → Settings → Variables and Secrets**.
+Add the same names as runtime **Secrets**, then deploy the configuration. These
+are not GitHub/Cloudflare build variables. Alternatively use the private prompts
+from `npx.cmd wrangler secret put NAME` for each name. Preserve AUTH_SECRET and
+other existing bindings. To return to Resend, set `MAIL_TRANSPORT=resend` and
+provide its `MAIL_API_TOKEN`/`MAIL_FROM` values.
+
+SMTP uses the same persisted outbox, lease, five-attempt limit and expiry checks
+as Resend. A final SMTP DATA response of 250 means the server accepted the mail;
+it does not establish inbox delivery. SMTP has no provider idempotency key: the
+stable Message-ID helps correlation, but a lost final acknowledgement can cause
+a duplicate on retry. Review pending mail before enabling a transport. The
+application does not send a test email automatically. Credential validity and
+actual delivery require a deliberately addressed real-provider check.
+
+Sources: [Cloudflare local/runtime secrets](https://developers.cloudflare.com/workers/configuration/secrets/),
+[TCP sockets and SMTP restrictions](https://developers.cloudflare.com/workers/runtime-apis/tcp-sockets/).
 
 Public uploads use D1 chunks: 8 MiB/image, 12 MiB/certificate, 32 MiB/project video and a 256 MiB media
 budget. The hub caps live connections at 128. Check real CPU, D1 reads/writes and

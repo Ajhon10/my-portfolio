@@ -1,7 +1,11 @@
 import { now } from './http'
 import type { Env, Row } from './types'
+import { smtpConfig } from './smtp-protocol'
 
-export const mailConfigured = (env: Env) => Boolean(env.MAIL_API_TOKEN && env.MAIL_FROM)
+export const mailConfigured = (env: Env) =>
+	env.MAIL_TRANSPORT === 'smtp'
+		? Boolean(smtpConfig(env))
+		: (!env.MAIL_TRANSPORT || env.MAIL_TRANSPORT === 'resend') && Boolean(env.MAIL_API_TOKEN && env.MAIL_FROM)
 export type MailStatus = 'not-configured' | 'queued' | 'accepted' | 'failed' | 'unknown'
 export function replyMailStatus(env: Env, row: Row): MailStatus {
 	if (!row.mail_id) return 'unknown'
@@ -47,18 +51,28 @@ export async function flushMail(env: Env, messageId?: string) {
 		if (!row) continue
 		let providerStatus: number | null = null
 		try {
-			const response = await fetch('https://api.resend.com/emails', {
-				method: 'POST',
-				signal: AbortSignal.timeout(15000),
-				headers: {
-					Authorization: 'Bearer ' + env.MAIL_API_TOKEN,
-					'Content-Type': 'application/json',
-					'Idempotency-Key': row.id,
-				},
-				body: JSON.stringify({ from: env.MAIL_FROM, to: [row.recipient], subject: row.subject, text: row.content }),
-			})
-			providerStatus = response.status
-			if (!response.ok) throw new Error('Mail provider rejected delivery.')
+			if (env.MAIL_TRANSPORT === 'smtp') {
+				const { sendSmtp } = await import('./smtp')
+				await sendSmtp(smtpConfig(env)!, {
+					id: row.id,
+					recipient: row.recipient,
+					subject: row.subject,
+					content: row.content,
+				})
+			} else {
+				const response = await fetch('https://api.resend.com/emails', {
+					method: 'POST',
+					signal: AbortSignal.timeout(15000),
+					headers: {
+						Authorization: 'Bearer ' + env.MAIL_API_TOKEN,
+						'Content-Type': 'application/json',
+						'Idempotency-Key': row.id,
+					},
+					body: JSON.stringify({ from: env.MAIL_FROM, to: [row.recipient], subject: row.subject, text: row.content }),
+				})
+				providerStatus = response.status
+				if (!response.ok) throw new Error('Mail provider rejected delivery.')
+			}
 			await env.DB.prepare('UPDATE mail_outbox SET delivered_at=?,lease_until=NULL WHERE id=?')
 				.bind(now(), row.id)
 				.run()

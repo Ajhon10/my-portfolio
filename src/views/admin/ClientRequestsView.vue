@@ -2,6 +2,8 @@
 import FormField from '@/components/FormField.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import Modal from '@/components/Modal.vue'
+import PasswordInput from '@/components/PasswordInput.vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useClientRequestProvider, type EmailServiceStatus } from '@/composables/provider/client-request.provider'
 import { getAdminSocket } from '@/composables/useSocket'
 import { ClientRequestStatus, Role, type ClientRequest, type ClientRequestMessage } from '@/types'
@@ -10,6 +12,10 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { toast } from 'vue3-toastify'
 
 const provider = useClientRequestProvider()
+const route = useRoute()
+const router = useRouter()
+const selectionError = ref('')
+const detailPanel = ref<HTMLElement | null>(null)
 const items = ref<ClientRequest[]>([])
 const loading = ref(true)
 const selectedId = ref<string | null>(null)
@@ -53,13 +59,42 @@ const load = async () => {
 	emailService.value = email.success && email.data ? email.data : null
 	if (res.success && res.data) {
 		items.value = sortRequests(res.data)
-		if (!selectedId.value && items.value.length) selectedId.value = items.value[0].id
+		if (typeof route.query.requestId === 'string') await selectLinkedRequest(route.query.requestId)
+		else if (!selectedId.value && items.value.length) selectedId.value = items.value[0].id
 	}
 	loading.value = false
 }
 
 const sortRequests = (requests: ClientRequest[]) =>
 	[...requests].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+
+const selectLinkedRequest = async (id: string) => {
+	selectionError.value = ''
+	filter.value = 'all'
+	if (!items.value.some((item) => item.id === id)) {
+		const response = await provider.getOne(encodeURIComponent(id))
+		if (route.query.requestId !== id) return
+		if (response.success && response.data) mergeRequest(response.data)
+		else {
+			selectedId.value = null
+			selectionError.value = 'This request is unavailable or you do not have access to it.'
+			return
+		}
+	}
+	if (route.query.requestId === id) selectedId.value = id
+}
+
+const selectRequest = (id: string) => {
+	void router.replace({ query: { ...route.query, requestId: id } })
+	if (window.innerWidth < 1024) detailPanel.value?.scrollIntoView({ block: 'start' })
+}
+
+watch(
+	() => route.query.requestId,
+	(id) => {
+		if (typeof id === 'string') void selectLinkedRequest(id)
+	},
+)
 
 const mergeRequest = (request: ClientRequest) => {
 	if (!request?.id) return
@@ -206,6 +241,7 @@ const joinSelected = async (requestId: string | null) => {
 	loadingMessages.value = true
 	const res = await provider.listMessages(requestId)
 	if (res.success && res.data && selectedId.value === requestId) messages.value = res.data
+	if (selectedId.value !== requestId) return
 	loadingMessages.value = false
 	await scrollMessages()
 }
@@ -296,9 +332,9 @@ const senderName = (message: ClientRequestMessage) => {
 </script>
 
 <template>
-	<div class="grid lg:grid-cols-12 gap-6 h-[calc(100vh-9rem)]">
+	<div class="request-workspace">
 		<!-- List -->
-		<div class="lg:col-span-5 card overflow-hidden flex flex-col">
+		<div class="request-list card overflow-hidden flex flex-col min-w-0">
 			<div class="p-3 border-b border-white/5 flex flex-wrap gap-1">
 				<button
 					class="px-2.5 py-1 text-xs rounded-full border"
@@ -330,11 +366,14 @@ const senderName = (message: ClientRequestMessage) => {
 					:key="r.id"
 					class="w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition"
 					:class="selectedId === r.id ? 'bg-brand-blue/10 border-l-2 border-l-brand-blue' : ''"
-					@click="selectedId = r.id"
+					@click="selectRequest(r.id)"
 				>
 					<div class="flex items-center justify-between gap-3 mb-1">
 						<div class="font-medium truncate">{{ r.fullName }}</div>
-						<span :class="['px-2 py-0.5 rounded-full text-[10px] border whitespace-nowrap', statusColor(r.status)]">
+						<span
+							:data-request-status="r.status"
+							:class="['px-2 py-0.5 rounded-full text-[10px] border whitespace-nowrap', statusColor(r.status)]"
+						>
 							{{ r.status }}
 						</span>
 					</div>
@@ -346,24 +385,26 @@ const senderName = (message: ClientRequestMessage) => {
 		</div>
 
 		<!-- Detail -->
-		<div class="lg:col-span-7 card overflow-hidden flex flex-col">
+		<div ref="detailPanel" class="request-detail card min-w-0 overflow-hidden flex flex-col scroll-mt-6">
 			<div v-if="!selected" class="flex-1 flex items-center justify-center text-brand-gray-500">
-				Select a request to view details.
+				{{ selectionError || 'Select a request to view details.' }}
 			</div>
 			<template v-else>
 				<div class="p-5 border-b border-white/5">
 					<div class="flex items-start justify-between gap-3 mb-3">
-						<div>
+						<div class="min-w-0 break-words">
 							<h3 class="font-display font-semibold text-lg">{{ selected.fullName }}</h3>
 							<a :href="`mailto:${selected.email}`" class="text-sm text-brand-blueLight hover:underline">{{
 								selected.email
 							}}</a>
 						</div>
-						<span :class="['px-2.5 py-1 rounded-full text-xs border', statusColor(selected.status)]">{{
-							selected.status
-						}}</span>
+						<span
+							:data-request-status="selected.status"
+							:class="['px-2.5 py-1 rounded-full text-xs border', statusColor(selected.status)]"
+							>{{ selected.status }}</span
+						>
 					</div>
-					<div class="grid grid-cols-2 gap-3 text-sm text-brand-gray-300 mb-3">
+					<div class="grid sm:grid-cols-2 gap-3 text-sm text-brand-gray-300 mb-3 break-words">
 						<div><span class="text-brand-gray-500">Type:</span> {{ selected.projectType }}</div>
 						<div v-if="selected.budget"><span class="text-brand-gray-500">Budget:</span> {{ selected.budget }}</div>
 						<div v-if="selected.timeline">
@@ -401,7 +442,7 @@ const senderName = (message: ClientRequestMessage) => {
 						</span>
 					</div>
 				</div>
-				<div class="flex-1 overflow-y-auto p-5 space-y-4">
+				<div class="inquiry-conversation p-5 space-y-5 break-words" aria-label="Inquiry conversation">
 					<div>
 						<h4 class="text-xs uppercase tracking-wider text-brand-gray-500 mb-2">Project description</h4>
 						<p class="text-brand-gray-200 whitespace-pre-line text-sm leading-relaxed">{{ selected.description }}</p>
@@ -427,7 +468,7 @@ const senderName = (message: ClientRequestMessage) => {
 					</div>
 
 					<div>
-						<div class="flex items-center justify-between gap-3 mb-2">
+						<div class="flex flex-wrap items-center justify-between gap-3 mb-2">
 							<h4 class="text-xs uppercase tracking-wider text-brand-gray-500">Project chat</h4>
 							<span v-if="!selected.clientUserId" class="text-xs text-brand-gray-500">
 								Create a client account to let them access this chat.
@@ -435,7 +476,7 @@ const senderName = (message: ClientRequestMessage) => {
 						</div>
 						<div
 							ref="messageList"
-							class="rounded-xl border border-white/10 bg-black/20 max-h-72 overflow-y-auto p-3 space-y-3"
+							class="request-chat rounded-xl border border-white/10 min-h-40 max-h-96 overflow-y-auto p-3 space-y-3"
 						>
 							<LoadingSpinner v-if="loadingMessages" />
 							<div v-else-if="!messages.length" class="py-8 text-center text-sm text-brand-gray-500">
@@ -480,7 +521,7 @@ const senderName = (message: ClientRequestMessage) => {
 							<input
 								v-model="chatText"
 								type="text"
-								class="input !py-2 !px-3 text-sm flex-1"
+								class="input !py-2 !px-3 text-sm flex-1 min-w-0"
 								placeholder="Send a realtime project message..."
 								:disabled="sendingChat || !selected.clientUserId"
 								@input="onChatInput"
@@ -497,7 +538,7 @@ const senderName = (message: ClientRequestMessage) => {
 				<div class="p-4 border-t border-white/5 space-y-3">
 					<p
 						v-if="emailService && !emailService.configured"
-						class="rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200"
+						class="inquiry-email-notice rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200"
 						role="status"
 					>
 						Email delivery is not set up. Replies are saved here, but clients will not receive them by email until
@@ -550,7 +591,12 @@ const senderName = (message: ClientRequestMessage) => {
 					required
 					hint="Share this securely with the client. They can change it after login."
 				>
-					<input v-model="accountForm.password" class="input" type="password" />
+					<PasswordInput
+						v-model="accountForm.password"
+						label="temporary password"
+						aria-label="Temporary password"
+						autocomplete="new-password"
+					/>
 				</FormField>
 				<div class="flex justify-end gap-3">
 					<button type="button" class="btn btn-ghost" @click="accountModalOpen = false">Cancel</button>
@@ -562,3 +608,51 @@ const senderName = (message: ClientRequestMessage) => {
 		</Modal>
 	</div>
 </template>
+<style scoped>
+.request-workspace {
+	display: grid;
+	gap: 24px;
+	align-items: start;
+}
+.request-list {
+	max-height: 360px;
+}
+.request-list > :first-child {
+	flex-shrink: 0;
+}
+.request-detail {
+	min-height: 400px;
+}
+.inquiry-conversation {
+	min-height: 320px;
+}
+.request-chat {
+	background: var(--folio-surface);
+}
+:global(html[data-theme='primary'] .inquiry-email-notice) {
+	color: #854d0e;
+}
+:global(html[data-theme='primary'] .request-workspace [data-request-status='REPLIED']),
+:global(html[data-theme='primary'] .request-workspace [data-request-status='ACCEPTED']) {
+	color: #166534;
+}
+:global(html[data-theme='primary'] .request-workspace [data-request-status='PENDING']) {
+	color: #854d0e;
+}
+:global(html[data-theme='primary'] .request-workspace [data-request-status='REVIEWING']) {
+	color: #1d4ed8;
+}
+:global(html[data-theme='primary'] .request-workspace [data-request-status='DECLINED']) {
+	color: #b91c1c;
+}
+@media (min-width: 1024px) {
+	.request-workspace {
+		grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+	}
+	.request-list {
+		position: sticky;
+		top: 24px;
+		max-height: calc(100dvh - 112px);
+	}
+}
+</style>

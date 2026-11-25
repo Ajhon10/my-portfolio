@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PasswordInput from '@/components/PasswordInput.vue'
 import AvatarUpload from '@/components/AvatarUpload.vue'
 import FormField from '@/components/FormField.vue'
 import TwoFactorSetupModal from '@/components/TwoFactorSetupModal.vue'
@@ -100,6 +101,11 @@ const disableCode = ref('')
 const showDisableForm = ref(false)
 const disableLoading = ref(false)
 const disableError = ref('')
+const cancelDisable = () => {
+	showDisableForm.value = false
+	disableCode.value = ''
+	disableError.value = ''
+}
 
 const load2FAStatus = async () => {
 	const res = await authProvider.get2FAStatus()
@@ -109,10 +115,10 @@ const load2FAStatus = async () => {
 onMounted(load2FAStatus)
 
 const enable2FA = async () => {
- twoFALoading.value = true
- const result = await authProvider.enable2FA()
- twoFALoading.value = false
- if (result.success) await userStore.logout()
+	twoFALoading.value = true
+	const result = await authProvider.enable2FA()
+	twoFALoading.value = false
+	if (result.success) await userStore.logout()
 }
 
 const on2FASetupSuccess = async () => {
@@ -191,13 +197,28 @@ const disable2FA = async () => {
 			<h2 class="font-display font-semibold text-lg mb-4">Change password</h2>
 			<form class="space-y-4" @submit.prevent="submit">
 				<FormField label="Current password" :error="errors.currentPassword" required>
-					<input v-model="form.currentPassword" type="password" class="input" autocomplete="current-password" />
+					<PasswordInput
+						v-model="form.currentPassword"
+						label="current password"
+						aria-label="Current password"
+						autocomplete="current-password"
+					/>
 				</FormField>
 				<FormField label="New password" :error="errors.newPassword" required hint="At least 8 characters">
-					<input v-model="form.newPassword" type="password" class="input" autocomplete="new-password" />
+					<PasswordInput
+						v-model="form.newPassword"
+						label="new password"
+						aria-label="New password"
+						autocomplete="new-password"
+					/>
 				</FormField>
 				<FormField label="Confirm new password" :error="errors.confirmPassword" required>
-					<input v-model="form.confirmPassword" type="password" class="input" autocomplete="new-password" />
+					<PasswordInput
+						v-model="form.confirmPassword"
+						label="password confirmation"
+						aria-label="Confirm new password"
+						autocomplete="new-password"
+					/>
 				</FormField>
 				<div class="pt-2">
 					<button type="submit" class="btn btn-primary" :disabled="submitting">
@@ -220,7 +241,11 @@ const disable2FA = async () => {
 				<div class="flex items-center gap-2 shrink-0 mt-1">
 					<span
 						class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-						:class="twoFAEnabled ? 'bg-green-500/15 text-green-400 border border-green-500/30' : 'bg-brand-gray-800 text-brand-gray-400 border border-white/10'"
+						:class="
+							twoFAEnabled
+								? 'bg-green-500/15 text-green-400 border border-green-500/30'
+								: 'bg-brand-gray-800 text-brand-gray-400 border border-white/10'
+						"
 					>
 						<span class="w-1.5 h-1.5 rounded-full" :class="twoFAEnabled ? 'bg-green-400' : 'bg-brand-gray-500'" />
 						{{ twoFAEnabled ? 'Enabled' : 'Disabled' }}
@@ -237,7 +262,10 @@ const disable2FA = async () => {
 					Disable 2FA
 				</button>
 				<div v-else class="space-y-3 max-w-xs">
-					<div v-if="disableError" class="rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-2 text-sm text-red-400">
+					<div
+						v-if="disableError"
+						class="rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-2 text-sm text-red-400"
+					>
 						{{ disableError }}
 					</div>
 					<div>
@@ -253,12 +281,14 @@ const disable2FA = async () => {
 						/>
 					</div>
 					<div class="flex gap-2">
-						<button class="btn btn-danger !py-2 !px-4 text-sm" :disabled="disableLoading || disableCode.length !== 6" @click="disable2FA">
+						<button
+							class="btn btn-danger !py-2 !px-4 text-sm"
+							:disabled="disableLoading || disableCode.length !== 6"
+							@click="disable2FA"
+						>
 							{{ disableLoading ? 'Disabling…' : 'Confirm disable' }}
 						</button>
-						<button class="btn btn-ghost !py-2 !px-4 text-sm" @click="showDisableForm = false; disableCode = ''; disableError = ''">
-							Cancel
-						</button>
+						<button class="btn btn-ghost !py-2 !px-4 text-sm" @click="cancelDisable">Cancel</button>
 					</div>
 				</div>
 			</div>

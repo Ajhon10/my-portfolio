@@ -5,7 +5,7 @@ import { connectAdminSocket } from '@/composables/useSocket'
 import { useNotificationStore } from '@/stores/notification'
 import { onMounted, ref } from 'vue'
 
-const sidebarOpen = ref(true)
+const sidebarOpen = ref(false)
 const notificationStore = useNotificationStore()
 
 // Track that we already wired listeners so duplicate handlers aren't attached

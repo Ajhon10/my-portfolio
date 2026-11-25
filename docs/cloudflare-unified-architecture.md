@@ -22,6 +22,12 @@ lazy `@google/model-viewer` chunk renders a bundled original sample or a public
 HTTPS GLB; it does not require a server renderer, paid generation API or new
 storage service. The current CMS accepts a replacement model URL, not GLB
 uploads. The sample is deliberately versioned under `public/seed/models/`.
+The November 25 interactive update includes editable Blender source in
+`assets/figurine/`, a 48-joint skinned GLB and six embedded clips. Vue selects
+clips through model-viewer's Three.js animation mixer; it does not build the
+character from JavaScript primitives. Camera/gesture controls respect reduced
+motion and keep portrait fallback available. This asset remains an approximate
+likeness study; the premium sculpting target is not visually accepted.
 Migration 0010 adds optional project company attribution and honest shop sales/
 rating aggregates; 0011 performs the specifically requested featured curation.
 Shop cards link to `/shop/:id`, retaining the same public/draft authorization.
@@ -96,6 +102,12 @@ AI-provider calls and outbound email are optional integrations, not backend or
 database hosts. Without credentials, the existing grounded local chatbot fallback
 and persisted inquiries remain usable. Never claim delivery when email is absent.
 Preserve durable email intent, retry limits and safe operator visibility.
+Email selects Resend (default) or encrypted SMTP explicitly with MAIL_TRANSPORT.
+SMTP uses Cloudflare TCP sockets on 465 (TLS) or 587 (mandatory STARTTLS), with
+public configured hostnames, authentication after TLS, bounded responses and
+timeouts. Runtime credentials stay in local `.dev.vars`/deployed Worker secrets.
+The existing outbox/claim/expiry/retry behavior is shared. SMTP retries reuse
+Message-ID but cannot guarantee duplicate suppression after a lost DATA response.
 
 Free service quotas are finite. Exceeding Free Workers/D1/DO quotas can stop
 requests; a local test does not prove production workload capacity. No paid

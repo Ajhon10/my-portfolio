@@ -20,3 +20,4 @@ uploads/
 *.private.sql
 legacy-export.json
 legacy-import.sql
+assets/figurine/*.blend1

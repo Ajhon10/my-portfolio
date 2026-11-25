@@ -71,7 +71,7 @@ async function submit(c: import('hono').Context<AppEnv>, client: boolean) {
 		type: 'CLIENT_REQUEST',
 		title: 'New project inquiry',
 		message: `${input.fullName} submitted a project inquiry.`,
-		link: '/admin/client-requests',
+		link: `/admin/client-requests?requestId=${encodeURIComponent(request.row.id)}`,
 		metadata: { requestId: request.row.id },
 	})
 	const statements = [request.statement, notification.statement]
@@ -194,7 +194,7 @@ requestRoutes.post('/:id/chat', async (c) => {
 		type: 'CHAT_MESSAGE',
 		title: 'New project message',
 		message: 'A new message is available in your project chat.',
-		link: user.role === 'CLIENT' ? '/admin/client-requests' : '/client/portal',
+		link: `${user.role === 'CLIENT' ? '/admin/client-requests' : '/client/portal'}?requestId=${encodeURIComponent(id)}`,
 		userId: recipient,
 		metadata: { requestId: id },
 	})

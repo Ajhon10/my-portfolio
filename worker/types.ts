@@ -9,6 +9,11 @@ export interface Env {
 	MAIL_API_TOKEN?: string
 	MAIL_FROM?: string
 	MAIL_TO?: string
+	MAIL_TRANSPORT?: string
+	SMTP_HOST?: string
+	SMTP_PORT?: string
+	SMTP_USERNAME?: string
+	SMTP_PASSWORD?: string
 }
 export type Role = 'OWNER' | 'ADMIN' | 'CLIENT'
 export interface User {

@@ -191,7 +191,7 @@ const hints: Record<string, string> = {
 	hero_model_url:
 		'The bundled sample references your portrait. Replace with a public HTTPS .glb URL with cross-origin access enabled. Keep models small for mobile visitors.',
 	hero_model_alt: 'Describe the figurine for visitors using a screen reader.',
-	site_logo_url: 'Upload a transparent PNG, SVG, or WebP logo for the navbar.',
+	site_logo_url: 'Upload a transparent PNG, SVG, or WebP logo for the website and admin sidebar.',
 	site_favicon_url:
 		'Upload an ICO, PNG, SVG, or WebP icon (up to 8 MB). Saving refreshes the browser tab icon and other open portfolio tabs.',
 	site_title: 'Shown in the browser tab and search previews.',
