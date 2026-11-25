@@ -799,6 +799,8 @@ try {
 		await recovery.goto('http://127.0.0.1:5179/login', { waitUntil: 'networkidle' })
 		await recovery.evaluate(() => localStorage.setItem('portfolio_token', 'expired-session-fixture'))
 		await recovery.getByRole('link', { name: 'Forgot password?', exact: true }).click()
+		await recovery.waitForURL('**/forgot-password')
+		await recovery.getByRole('heading',{name:'Forgot password?',exact:true}).waitFor()
 		await recovery.evaluate(() => localStorage.setItem('portfolio_token', 'expired-session-fixture'))
 		await recovery.reload({ waitUntil: 'networkidle' })
 		assert.equal(new URL(recovery.url()).pathname, '/forgot-password')
