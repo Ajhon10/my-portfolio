@@ -1,0 +1,25 @@
+id,createdAt,updatedAt,deletedAt,deleted,name,category,iconUrl,proficiency,sortOrder
+8fae63a0-d475-4ef1-9bed-5220d5ceee75,2026-05-02T22:54:51.710Z,2026-05-03T23:49:44.498Z,\N,false,TypeScript,Languages,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg,95,1
+03d331fc-f2f7-4c72-9630-03ecd9316456,2026-05-03T23:49:44.511Z,2026-05-03T23:49:44.511Z,\N,false,JavaScript,Languages,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg,92,2
+95e3a93b-f198-437e-bce7-8e9954bee835,2026-05-03T23:49:44.518Z,2026-05-03T23:49:44.518Z,\N,false,PHP,Languages,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/php/php-original.svg,86,3
+74f37454-8a3d-4632-b0f2-558107f3038e,2026-05-02T22:54:51.721Z,2026-05-03T23:49:44.521Z,\N,false,Vue.js 3,Frontend,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vuejs/vuejs-original.svg,94,10
+4d6f5199-82e9-4d62-8d5a-c36e8d6c3faa,2026-05-03T23:49:44.523Z,2026-05-03T23:49:44.523Z,\N,false,React,Frontend,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg,84,11
+3bfba623-368a-45a9-8f47-7eee89ee9b78,2026-05-02T22:54:51.735Z,2026-05-03T23:49:44.524Z,\N,false,Next.js,Frontend,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nextjs/nextjs-original.svg,82,12
+fe8d3ea4-117a-4484-89f3-6667eeb6abe0,2026-05-02T22:54:51.728Z,2026-05-03T23:49:44.528Z,\N,false,Tailwind CSS,Frontend,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tailwindcss/tailwindcss-original.svg,92,13
+41ddfee5-09e3-4038-b9f9-6b568fcfe60e,2026-05-03T23:49:44.531Z,2026-05-03T23:49:44.531Z,\N,false,Pinia,Frontend,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pinia/pinia-original.svg,88,14
+fd72078e-5381-477e-849c-310599022a09,2026-05-03T23:49:44.533Z,2026-05-03T23:49:44.533Z,\N,false,Vite,Frontend,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vitejs/vitejs-original.svg,90,15
+212ed13d-c801-4b30-9dee-6e032c750193,2026-05-02T22:54:51.724Z,2026-05-03T23:49:44.632Z,\N,false,NestJS,Backend,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nestjs/nestjs-original.svg,92,20
+71ccf353-c1b8-4edd-8a3a-ff4dd2e024b6,2026-05-03T23:49:44.636Z,2026-05-03T23:49:44.636Z,\N,false,Node.js,Backend,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg,90,21
+31fc7a70-9ec4-4a8b-aa45-cf6d28818635,2026-05-03T23:49:44.642Z,2026-05-03T23:49:44.642Z,\N,false,Express.js,Backend,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/express/express-original.svg,86,22
+a7dc972c-1c88-4e98-a162-7bafa38bc2b7,2026-05-03T23:49:44.647Z,2026-05-03T23:49:44.647Z,\N,false,Laravel,Backend,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/laravel/laravel-original.svg,88,23
+56314cd8-4e67-4dab-9189-70973300a57f,2026-05-03T23:49:44.651Z,2026-05-03T23:49:44.651Z,\N,false,Prisma,Backend,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/prisma/prisma-original.svg,88,24
+09fa3647-4786-40ac-80df-427265c79108,2026-05-02T22:54:51.726Z,2026-05-03T23:49:44.652Z,\N,false,PostgreSQL,Database,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg,88,30
+13d5a4a1-df82-4d52-a309-b10677be4fd7,2026-05-03T23:49:44.654Z,2026-05-03T23:49:44.654Z,\N,false,MySQL,Database,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mysql/mysql-original.svg,84,31
+daa78268-ac05-442d-8ac0-ca388085686d,2026-05-03T23:49:44.658Z,2026-05-03T23:49:44.658Z,\N,false,MongoDB,Database,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg,78,32
+8ee60ad0-4aca-4bca-a85a-74d78716108d,2026-05-03T23:49:44.660Z,2026-05-03T23:49:44.660Z,\N,false,Firebase,Database,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/firebase/firebase-original.svg,78,33
+04ce3377-488d-49c2-87e8-8d15a2c89bc4,2026-05-02T22:54:51.731Z,2026-05-03T23:49:44.661Z,\N,false,Docker,DevOps & Deployment,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg,78,40
+29ca18ac-1269-4d31-80b7-03a9a815fb4c,2026-05-02T22:54:51.732Z,2026-05-03T23:49:44.663Z,\N,false,Git,DevOps & Deployment,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg,95,41
+23b40143-33f0-4452-b4bf-dace3212b342,2026-05-03T23:49:44.664Z,2026-05-03T23:49:44.664Z,\N,false,GitHub,DevOps & Deployment,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg,92,42
+a1d14194-8dcb-4d53-8797-0bbe49edfaaf,2026-05-03T23:49:44.668Z,2026-05-03T23:49:44.668Z,\N,false,Vercel,DevOps & Deployment,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vercel/vercel-original.svg,86,43
+b803e3cd-ee40-45a1-818b-589d7d251fa8,2026-05-03T23:49:44.670Z,2026-05-03T23:49:44.670Z,\N,false,Render,DevOps & Deployment,,84,44
+77f88623-ec3e-4a58-8573-3d9623c87442,2026-05-03T23:49:44.671Z,2026-05-03T23:49:44.671Z,\N,false,Figma,Design,https://cdn.jsdelivr.net/gh/devicons/devicon/icons/figma/figma-original.svg,82,50

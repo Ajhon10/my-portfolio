@@ -1,28 +1,28 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import SiteIcon from './SiteIcon.vue'
 import InteractivePortrait from './InteractivePortrait.vue'
 import ParticlePortrait from './ParticlePortrait.vue'
 import { useSiteContentProvider } from '@/composables/provider/site-content.provider'
 import { useViewerPresenceState } from '@/composables/useSocket'
+import { usePortfolioGame } from '@/composables/usePortfolioGame'
 
 const content = ref<Record<string, string>>({})
 const portraitMode = ref<'particles' | 'portrait'>('particles')
+const staticPortrait = ref(false)
 const { viewerCount, viewerConnected } = useViewerPresenceState()
+const { gameEnabled, toggleGame } = usePortfolioGame()
 const viewerLabel = computed(() => {
-	if (viewerCount.value === null) return viewerConnected.value ? 'Counting live viewers' : 'Connecting live viewers'
-	return `${viewerCount.value} viewing now`
+	if (!viewerConnected.value) return 'Connecting live viewers'
+	if (viewerCount.value === null) return 'Counting live viewers'
+	const others = Math.max(0, viewerCount.value - 1)
+	return others
+		? `You and ${others} ${others === 1 ? 'other' : 'others'} are currently viewing`
+		: 'You are currently viewing'
 })
 
 type PortraitDirection =
-	| 'center'
-	| 'up'
-	| 'down'
-	| 'left'
-	| 'right'
-	| 'up-left'
-	| 'up-right'
-	| 'down-left'
-	| 'down-right'
+	'center' | 'up' | 'down' | 'left' | 'right' | 'up-left' | 'up-right' | 'down-left' | 'down-right'
 type PortraitAdjustment = { scale?: number; x?: number; y?: number }
 
 const portraitImages = computed<Partial<Record<PortraitDirection, string>>>(() => ({
@@ -59,12 +59,22 @@ watch(portraitMode, (mode) => {
 	<section id="hero" class="folio-hero">
 		<div class="hero-meta">
 			<span>FULLSTACK WEB DEVELOPER</span>
-			<div class="hero-meta-right">
-				<span>BASED IN THE PHILIPPINES &#8599;</span>
+			<span class="hero-location">BASED IN THE PHILIPPINES &#8599;</span>
+			<div class="hero-live-controls">
 				<span class="hero-viewers" role="status" aria-live="polite" aria-atomic="true">
 					<span class="viewer-pulse" :class="{ connected: viewerConnected }" aria-hidden="true" />
-					{{ viewerLabel }}
+					<span>{{ viewerLabel }}</span>
 				</span>
+				<button
+					type="button"
+					class="hero-game-toggle"
+					:class="{ active: gameEnabled }"
+					:aria-pressed="gameEnabled"
+					aria-controls="portfolio-game-layer"
+					@click="toggleGame"
+				>
+					<span>Game mode</span><span class="nav-switch" aria-hidden="true"><span /></span>
+				</button>
 			</div>
 		</div>
 		<div class="hero-composition">
@@ -87,10 +97,11 @@ watch(portraitMode, (mode) => {
 					digital experiences, with AI as part of my coding process.
 				</p>
 				<div class="hero-actions">
-					<router-link to="/#projects" class="folio-button">Explore my work <span>&#8599;</span></router-link
+					<router-link to="/#projects" class="folio-button"
+						>Explore my work <SiteIcon name="folder" :size="18" /></router-link
 					><a :href="`mailto:${content.hero_email || 'itsajhon@gmail.com'}`" class="folio-text-link"
-						>Let’s talk &#8599;</a
-					>
+						>Let’s talk <SiteIcon name="mail" :size="18"
+					/></a>
 				</div>
 			</div>
 			<div class="hero-art">
@@ -121,6 +132,7 @@ watch(portraitMode, (mode) => {
 						:src="content.hero_photo_url || content.hero_portrait_center_url"
 						:density="Number(content.hero_particle_density) || 6"
 						:strength="Number(content.hero_particle_strength) || 5"
+						@fallback="staticPortrait = $event"
 					/>
 					<InteractivePortrait
 						v-show="portraitMode === 'portrait'"
@@ -130,12 +142,14 @@ watch(portraitMode, (mode) => {
 				</div>
 				<div class="portrait-caption">
 					<span>&#8593; a little code, a little curiosity</span
-					><span>{{ portraitMode === 'particles' ? 'HOVER TO SCATTER' : 'MOVE TO FOLLOW' }}</span>
+					><span>{{
+						portraitMode === 'particles' ? (staticPortrait ? 'PORTRAIT PREVIEW' : 'HOVER TO SCATTER') : 'MOVE TO FOLLOW'
+					}}</span>
 				</div>
 			</div>
 		</div>
 		<div class="hero-foot">
-			<span>DEVELOPMENT <i>&#10035;</i> AGENTIC CODING <i>&#10035;</i> PHOTOGRAPHY</span
+			<span>DEVELOPMENT <i aria-hidden="true">/</i> AGENTIC CODING <i aria-hidden="true">/</i> PHOTOGRAPHY</span
 			><a href="#projects">SCROLL TO DISCOVER &#8595;</a>
 		</div>
 	</section>
@@ -150,26 +164,86 @@ watch(portraitMode, (mode) => {
 	gap: 16px;
 	margin-bottom: 6px;
 }
-.hero-meta-right,
+.hero-live-controls,
 .hero-viewers {
 	display: flex;
 	align-items: center;
 }
-.hero-meta-right {
+.hero-meta {
+	flex-wrap: wrap;
 	gap: 18px;
+	align-items: center;
+}
+.hero-location {
+	margin-left: auto;
+}
+.hero-live-controls {
+	gap: 14px;
 }
 .hero-viewers {
 	gap: 7px;
 	padding-left: 18px;
-	border-left: 1px solid #2b3d58;
-	color: #9db4d6;
+	border-left: 1px solid var(--folio-line);
+	color: var(--folio-muted);
+	font:
+		12px/1.5 Inter,
+		sans-serif;
+	letter-spacing: 0;
 }
+.hero-game-toggle {
+	min-height: 44px;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 0 10px 0 12px;
+	border: 1px solid var(--folio-line);
+	border-radius: 999px;
+	font:
+		10px 'JetBrains Mono',
+		monospace;
+	letter-spacing: 0.04em;
+	color: var(--folio-muted);
+	transition:
+		border-color 160ms ease,
+		background-color 160ms ease,
+		color 160ms ease;
+}
+.hero-game-toggle:hover,
+.hero-game-toggle:focus-visible,
+.hero-game-toggle.active {
+	border-color: var(--folio-accent);
+	background: var(--folio-selected);
+	color: var(--folio-ink);
+}
+.nav-switch {
+	width: 28px;
+	height: 16px;
+	padding: 2px;
+	border: 1px solid var(--folio-line);
+	border-radius: 999px;
+	background: var(--folio-surface);
+}
+.nav-switch span {
+	display: block;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--folio-muted);
+	transition:
+		transform 180ms ease,
+		background-color 160ms ease;
+}
+.hero-game-toggle.active .nav-switch span {
+	background: #e6efff;
+	transform: translateX(12px);
+}
+
 .portrait-mode {
 	display: inline-flex;
 	padding: 3px;
-	border: 1px solid #2b3d58;
+	border: 1px solid var(--folio-line);
 	border-radius: 999px;
-	background: rgb(9 15 27 / 0.72);
+	background: var(--folio-surface);
 }
 .portrait-mode button {
 	min-height: 36px;
@@ -179,17 +253,17 @@ watch(portraitMode, (mode) => {
 		9px 'JetBrains Mono',
 		monospace;
 	letter-spacing: 0.6px;
-	color: #7d96ba;
+	color: var(--folio-muted);
 	transition:
 		background-color 160ms ease,
 		color 160ms ease;
 }
 .portrait-mode button:hover {
-	color: #dce8fb;
+	color: var(--folio-ink);
 }
 .portrait-mode button.active {
-	background: #19345d;
-	color: #c8dcff;
+	background: var(--folio-selected);
+	color: var(--folio-soft);
 }
 .viewer-pulse {
 	width: 7px;
@@ -199,23 +273,33 @@ watch(portraitMode, (mode) => {
 	background: #68788e;
 }
 .viewer-pulse.connected {
-	background: #7fb1ff;
+	background: var(--folio-accent);
 	box-shadow: 0 0 0 4px rgb(127 177 255 / 0.1);
 }
 @media (max-width: 767px) {
 	.hero-meta {
-		align-items: flex-start;
-		gap: 12px;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		gap: 16px 10px;
 	}
-	.hero-meta-right {
-		flex-direction: column;
-		align-items: flex-end;
-		gap: 7px;
+	.hero-location {
 		text-align: right;
+	}
+	.hero-live-controls {
+		grid-column: 1 / -1;
+		justify-content: flex-end;
+		gap: 12px;
 	}
 	.hero-viewers {
 		padding-left: 0;
 		border-left: 0;
+		flex: 1;
+		min-width: 0;
+		font-size: 11px;
+	}
+	.hero-game-toggle {
+		flex: 0 0 auto;
+		font-size: 10px;
 	}
 	.portrait-topline {
 		align-items: stretch;
@@ -227,7 +311,9 @@ watch(portraitMode, (mode) => {
 	}
 }
 @media (prefers-reduced-motion: reduce) {
-	.portrait-mode button {
+	.portrait-mode button,
+	.hero-game-toggle,
+	.nav-switch span {
 		transition: none;
 	}
 }

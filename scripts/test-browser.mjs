@@ -53,7 +53,14 @@ try {
 		if (attempt === 59) throw new Error('Dev server not ready: ' + serverLog.slice(-1500))
 	}
 	browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome' })
-	const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' })
+	const context = await browser.newContext({
+		viewport: { width: 1440, height: 1000 },
+		reducedMotion: 'reduce',
+		storageState: {
+			cookies: [],
+			origins: [{ origin: 'http://127.0.0.1:5179', localStorage: [{ name: 'portfolio_theme', value: 'dark' }] }],
+		},
+	})
 	const page = await context.newPage(),
 		errors = [],
 		failures = []
@@ -64,6 +71,151 @@ try {
 	})
 	await page.goto('http://127.0.0.1:5179/', { waitUntil: 'networkidle' })
 	assert.ok(await page.locator('#projects').isVisible())
+	assert.equal(await page.locator('html').getAttribute('data-theme'), 'primary')
+	assert.equal(await page.locator('.connection-notice').count(), 0)
+	assert.equal(await page.locator('.nav-tools .nav-contact').count(), 1)
+	assert.ok(
+		await page
+			.locator('.nav-tools .nav-contact')
+			.evaluate((link) => link.nextElementSibling?.classList.contains('theme-toggle')),
+	)
+	assert.equal(await page.getByRole('button', { name: 'Toggle dark mode' }).getAttribute('aria-pressed'), 'false')
+	await page.locator('.hero-viewers').getByText('You are currently viewing', { exact: true }).waitFor()
+	assert.equal(await page.locator('.folio-nav .hero-game-toggle').count(), 0)
+	const gameToggle = page.locator('.hero-live-controls').getByRole('button', { name: 'Game mode', exact: true })
+	await gameToggle.click()
+	assert.ok(await page.locator('#portfolio-game-layer').isVisible())
+	await gameToggle.click()
+	assert.equal(await page.locator('#portfolio-game-layer').count(), 0)
+	await page.evaluate(() => {
+		window.presenceFixtures = Array.from({ length: 4 }, () => {
+			const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/socket`)
+			ws.onopen = () => ws.send(JSON.stringify({ event: 'authenticate', data: { sessionId: crypto.randomUUID() } }))
+			return ws
+		})
+	})
+	await page.getByText('You and 4 others are currently viewing', { exact: true }).waitFor()
+	await page.evaluate(() => window.presenceFixtures.splice(0, 3).forEach((ws) => ws.close()))
+	await page.getByText('You and 1 other are currently viewing', { exact: true }).waitFor()
+	await page.evaluate(() => window.presenceFixtures.forEach((ws) => ws.close()))
+	await page.getByText('You are currently viewing', { exact: true }).waitFor()
+	await page.getByRole('button', { name: 'Toggle dark mode' }).click()
+	await page.reload({ waitUntil: 'networkidle' })
+	assert.equal(await page.locator('html').getAttribute('data-theme'), 'secondary')
+	assert.equal(await page.getByRole('button', { name: 'Toggle dark mode' }).getAttribute('aria-pressed'), 'true')
+	assert.equal(await page.locator('html').evaluate((el) => el.classList.contains('theme-changing')), false)
+	await page.screenshot({ path: artifact + '/secondary-desktop.png' })
+	await page.getByRole('button', { name: 'Toggle dark mode' }).click()
+	assert.equal(
+		await page.locator('.public-portfolio').evaluate((el) => getComputedStyle(el).backgroundColor),
+		'rgb(255, 255, 255)',
+	)
+	assert.equal(await page.locator('.folio-logo svg').count(), 1)
+	assert.equal(await page.locator('.hero-actions svg').count(), 2)
+	const particleCanvas = page.locator('.hero-art .particle-portrait canvas')
+	await page.waitForFunction(() => {
+		const canvas = document.querySelector('.hero-art .particle-portrait canvas')
+		return (
+			canvas &&
+			canvas
+				.getContext('2d')
+				.getImageData(0, 0, canvas.width, canvas.height)
+				.data.some((channel) => channel > 0)
+		)
+	})
+	assert.equal(await page.locator('.hero-art .static-portrait').count(), 0)
+	const reducedPortrait = await particleCanvas.evaluate((canvas) => canvas.toDataURL())
+	await particleCanvas.hover()
+	assert.equal(await particleCanvas.evaluate((canvas) => canvas.toDataURL()), reducedPortrait)
+	assert.equal(await page.getByText('Portrait unavailable.', { exact: true }).count(), 0)
+	await page.screenshot({ path: artifact + '/primary-desktop.png' })
+	for (const width of [768, 920, 921, 1024]) {
+		await page.setViewportSize({ width, height: 1000 })
+		assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `Overflow at ${width}px`)
+	}
+	await page.setViewportSize({ width: 1440, height: 1000 })
+	await page.emulateMedia({ reducedMotion: 'no-preference' })
+	const portraitBox = await particleCanvas.boundingBox()
+	await page.mouse.move(portraitBox.x + portraitBox.width * 0.45, portraitBox.y + portraitBox.height * 0.45)
+	await page.waitForFunction(
+		(before) => document.querySelector('.hero-art .particle-portrait canvas').toDataURL() !== before,
+		reducedPortrait,
+	)
+	await page.mouse.move(0, 0)
+	// Sample the real CSS transition at its midpoint within one browser task,
+	// avoiding wall-clock assertions that can miss the animation on a busy host.
+	const transitionProof = await page.getByRole('button', { name: 'Toggle dark mode' }).evaluate(async (button) => {
+		const icon = button.querySelector('.theme-moon')
+		const iconStart = getComputedStyle(icon).transform
+		button.click()
+		await Promise.resolve()
+		const element = document.querySelector('.public-portfolio')
+		getComputedStyle(element).backgroundColor
+		const animation = element.getAnimations().find((item) => item.transitionProperty === 'background-color')
+		if (!animation) throw new Error('Theme background transition did not start.')
+		animation.pause()
+		animation.currentTime = 140
+		const middle = getComputedStyle(element).backgroundColor
+		const duration = animation.effect.getTiming().duration
+		animation.finish()
+		const iconAnimation = icon.getAnimations().find((item) => item.transitionProperty === 'transform')
+		if (!iconAnimation) throw new Error('Theme icon rotation did not start.')
+		iconAnimation.pause()
+		iconAnimation.currentTime = 160
+		const iconMiddle = getComputedStyle(icon).transform
+		const iconDuration = iconAnimation.effect.getTiming().duration
+		iconAnimation.finish()
+		return {
+			middle,
+			duration,
+			iconStart,
+			iconMiddle,
+			iconDuration,
+			changing: document.documentElement.classList.contains('theme-changing'),
+		}
+	})
+	assert.equal(transitionProof.changing, true)
+	assert.equal(transitionProof.duration, 280)
+	assert.notEqual(transitionProof.middle, 'rgb(255, 255, 255)')
+	assert.notEqual(transitionProof.middle, 'rgb(9, 15, 27)')
+	assert.equal(transitionProof.iconDuration, 320)
+	assert.notEqual(transitionProof.iconMiddle, transitionProof.iconStart)
+	assert.notEqual(transitionProof.iconMiddle, 'matrix(1, 0, 0, 1, 0, 0)')
+	await page.waitForFunction(() => !document.documentElement.classList.contains('theme-changing'))
+	await page.getByRole('button', { name: 'Toggle dark mode' }).click()
+	await page.waitForFunction(() => !document.documentElement.classList.contains('theme-changing'))
+	assert.equal(
+		await page.locator('.public-portfolio').evaluate((el) => getComputedStyle(el).backgroundColor),
+		'rgb(255, 255, 255)',
+	)
+	await page.emulateMedia({ reducedMotion: 'reduce' })
+	assert.equal(await page.locator('.theme-moon').evaluate((icon) => getComputedStyle(icon).transitionDuration), '0s')
+	// Bundled owner photographs load from the seed without a media upload.
+	const photography = page.locator('#photography')
+	await photography.scrollIntoViewIfNeeded()
+	assert.equal(await photography.locator('.photo-item').count(), 4)
+	await page.waitForFunction(() =>
+		[...document.querySelectorAll('#photography .photo-item img')].every((img) => img.complete && img.naturalWidth > 0),
+	)
+	await photography.screenshot({ path: artifact + '/photography-desktop.png' })
+	await photography.locator('.photo-item').first().click()
+	assert.ok(await photography.locator('dialog[open]').isVisible())
+	assert.equal(await photography.locator('dialog').getByText('Sorsogon Capitol Park', { exact: true }).count(), 1)
+	await page.keyboard.press('Escape')
+	assert.equal(await photography.locator('dialog').evaluate((dialog) => dialog.open), false)
+	await photography.getByRole('button', { name: 'Night', exact: true }).click()
+	assert.equal(await photography.locator('.photo-item').count(), 1)
+	await photography.getByRole('button', { name: 'All', exact: true }).click()
+	await page.setViewportSize({ width: 390, height: 844 })
+	await photography.screenshot({ path: artifact + '/photography-mobile.png' })
+	assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+	await page.getByRole('button', { name: 'Toggle dark mode' }).focus()
+	await page.keyboard.press('Enter')
+	assert.equal(await page.locator('html').getAttribute('data-theme'), 'secondary')
+	await page.keyboard.press('Space')
+	assert.equal(await page.locator('html').getAttribute('data-theme'), 'primary')
+	await page.screenshot({ path: artifact + '/theme-mobile-header.png' })
+	await page.setViewportSize({ width: 1440, height: 1000 })
 	await page.getByRole('button', { name: 'Open chat', exact: true }).click()
 	await page.getByRole('textbox', { name: 'Your question' }).fill('Hello')
 	const chatResponse = page.waitForResponse((r) => r.url().endsWith('/api/chatbot/chat'))
@@ -97,6 +249,7 @@ try {
 		'certifications',
 		'photography',
 		'gears',
+		'shop',
 		'client-requests',
 		'chatbot',
 		'site-content',
@@ -106,7 +259,23 @@ try {
 		await page.goto('http://127.0.0.1:5179/admin/' + route, { waitUntil: 'networkidle' })
 		assert.equal(new URL(page.url()).pathname, '/admin/' + route)
 	}
+	await page.goto('http://127.0.0.1:5179/admin/photography', { waitUntil: 'networkidle' })
+	await page
+		.locator('article')
+		.filter({ has: page.getByRole('heading', { name: 'Capitol Park lights', exact: true }) })
+		.getByRole('button', { name: 'Edit', exact: true })
+		.click()
+	const seededPhotoSaved = page.waitForResponse(
+		(r) => r.url().includes('/api/photography/') && r.request().method() === 'PUT',
+	)
+	await page.getByRole('button', { name: 'Save photograph', exact: true }).click()
+	assert.equal((await seededPhotoSaved).status(), 200)
 	await page.goto('http://127.0.0.1:5179/admin/projects', { waitUntil: 'networkidle' })
+	const initialGallery = (
+		await (
+			await page.request.get('http://127.0.0.1:5179/api/projects/slug/designated-establishment-online-submission-deos')
+		).json()
+	).data
 	const projectRow = page.getByRole('row').filter({ hasText: 'Designated Establishment Online Submission (DEOS)' })
 	await projectRow.getByRole('button', { name: 'Edit', exact: true }).click()
 	await page.getByRole('button', { name: 'Gallery', exact: true }).click()
@@ -121,7 +290,10 @@ try {
 	}
 	await galleryInput.setInputFiles([galleryImage, { ...galleryImage, name: 'gallery-two.png' }])
 	await page.getByText('2 gallery items uploaded', { exact: true }).waitFor()
-	assert.equal(await page.getByRole('button', { name: 'Use as cover', exact: true }).count(), 2)
+	assert.equal(
+		await page.getByRole('button', { name: 'Use as cover', exact: true }).count(),
+		initialGallery.images.length + 2 - (initialGallery.thumbnailUrl ? 1 : 0),
+	)
 	await page.getByRole('button', { name: 'Use as cover', exact: true }).first().click()
 	await page.getByRole('button', { name: 'Cover image', exact: true }).waitFor()
 	const webm = await page.evaluate(async () => {
@@ -160,8 +332,11 @@ try {
 	const galleryProject = (await (await page.request.get('http://127.0.0.1:5179/api/projects')).json()).data.find(
 		(p) => p.slug === 'designated-establishment-online-submission-deos',
 	)
-	assert.equal(galleryProject.media.length, process.env.PORTFOLIO_TEST_VIDEO_FILE ? 4 : 3)
-	assert.equal(galleryProject.images.length, 2)
+	assert.equal(
+		galleryProject.media.length,
+		initialGallery.media.length + (process.env.PORTFOLIO_TEST_VIDEO_FILE ? 4 : 3),
+	)
+	assert.equal(galleryProject.images.length, initialGallery.images.length + 2)
 	await page.goto('http://127.0.0.1:5179/?project=designated-establishment-online-submission-deos#projects', {
 		waitUntil: 'networkidle',
 	})
@@ -220,6 +395,97 @@ try {
 	await page.reload({ waitUntil: 'networkidle' })
 	await page.getByRole('heading', { name: 'Browser fixture gear', exact: true }).waitFor()
 	await page.screenshot({ path: artifact + '/admin-gears.png', fullPage: true })
+	// Create a categorized shop item, upload multiple media, publish and inquire.
+	await page.goto('http://127.0.0.1:5179/admin/shop', { waitUntil: 'networkidle' })
+	await page.getByLabel('Category name', { exact: true }).fill('Browser templates')
+	await page.getByRole('button', { name: 'Add category', exact: true }).click()
+	await page.getByLabel('Browser templates', { exact: true }).waitFor()
+	await page.getByLabel('Category name', { exact: true }).fill('Digital collection')
+	await page.getByRole('button', { name: 'Add category', exact: true }).click()
+	await page.getByLabel('Digital collection', { exact: true }).waitFor()
+	await page.getByLabel('Product name', { exact: true }).fill('Browser shop template')
+	await page
+		.getByLabel('Description', { exact: true })
+		.fill('A browser fixture product with a gallery and multiple categories.')
+	await page.getByLabel('Browser templates', { exact: true }).check()
+	await page.getByLabel('Digital collection', { exact: true }).check()
+	await page.getByLabel('Price label (optional)', { exact: true }).fill('₱500')
+	await page.getByLabel('External purchase link (optional)', { exact: true }).fill('https://example.com/product')
+	await page.getByRole('button', { name: 'Create product', exact: true }).click()
+	await page.getByRole('heading', { name: 'Browser shop template', exact: true }).waitFor()
+	const browserShopId = await page.evaluate(async () => {
+		const response = await fetch('/api/shop/products/admin', {
+			headers: { Authorization: 'Bearer ' + localStorage.getItem('portfolio_token') },
+		})
+		return (await response.json()).data.find((p) => p.name === 'Browser shop template').id
+	})
+	assert.equal((await context.request.get('http://127.0.0.1:5179/api/shop/products/' + browserShopId)).status(), 404)
+	const shopImage = {
+		name: 'shop-fixture.png',
+		mimeType: 'image/png',
+		buffer: Buffer.from(
+			await page.evaluate(() => {
+				const canvas = document.createElement('canvas')
+				canvas.width = 800
+				canvas.height = 600
+				const ctx = canvas.getContext('2d')
+				ctx.fillStyle = '#e9f0fc'
+				ctx.fillRect(0, 0, 800, 600)
+				ctx.fillStyle = '#1659c7'
+				ctx.fillRect(100, 90, 600, 420)
+				ctx.fillStyle = '#ffffff'
+				ctx.font = 'bold 44px sans-serif'
+				ctx.fillText('SHOP TEST FIXTURE', 155, 285)
+				ctx.font = '24px sans-serif'
+				ctx.fillText('Gallery preview', 155, 335)
+				return canvas.toDataURL('image/png').split(',')[1]
+			}),
+			'base64',
+		),
+	}
+	await page
+		.getByLabel('Upload images and videos', { exact: true })
+		.setInputFiles([
+			shopImage,
+			{ ...shopImage, name: 'second.png' },
+			{ name: 'shop-preview.webm', mimeType: 'video/webm', buffer: Buffer.from(webm) },
+		])
+	await page.getByRole('status').filter({ hasText: '3 of 3 files uploaded.' }).waitFor()
+	await page.getByLabel('Published', { exact: true }).check()
+	await page.getByRole('button', { name: 'Save product', exact: true }).click()
+	await page.getByText('Published ·', { exact: false }).waitFor()
+	await page.screenshot({ path: artifact + '/admin-shop.png', fullPage: true })
+	await page.goto('http://127.0.0.1:5179/shop', { waitUntil: 'networkidle' })
+	await page.getByRole('button', { name: 'Browser templates', exact: true }).click()
+	await page.getByRole('heading', { name: 'Browser shop template' }).waitFor()
+	await page.getByRole('button', { name: 'Show video 3 for Browser shop template' }).click()
+	assert.ok(await page.locator('.shop-cover video').isVisible())
+	await page.locator('.shop-cover video').evaluate(async (video) => {
+		video.muted = true
+		await video.play()
+		video.pause()
+	})
+	await page.getByRole('button', { name: 'Show image 2 for Browser shop template' }).click()
+	await page.getByRole('searchbox', { name: 'Search shop' }).fill('no such item')
+	await page.getByRole('heading', { name: 'No matching items' }).waitFor()
+	await page.getByRole('button', { name: 'Show all items' }).click()
+	await page.getByRole('heading', { name: 'Browser shop template' }).waitFor()
+	await page.screenshot({ path: artifact + '/shop-desktop.png', fullPage: true })
+	await page.getByRole('link', { name: 'Inquire about this' }).click()
+	assert.match(await page.getByPlaceholder('Goals, audience, key features...').inputValue(), /Browser shop template/)
+	await page.setViewportSize({ width: 390, height: 844 })
+	await page.goto('http://127.0.0.1:5179/shop', { waitUntil: 'networkidle' })
+	assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+	await page.screenshot({ path: artifact + '/shop-mobile.png', fullPage: true })
+	await page.getByRole('button', { name: 'Menu +' }).click()
+	await page.getByRole('button', { name: 'Toggle dark mode' }).click()
+	assert.equal(await page.locator('html').getAttribute('data-theme'), 'secondary')
+	await page.getByRole('button', { name: 'Close -' }).click()
+	await page.screenshot({ path: artifact + '/shop-secondary-mobile.png', fullPage: true })
+	await page.getByRole('button', { name: 'Menu +' }).click()
+	await page.getByRole('button', { name: 'Toggle dark mode' }).click()
+	await page.setViewportSize({ width: 1440, height: 1000 })
+	await page.goto('http://127.0.0.1:5179/admin/gears', { waitUntil: 'networkidle' })
 	await page.getByRole('link', { name: 'Photography', exact: true }).click()
 	await page.waitForURL('**/admin/photography')
 	const photoUpload = page.waitForResponse((r) => r.url().endsWith('/api/upload/image'))
@@ -261,6 +527,65 @@ try {
 	assert.ok(await mobile.getByRole('button', { name: 'Open chat', exact: true }).isVisible())
 	assert.ok(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
 	await mobile.screenshot({ path: artifact + '/public-mobile.png', fullPage: false })
+	// Back-to-top shares the floating-action column with chat, without overlap.
+	await page.goto('http://127.0.0.1:5179/', { waitUntil: 'networkidle' })
+	assert.equal(await page.getByRole('button', { name: 'Back to top', exact: true }).count(), 0)
+	await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }))
+	const backToTop = page.getByRole('button', { name: 'Back to top', exact: true })
+	await backToTop.waitFor()
+	const topRect = await backToTop.boundingBox(),
+		chatRect = await page.getByRole('button', { name: 'Open chat', exact: true }).boundingBox()
+	assert.ok(topRect.y + topRect.height <= chatRect.y - 8)
+	assert.ok(Math.abs(topRect.x + topRect.width / 2 - chatRect.x - chatRect.width / 2) < 1)
+	await page.screenshot({ path: artifact + '/public-bottom-desktop.png' })
+	await page.getByRole('button', { name: 'Open chat', exact: true }).click()
+	await backToTop.waitFor({ state: 'hidden' })
+	await page.getByRole('button', { name: 'Close', exact: true }).click()
+	await backToTop.waitFor()
+	await backToTop.click()
+	await page.waitForFunction(() => window.scrollY <= 1)
+	await backToTop.waitFor({ state: 'hidden' })
+	assert.ok(await page.locator('.folio-logo').evaluate((logo) => document.activeElement === logo))
+	for (const width of [320, 390]) {
+		await mobile.setViewportSize({ width, height: 844 })
+		await mobile.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth + 1)
+		assert.ok(await mobile.locator('.nav-tools .nav-contact').isVisible())
+		assert.ok(await mobile.getByRole('button', { name: 'Toggle dark mode' }).isVisible())
+	}
+	await mobile.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }))
+	await mobile.getByRole('button', { name: 'Back to top', exact: true }).waitFor()
+	const mobileTopRect = await mobile.getByRole('button', { name: 'Back to top', exact: true }).boundingBox()
+	const mobileChatRect = await mobile.getByRole('button', { name: 'Open chat', exact: true }).boundingBox()
+	assert.ok(mobileTopRect.y + mobileTopRect.height <= mobileChatRect.y - 8)
+	await mobile.screenshot({ path: artifact + '/public-bottom-mobile.png' })
+	await mobile.getByRole('button', { name: 'Back to top', exact: true }).click()
+	await mobile.waitForFunction(() => window.scrollY <= 1)
+	// A rapid connection change cannot let an old online timer hide an offline bar.
+	const notice = page.locator('.connection-notice')
+	await context.setOffline(true)
+	await notice.getByText("You're offline. Please check your internet connection.", { exact: true }).waitFor()
+	await page.screenshot({ path: artifact + '/offline-desktop.png' })
+	await context.setOffline(false)
+	await notice.getByText("You're back online.", { exact: true }).waitFor()
+	await context.setOffline(true)
+	await notice.getByText("You're offline. Please check your internet connection.", { exact: true }).waitFor()
+	await page.waitForTimeout(4250)
+	assert.equal(
+		await notice.textContent().then((text) => text.trim()),
+		"You're offline. Please check your internet connection.",
+	)
+	await context.setOffline(false)
+	await notice.getByText("You're back online.", { exact: true }).waitFor()
+	await page.screenshot({ path: artifact + '/online-desktop.png' })
+	await notice.waitFor({ state: 'hidden', timeout: 6500 })
+	await mobile.context().setOffline(true)
+	await mobile
+		.locator('.connection-notice')
+		.getByText("You're offline. Please check your internet connection.", { exact: true })
+		.waitFor()
+	assert.ok(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
+	await mobile.screenshot({ path: artifact + '/offline-mobile.png' })
+	await mobile.context().setOffline(false)
 	assert.deepEqual(errors, [])
 	assert.deepEqual(failures, [])
 	const counts = (
@@ -278,11 +603,18 @@ try {
 				passed: true,
 				flows: [
 					'public desktop/mobile',
+					'offline/reconnected header bars, timer cancellation and automatic dismissal',
+					'right-side contact/theme controls at desktop, 390px and 320px',
+					'back-to-top above chat, panel collision avoidance and focus return',
 					'chat fallback',
 					'inquiry persisted',
 					'owner CLI bootstrap',
 					'login',
-					'all 11 admin pages',
+					'all 12 admin pages',
+					'Light/Dark labels, Light default, theme persistence, animated changes and reduced motion',
+					'live viewer wording for one, two and five sessions; game toggle beside viewers',
+					'same-origin seeded particle portrait, hover response, reduced motion, SVG icons and responsive navigation',
+					'shop categories, draft privacy, multiple media upload, video playback, filtering and inquiry prefill',
 					'multi-image project upload, cover selection, video playback and image lightbox',
 					'Gears/Photography sidebar navigation, image uploads and saved records',
 					'reply saved with visible unconfigured-email status',
@@ -297,7 +629,7 @@ try {
 		),
 	)
 	console.log(
-		'Browser verification passed: public desktop/mobile, chat, inquiry, owner login, 11 admin pages, Gears/Photography uploads, reply email status and CMS persistence. Evidence: ' +
+		'Browser verification passed: public desktop/mobile, themes, shop, chat, inquiry, owner login, 12 admin pages, media uploads, reply email status and CMS persistence. Evidence: ' +
 			artifact,
 	)
 } finally {

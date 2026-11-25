@@ -62,6 +62,7 @@ function enlarge(url: string) {
 						:alt="`${project.title} image ${index + 1}`"
 						loading="lazy"
 						class="w-full max-h-72 object-contain rounded"
+						:class="{ 'seed-project-preview': url.startsWith('/seed/projects/') && url.endsWith('.png') }"
 					/>
 				</button>
 			</template>
@@ -110,6 +111,11 @@ function enlarge(url: string) {
 	</article>
 </template>
 <style scoped>
+.seed-project-preview {
+	height: 16rem;
+	object-fit: cover;
+	object-position: top;
+}
 .project-close,
 .image-close {
 	display: inline-flex;
@@ -126,7 +132,7 @@ function enlarge(url: string) {
 .project-close:hover,
 .image-close:hover {
 	background: rgb(59 130 246 / 0.12);
-	color: #ffffff;
+	color: var(--folio-ink);
 }
 .project-close:focus-visible,
 .image-close:focus-visible {
@@ -142,12 +148,12 @@ function enlarge(url: string) {
 	max-width: 95vw;
 	max-height: 95vh;
 	padding: 24px;
-	background: #0d1727;
-	color: #edf3ff;
-	border: 1px solid #354d71;
+	background: var(--folio-surface);
+	color: var(--folio-ink);
+	border: 1px solid var(--folio-line);
 }
 .project-image-dialog::backdrop {
-	background: #030913ed;
+	background: var(--folio-overlay);
 }
 .project-image-dialog img {
 	max-height: 80vh;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { useSiteBranding } from '@/composables/useSiteBranding'
 
 const props = withDefaults(defineProps<{ src?: string; density?: number; strength?: number }>(), {
@@ -7,9 +7,20 @@ const props = withDefaults(defineProps<{ src?: string; density?: number; strengt
 	density: 6,
 	strength: 5,
 })
+const emit = defineEmits<{ (event: 'fallback', active: boolean): void }>()
 const { resolveAssetUrl } = useSiteBranding()
+// The public seed references this exact immutable production upload. Its
+// byte-identical bundled copy keeps canvas pixel reads on the current origin.
+const portraitSource = computed(() => {
+	const source = resolveAssetUrl(props.src)
+	return source === 'https://my-portfolio.itsajhon.workers.dev/uploads/505c2b02-6264-45fa-b236-b006a9948cce.png'
+		? '/seed/portrait/505c2b02-6264-45fa-b236-b006a9948cce.png'
+		: source
+})
 const canvas = ref<HTMLCanvasElement>()
 const error = ref(false)
+const fallbackFailed = ref(false)
+watch(error, (active) => emit('fallback', active))
 type Particle = {
 	x: number
 	y: number
@@ -81,13 +92,14 @@ function reset() {
 async function build() {
 	const token = ++generation
 	error.value = false
+	fallbackFailed.value = false
 	const buffer = document.createElement('canvas')
 	buffer.width = buffer.height = size
 	const ctx = buffer.getContext('2d', { willReadFrequently: true })!
 	if (props.src) {
 		const img = new Image()
 		img.crossOrigin = 'anonymous'
-		img.src = resolveAssetUrl(props.src)
+		img.src = portraitSource.value
 		try {
 			await img.decode()
 			if (token !== generation) return
@@ -175,6 +187,7 @@ onBeforeUnmount(() => {
 <template>
 	<div class="particle-portrait">
 		<canvas
+			v-show="!error || fallbackFailed"
 			ref="canvas"
 			role="img"
 			aria-label="Interactive blue character portrait; move your mouse over it to scatter the characters"
@@ -182,9 +195,14 @@ onBeforeUnmount(() => {
 			@pointerleave="reset"
 			@pointercancel="reset"
 		/>
-		<p v-if="error" class="portrait-error" role="status">
-			Portrait unavailable. Try a PNG or WebP uploaded through Site Content.
-		</p>
+		<img
+			v-if="error && props.src && !fallbackFailed"
+			:src="portraitSource"
+			alt="Profile portrait"
+			class="static-portrait"
+			@error="fallbackFailed = true"
+		/>
+		<p v-if="error && fallbackFailed" class="portrait-error" role="status">Portrait unavailable.</p>
 	</div>
 </template>
 
@@ -200,10 +218,16 @@ canvas {
 	display: block;
 	cursor: crosshair;
 }
+.static-portrait {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	padding: 6%;
+}
 .portrait-error {
 	position: absolute;
 	inset: 40% 10% auto;
-	color: #9db8df;
+	color: var(--folio-muted);
 	text-align: center;
 	font-size: 13px;
 }

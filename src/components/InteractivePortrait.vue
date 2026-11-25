@@ -3,15 +3,7 @@ import { useSiteBranding } from '@/composables/useSiteBranding'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 type PortraitDirection =
-	| 'center'
-	| 'up'
-	| 'down'
-	| 'left'
-	| 'right'
-	| 'up-left'
-	| 'up-right'
-	| 'down-left'
-	| 'down-right'
+	'center' | 'up' | 'down' | 'left' | 'right' | 'up-left' | 'up-right' | 'down-left' | 'down-right'
 
 type PortraitAdjustment = { scale?: number; x?: number; y?: number }
 
@@ -159,9 +151,9 @@ onBeforeUnmount(() => {
 	position: relative;
 	width: 79%;
 	overflow: visible;
-	border: 1px solid #354d71;
+	border: 1px solid var(--folio-line);
 	border-radius: 12px;
-	background: linear-gradient(145deg, rgb(131 173 255 / 0.08), transparent 45%), #111f35;
+	background: linear-gradient(145deg, rgb(131 173 255 / 0.08), transparent 45%), var(--folio-surface);
 	box-shadow: 0 28px 70px rgb(0 0 0 / 0.32);
 	transform-style: preserve-3d;
 	transition: transform 180ms cubic-bezier(0.2, 0.75, 0.25, 1);
@@ -216,14 +208,14 @@ onBeforeUnmount(() => {
 	height: 100%;
 	display: grid;
 	place-items: center;
-	background: radial-gradient(circle at 50% 28%, #274c80, #101a2b 66%);
+	background: radial-gradient(circle at 50% 28%, #274c80, var(--folio-surface) 66%);
 }
 .portrait-fallback span {
 	font:
 		500 clamp(52px, 8vw, 92px) 'Space Grotesk',
 		sans-serif;
 	letter-spacing: -5px;
-	color: #83adff;
+	color: var(--folio-accent);
 }
 @media (prefers-reduced-motion: reduce) {
 	.portrait-frame,

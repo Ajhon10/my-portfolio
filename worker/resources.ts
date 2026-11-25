@@ -41,7 +41,16 @@ const projectSchema = z.object({
 	title: text(2, 200),
 	description: text(10, 40000),
 	shortSummary: nullableText(300),
-	thumbnailUrl: mediaUrl.nullable().optional(),
+	thumbnailUrl: mediaUrl
+		.or(
+			z.enum([
+				'/seed/projects/fablesplice/cover.svg',
+				'/seed/projects/meme-camera/studio.png',
+				'/seed/projects/munialert/desktop.png',
+			]),
+		)
+		.nullable()
+		.optional(),
 	liveUrl: urlSchema.nullable().optional(),
 	repoUrl: urlSchema.nullable().optional(),
 	category: nullableText(100),
@@ -86,7 +95,9 @@ const photographSchema = z.object({
 	caption: z.string().max(3000).default(''),
 	location: z.string().max(200).default(''),
 	category: text(1, 100).default('Personal'),
-	imageUrl: mediaUrl.refine(Boolean),
+	imageUrl: mediaUrl
+		.or(z.string().regex(/^\/seed\/photography\/[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}\.jpg$/i))
+		.refine(Boolean),
 	published: z.boolean().default(false),
 	sortOrder: z.number().int().min(0).max(10000).default(0),
 })

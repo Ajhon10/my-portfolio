@@ -1,0 +1,39 @@
+id,createdAt,updatedAt,deletedAt,deleted,key,label,value
+0ccfac67-0afb-4e5d-b3d7-d748d93cf4a0,2026-05-02T22:54:51.757Z,2026-05-02T22:54:51.757Z,\N,false,about_short,About Short,I create beautiful and functional digital experiences
+99cb7557-7815-4cdd-a303-52e600977f01,2026-05-02T22:54:51.759Z,2026-05-02T22:54:51.759Z,\N,false,cta_hire_me,CTA Button Text,Hire Me
+e187ff05-d2ee-49c1-9811-640c39416b65,2026-05-03T00:14:35.898Z,2026-05-03T00:15:53.011Z,\N,false,hero_email,Contact Email (shown in hero),jhonlisleyjeresano@gmail.com
+9472a368-a4d5-4799-9321-9657a4da4711,2026-05-03T00:14:35.892Z,2026-05-03T00:14:35.892Z,\N,false,hero_freelance_available,Freelance Status (true/false),true
+2ccc136a-9bad-44e7-99b5-fd402e435373,2026-05-03T00:14:35.896Z,2026-05-03T00:14:35.896Z,\N,false,hero_freelance_label,Freelance Status Label,Available for freelance
+5f200f4b-f69b-480d-baf6-7af588e175d5,2026-09-27T12:59:45.133Z,2026-09-27T12:59:45.133Z,\N,false,hero_particle_density,Portrait character spacing (4?10),6
+83861d01-4c75-4dff-863e-0779e905faa3,2026-09-27T12:59:45.133Z,2026-09-27T12:59:45.133Z,\N,false,hero_particle_strength,Portrait hover strength (1?10),5
+2492ca2f-05ab-4da5-9b30-ca21b90bce76,2026-05-03T00:14:35.919Z,2026-09-27T21:55:01.250Z,\N,false,hero_photo_url,Hero Photo URL (right side of hero),https://my-portfolio.itsajhon.workers.dev/uploads/505c2b02-6264-45fa-b236-b006a9948cce.png
+b9daab82-1bf6-4d59-ad8b-92bd6533ff6b,2026-10-28T00:17:03.180Z,2026-10-28T00:23:44.282Z,\N,false,hero_portrait_adjustments,Portrait Display Adjustments,"{""down-left"":{""scale"":1,""x"":50,""y"":50},""down"":{""scale"":1,""x"":50,""y"":50},""left"":{""scale"":1,""x"":50,""y"":50},""up-right"":{""scale"":1,""x"":50,""y"":50},""up"":{""scale"":1,""x"":50,""y"":50},""right"":{""scale"":1,""x"":50,""y"":50},""up-left"":{""scale"":1,""x"":50,""y"":50},""down-right"":{""scale"":1,""x"":50,""y"":50}}"
+43d471e6-5674-4db0-838c-0c0168a068c5,2026-10-28T00:17:03.179Z,2026-10-28T00:17:03.179Z,\N,false,hero_portrait_down_left_url,Down left Portrait,https://my-portfolio.itsajhon.workers.dev/uploads/98c3aac1-e350-4868-ac88-671fd7dd477a.png
+08658f99-57d1-475f-806f-7313ffc17b5a,2026-10-28T00:23:44.282Z,2026-10-28T00:23:44.282Z,\N,false,hero_portrait_down_right_url,Down right Portrait,https://my-portfolio.itsajhon.workers.dev/uploads/0f870264-e770-41bd-a059-f6343309d7a3.png
+7efa0a1a-5e55-4625-87e8-d7457db14f90,2026-10-28T00:17:12.930Z,2026-10-28T00:17:12.930Z,\N,false,hero_portrait_down_url,Down Portrait,https://my-portfolio.itsajhon.workers.dev/uploads/6fea3720-326f-41df-9566-d07c94e5d502.png
+1b970654-2cdc-4e75-8249-b44b72053231,2026-10-28T00:19:04.696Z,2026-10-28T00:19:04.696Z,\N,false,hero_portrait_left_url,Left Portrait,https://my-portfolio.itsajhon.workers.dev/uploads/2b5a0135-f62f-4f78-afc8-a703ce76b2a3.png
+fe323018-c9fd-4577-a5c3-d13e85f743b8,2026-10-28T00:20:59.911Z,2026-10-28T00:20:59.911Z,\N,false,hero_portrait_right_url,Right Portrait,https://my-portfolio.itsajhon.workers.dev/uploads/c746cfe0-6e70-4eac-a015-6117a314b788.png
+211bad66-3c32-4c83-a04b-f06a4a48fcd4,2026-10-28T00:23:37.216Z,2026-10-28T00:23:37.216Z,\N,false,hero_portrait_up_left_url,Up left Portrait,https://my-portfolio.itsajhon.workers.dev/uploads/f898af2c-a58e-4b95-b05d-ef46a362d377.png
+5f6a6a81-6646-4142-88d6-b7fba5a0133c,2026-10-28T00:19:28.145Z,2026-10-28T00:19:28.145Z,\N,false,hero_portrait_up_right_url,Up right Portrait,https://my-portfolio.itsajhon.workers.dev/uploads/66ea33b3-79b8-447b-9630-e7d35140c3e0.png
+02f86c74-4539-42b2-a1f9-dbc162b4f1e3,2026-10-28T00:20:02.499Z,2026-10-28T00:20:02.499Z,\N,false,hero_portrait_up_url,Up Portrait,https://my-portfolio.itsajhon.workers.dev/uploads/f069b742-f785-401f-bbe0-0f7336749164.png
+78306247-3b56-4aec-ab66-3d91cec3f106,2026-05-03T00:14:35.905Z,2026-05-03T00:14:35.905Z,\N,false,hero_stat_1_label,Hero Stat 1 – Label (e.g. Years building),Years building
+58d40012-c972-473b-8b93-5100fe2e633a,2026-05-03T00:14:35.901Z,2026-05-03T00:16:42.210Z,\N,false,hero_stat_1_value,Hero Stat 1 – Value (e.g. 3+),1+
+00ea2293-7b28-4cff-a109-18fa04ce5e59,2026-05-03T00:14:35.911Z,2026-05-03T00:14:35.911Z,\N,false,hero_stat_2_label,Hero Stat 2 – Label (e.g. Projects shipped),Projects shipped
+dbb85669-e70d-406e-8c34-0e6e7f9094e1,2026-05-03T00:14:35.907Z,2026-05-03T00:16:44.872Z,\N,false,hero_stat_2_value,Hero Stat 2 – Value (e.g. 20+),5+
+9ef92469-f4cb-42e8-9cbb-90729f180177,2026-05-03T00:14:35.916Z,2026-05-03T00:14:35.916Z,\N,false,hero_stat_3_label,Hero Stat 3 – Label (e.g. Cups of coffee),Cups of coffee
+ed0dccae-9238-49a9-bbfb-83a5a16c3f94,2026-05-03T00:14:35.914Z,2026-05-03T00:14:35.914Z,\N,false,hero_stat_3_value,Hero Stat 3 – Value (e.g. ∞),∞
+46044dd8-4a74-4663-99f6-5ea47f361dfa,2026-05-02T22:54:51.756Z,2026-09-27T12:59:45.133Z,\N,false,hero_subtitle,Hero Subtitle,I build for the web. From the first idea to the final interaction.
+c2969353-351c-4e26-9bb0-2367b60735fb,2026-05-02T22:54:51.752Z,2026-09-27T12:59:45.133Z,\N,false,hero_title,Hero Title,"hi, Jhon here."
+225c0faf-99c5-405d-b59f-f7e295639eba,2026-05-03T23:49:44.692Z,2026-09-27T22:50:14.732Z,\N,false,site_favicon_url,Website Favicon URL,https://my-portfolio.itsajhon.workers.dev/uploads/d207fc4b-48be-4571-b2e0-47b2698278eb.png
+54349644-8f75-4e3d-b380-d72120938ba1,2026-05-03T23:49:44.689Z,2026-05-03T23:49:44.689Z,\N,false,site_logo_subtitle,Logo Subtitle,/dev
+16314bd9-16de-4584-aa95-ffb0fceacb5b,2026-05-03T23:49:44.685Z,2026-05-03T23:49:44.685Z,\N,false,site_logo_text,Logo Text,JLJ
+2cfa8e2c-964f-4651-9a9d-8c0ace91e9ce,2026-05-03T23:49:44.691Z,2026-05-03T23:49:44.691Z,\N,false,site_logo_url,Website Logo URL,
+2e6662e5-19d8-4af0-9baf-d8f8b095d381,2026-05-03T23:49:44.694Z,2026-05-03T23:49:44.694Z,\N,false,site_meta_description,Meta Description,"Jhon Lisley Jeresano - Fullstack Web & App Developer, Video Editor, Photographer."
+03016394-57b9-411e-9e1f-46738eb45c8b,2026-05-03T23:49:44.693Z,2026-05-03T23:49:44.693Z,\N,false,site_title,Browser Tab Title,Jhon Lisley Jeresano - Fullstack Developer
+390d7c78-df40-4c6f-b208-33e0687c73c8,2026-05-03T00:14:35.927Z,2026-05-03T00:21:41.582Z,\N,false,social_facebook,Social – Facebook URL,https://www.facebook.com/jhon.jeresano/
+eba7c54e-f7c2-4359-b1f0-e48965608358,2026-05-03T00:14:35.921Z,2026-05-03T00:21:41.629Z,\N,false,social_github,Social – GitHub URL,https://github.com/Ajhon10
+bfe86301-1a9c-4b47-86b6-ce53d56987b6,2026-05-03T00:14:35.930Z,2026-05-03T00:21:41.651Z,\N,false,social_instagram,Social – Instagram URL,https://www.instagram.com/ajan_jrsn/
+dc250a1a-7ac3-4de0-ab45-b258618c7112,2026-05-03T00:14:35.925Z,2026-05-03T00:21:41.666Z,\N,false,social_linkedin,Social – LinkedIn URL,https://www.linkedin.com/in/jhon-lisley-jeresano-7b5a31283/
+c39b80ac-e369-4e39-8b75-84e8f91595ad,2026-05-03T00:14:35.939Z,2026-05-03T00:21:41.686Z,\N,false,social_tiktok,Social – TikTok URL,https://www.tiktok.com/@ajan_jrsn
+26a90778-3f9c-4fd1-b352-25b7fe3ceafa,2026-05-03T00:14:35.933Z,2026-05-03T00:14:35.933Z,\N,false,social_twitter,Social – Twitter/X URL,
+c0f61495-8f9c-48ad-84ec-eff9f6195001,2026-05-03T00:14:35.936Z,2026-05-03T00:14:35.936Z,\N,false,social_youtube,Social – YouTube URL,

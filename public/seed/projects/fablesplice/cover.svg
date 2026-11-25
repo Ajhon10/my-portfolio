@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750" role="img" aria-labelledby="title desc">
+  <title id="title">FableSplice Studio prototype</title>
+  <desc id="desc">Project cover illustrating the local story, media and video pipeline. This is a prototype cover, not an application screenshot.</desc>
+  <rect width="1200" height="750" fill="#101c35"/>
+  <path d="M0 620h1200M930 0v750" stroke="#263959" stroke-width="1"/>
+  <circle cx="1050" cy="135" r="235" fill="none" stroke="#263959" stroke-width="1"/>
+  <circle cx="1050" cy="135" r="190" fill="none" stroke="#263959" stroke-width="1"/>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <text x="80" y="105" font-size="18" letter-spacing="4" fill="#a7c6ff">LOCAL STORY-TO-VIDEO</text>
+    <text x="76" y="240" font-size="88" font-weight="700" letter-spacing="-3" fill="#f5f8ff">FableSplice</text>
+    <text x="80" y="305" font-size="36" fill="#b8c9e5">From story to scene.</text>
+    <g fill="#182b49" stroke="#42618c" stroke-width="2">
+      <rect x="80" y="388" width="280" height="160" rx="12"/>
+      <rect x="460" y="388" width="280" height="160" rx="12"/>
+      <rect x="840" y="388" width="280" height="160" rx="12"/>
+    </g>
+    <g fill="none" stroke="#a7c6ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M194 420h38l14 14v30h-52zM232 420v14h14M204 443h24M204 452h18"/>
+      <path d="M575 444h8l6-16 10 34 10-34 8 16h10"/>
+      <rect x="956" y="420" width="48" height="44" rx="5"/>
+      <path d="m974 431 15 11-15 11zM386 468h48m-10-10 10 10-10 10M766 468h48m-10-10 10 10-10 10"/>
+    </g>
+    <g font-size="22" fill="#f5f8ff" text-anchor="middle">
+      <text x="220" y="510">Story planning</text>
+      <text x="600" y="510">Approved media</text>
+      <text x="980" y="510">Video rendering</text>
+    </g>
+    <text x="80" y="680" font-size="20" fill="#b8c9e5">Windows · Python · FastAPI · FFmpeg</text>
+    <rect x="862" y="645" width="258" height="48" rx="24" fill="#254578"/>
+    <text x="991" y="676" font-size="18" text-anchor="middle" fill="#f5f8ff">PHASE 0 PROTOTYPE</text>
+  </g>
+</svg>

@@ -80,7 +80,7 @@ onMounted(async () => {
 	font:
 		700 14px 'JetBrains Mono',
 		monospace;
-	color: #83adff;
+	color: var(--folio-accent);
 }
 @media (max-width: 520px) {
 	.tech-collection {

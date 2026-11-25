@@ -92,3 +92,40 @@ Implemented locally on branch feat/cloudflare-unified. See ENGINEERING_ACCEPTANC
 for the completed API/browser/build/data-restore checks and the separate remote
 deployment/workload acceptance steps. The retired source folders are retained
 intact in the private backup rather than deleted.
+
+## Shop catalog extension — November 25, 2026
+
+Migration `0007_shop.sql` adds categories, soft-deleted products, a many-to-many
+product/category relation and ordered media. `/api/shop` uses existing session
+authentication, OWNER/ADMIN authorization, bounded Zod validation and response
+envelopes. Public product lists always require published status; direct draft
+reads require administration. Product fields and category associations commit
+in one D1 batch. Database triggers reject links to removed categories and
+uploads to removed/full product galleries, including competing writes.
+
+Public/admin product lists return at most 80 records per page, ordered by display
+order and ID. Page numbers are bounded to 1–10,000; public search (200 characters)
+and category filters execute before pagination. Each page uses one product query
+and two enrichment queries with at most 80 bound IDs. Category lists are bounded
+to 200. Products support 1–10 categories and 50 media items each.
+
+`POST /api/upload/shop-media/:productId` reuses the authorized Durable Object
+upload pipeline: image/video signature checks, 8 MiB images, 32 MiB MP4/WebM,
+bounded streaming, atomic file/chunks/gallery writes and the shared 256 MiB D1
+budget. File deletion checks shop gallery references. Media remains public
+assets as elsewhere in this app; draft visibility is a catalog rule, not private
+file storage. No new service or paid storage is provisioned.
+
+The selected sales flow is inquiry plus an optional external purchase link.
+Inquiries persist through the existing client-request path and preserve its
+email-delivery semantics. This extension does not accept payments.
+
+## Bundled photography seeds — November 25, 2026
+
+Four owner-supplied JPEGs are deliberate static source assets under
+`public/seed/photography/`; metadata is seeded through `migration/photography.csv`.
+They are independent of runtime `/uploads` and require neither a media-file owner
+record nor D1 chunks. Photograph input validation permits their narrow UUID/JPEG
+path shape so existing CMS editing works. They deploy with Static Assets and do
+not change the D1 upload budget or its authorization/validation rules. No database
+schema migration or new service is required for these four records.

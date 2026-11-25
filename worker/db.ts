@@ -18,7 +18,46 @@ interface Model {
 	relations: Record<string, unknown>
 	uniques: string[][]
 }
-export const models = metadata.models as Record<string, Model>
+export const models = { ...metadata.models } as Record<string, Model>
+// New shop records use the same mapper without changing the legacy import map.
+for (const [name, table, fields, soft] of [
+	['ShopCategory', 'shop_category', { name: 'String', sortOrder: 'Int' }, true],
+	[
+		'ShopProduct',
+		'shop_product',
+		{
+			name: 'String',
+			description: 'String',
+			priceLabel: 'String',
+			purchaseUrl: 'String',
+			published: 'Boolean',
+			sortOrder: 'Int',
+		},
+		true,
+	],
+	['ShopMedia', 'shop_media', { productId: 'String', url: 'String', altText: 'String', sortOrder: 'Int' }, false],
+] as const) {
+	const mapped: Record<string, Field> = {}
+	const all = {
+		id: 'String',
+		createdAt: 'DateTime',
+		updatedAt: 'DateTime',
+		...fields,
+		...(soft ? { deleted: 'Boolean', deletedAt: 'DateTime' } : {}),
+	}
+	for (const [key, type] of Object.entries(all))
+		mapped[key] = {
+			column: key.replace(/[A-Z]/g, (char) => '_' + char.toLowerCase()),
+			type,
+			nullable: key === 'deletedAt',
+			primary: key === 'id',
+			unique: key === 'id',
+			...(['createdAt', 'updatedAt'].includes(key) ? { now: true } : {}),
+			...(['sortOrder', 'deleted', 'published'].includes(key) ? { default: 0 } : {}),
+			...(['priceLabel', 'purchaseUrl', 'altText'].includes(key) ? { default: '' } : {}),
+		}
+	models[name] = { table, fields: mapped, relations: {}, uniques: [] }
+}
 export const quote = (name: string) => '"' + name.replaceAll('"', '""') + '"'
 export function encode(value: unknown, field?: Field): D1DatabaseBindingValue {
 	if (value === undefined || value === null) return null

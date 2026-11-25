@@ -96,6 +96,35 @@ try {
 	assert.ok(projects.body.data.length >= 3)
 	checks++
 	status(await api('/projects/create', { method: 'POST', data: { title: 'no', description: 'unauthorized' } }), 401)
+	const seededProject = projects.body.data.find((project) => project.slug === 'fablesplice')
+	status(await api('/projects/' + seededProject.id, { token: owner, method: 'PUT', data: seededProject }), 200)
+	status(await api('/projects/' + seededProject.id, { token: client, method: 'PUT', data: seededProject }), 403)
+	for (const thumbnailUrl of ['/seed/projects/../../.dev.vars', '/seed/projects/fablesplice/unknown.svg'])
+		status(await api('/projects/' + seededProject.id, { token: owner, method: 'PUT', data: { thumbnailUrl } }), 422)
+	const seededPhotos = await api('/photography')
+	status(seededPhotos, 200)
+	assert.equal(seededPhotos.body.data.length, 4)
+	assert.ok(seededPhotos.body.data.every((photo) => photo.published))
+	const seededPhoto = seededPhotos.body.data[0]
+	status(await api('/photography/' + seededPhoto.id, { token: owner, method: 'PUT', data: seededPhoto }), 200)
+	status(await api('/photography/' + seededPhoto.id, { token: client, method: 'PUT', data: seededPhoto }), 403)
+	status(
+		await api('/photography/' + seededPhoto.id, {
+			token: owner,
+			method: 'PUT',
+			data: { imageUrl: '/seed/photography/../../.dev.vars' },
+		}),
+		422,
+	)
+	status(
+		await api('/photography/' + seededPhoto.id, {
+			token: owner,
+			method: 'PUT',
+			data: { imageUrl: seededPhoto.imageUrl.replace('.jpg', '.svg') },
+		}),
+		422,
+	)
+	checks += 2
 	status(await api('/users', { token: client }), 403)
 	status(await api('/users', { token: users.ADMIN.token }), 403)
 	status(await api('/users', { token: owner }), 200)
@@ -341,6 +370,122 @@ try {
 	)
 	assert.equal((await visitorSocket.event('chat:message')).content, 'Hello, this is Jhon.')
 	checks++
+	// Shop privacy, category integrity, bounded media and atomic rollback.
+	status(await api('/shop/products', { method: 'POST', data: {} }), 401)
+	status(await api('/shop/products/admin', { token: client }), 403)
+	status(await api('/shop/categories', { token: client, method: 'POST', data: { name: 'Forbidden' } }), 403)
+	const shopCategory = await api('/shop/categories', {
+		token: users.ADMIN.token,
+		method: 'POST',
+		data: { name: 'Digital goods' },
+	})
+	status(shopCategory, 201)
+	const shopCategory2 = await api('/shop/categories', { token: owner, method: 'POST', data: { name: 'Templates' } })
+	status(shopCategory2, 201)
+	const shopInput = {
+		name: 'Fixture template',
+		description: 'A real draft shop fixture.',
+		categoryIds: [shopCategory.body.data.id, shopCategory2.body.data.id],
+		published: false,
+		priceLabel: '₱500',
+	}
+	const shopProduct = await api('/shop/products', { token: owner, method: 'POST', data: shopInput })
+	status(shopProduct, 201)
+	const shopId = shopProduct.body.data.id
+	assert.equal(shopProduct.body.data.categories.length, 2)
+	status(await api('/shop/products/' + shopId), 404)
+	assert.equal((await api('/shop/products', { token: owner })).body.data.length, 0)
+	status(await api('/shop/products/' + shopId, { token: client, method: 'PUT', data: shopInput }), 403)
+	status(
+		await api('/shop/products/' + shopId, {
+			token: owner,
+			method: 'PUT',
+			data: { ...shopInput, name: 'Must roll back', categoryIds: [randomUUID()] },
+		}),
+		422,
+	)
+	assert.equal((await api('/shop/products/' + shopId, { token: owner })).body.data.name, shopInput.name)
+	assert.equal((await api('/shop/products/' + shopId, { token: owner })).body.data.categories.length, 2)
+	status(await api('/shop/products', { token: owner, method: 'POST', data: { ...shopInput, categoryIds: [] } }), 422)
+	status(
+		await api('/shop/products', {
+			token: owner,
+			method: 'POST',
+			data: { ...shopInput, purchaseUrl: 'javascript:alert(1)' },
+		}),
+		422,
+	)
+	status(await api('/shop/categories/' + shopCategory.body.data.id, { token: owner, method: 'DELETE' }), 409)
+	const shopGallery = '/upload/shop-media/' + shopId
+	status(await api(shopGallery, { method: 'POST', raw: videoForm(videoData.slice(0, 24)) }), 401)
+	status(await api(shopGallery, { token: client, method: 'POST', raw: videoForm(videoData.slice(0, 24)) }), 403)
+	status(await api(shopGallery, { token: owner, method: 'POST', raw: invalidVideo }), 422)
+	const shopVideo = await api(shopGallery, { token: owner, method: 'POST', raw: videoForm(videoData.slice(0, 24)) })
+	status(shopVideo, 201)
+	assert.equal(shopVideo.body.data.mediaType, 'video')
+	status(
+		await api('/shop/media/' + shopVideo.body.data.id, {
+			token: owner,
+			method: 'PUT',
+			data: { altText: 'Template preview', sortOrder: 1 },
+		}),
+		200,
+	)
+	status(await api('/shop/media/' + shopVideo.body.data.id, { token: client, method: 'DELETE' }), 403)
+	status(
+		await api('/shop/products/' + shopId, { token: owner, method: 'PUT', data: { ...shopInput, published: true } }),
+		200,
+	)
+	const publicShop = await api('/shop/products/' + shopId)
+	status(publicShop, 200)
+	assert.equal(publicShop.body.data.media[0].altText, 'Template preview')
+	const shopFileId = shopVideo.body.data.url.split('/').pop().split('.')[0]
+	status(await api('/upload/files/' + shopFileId, { token: owner, method: 'DELETE' }), 409)
+	const fileCount = (await db.prepare('SELECT COUNT(*) n FROM media_files').first()).n
+	for (let i = 1; i < 50; i++)
+		await db
+			.prepare(
+				'INSERT INTO shop_media(id,product_id,url,alt_text,sort_order,created_at,updated_at) VALUES(?,?,?,?,?,?,?)',
+			)
+			.bind(randomUUID(), shopId, shopVideo.body.data.url, '', i, new Date().toISOString(), new Date().toISOString())
+			.run()
+	status(await api(shopGallery, { token: owner, method: 'POST', raw: videoForm(videoData.slice(0, 24)) }), 422)
+	assert.equal((await db.prepare('SELECT COUNT(*) n FROM media_files').first()).n, fileCount)
+	status(await api('/shop/products/' + shopId, { token: owner, method: 'DELETE' }), 200)
+	status(await api('/shop/products/' + shopId), 404)
+	status(await api(shopGallery, { token: owner, method: 'POST', raw: videoForm(videoData.slice(0, 24)) }), 404)
+	status(await api('/shop/categories/' + shopCategory.body.data.id, { token: owner, method: 'DELETE' }), 200)
+	status(
+		await api('/shop/products', {
+			token: owner,
+			method: 'POST',
+			data: { ...shopInput, categoryIds: [shopCategory.body.data.id] },
+		}),
+		422,
+	)
+	await db
+		.prepare(
+			"WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n<81) INSERT INTO shop_product(id,name,description,published,created_at,updated_at) SELECT printf('00000000-0000-4000-8000-%012d',n),printf('Page fixture %03d',n),'Pagination fixture',1,datetime('now'),datetime('now') FROM seq",
+		)
+		.run()
+	await db
+		.prepare(
+			"INSERT INTO shop_product_category(product_id,category_id) SELECT id,? FROM shop_product WHERE name LIKE 'Page fixture %'",
+		)
+		.bind(shopCategory2.body.data.id)
+		.run()
+	const firstPage = await api('/shop/products?page=1')
+	const secondPage = await api('/shop/products?page=2')
+	status(firstPage, 200)
+	status(secondPage, 200)
+	assert.equal(firstPage.body.data.length, 80)
+	assert.equal(secondPage.body.data.length, 1)
+	assert.ok(!firstPage.body.data.some((p) => p.id === secondPage.body.data[0].id))
+	assert.equal((await api('/shop/products?search=081')).body.data.length, 1)
+	assert.equal((await api('/shop/products?category=' + shopCategory2.body.data.id + '&page=2')).body.data.length, 1)
+	status(await api('/shop/products?page=0'), 422)
+	status(await api('/shop/products?category=invalid'), 422)
+	checks += 10
 	// Expensive password work must execute in the Durable Object, not the free Worker CPU budget.
 	status(
 		await api('/auth/change-password', {

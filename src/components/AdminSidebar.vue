@@ -11,6 +11,7 @@ const userStore = useUserStore()
 const links = computed(() => [
 	{ to: '/admin/dashboard', label: 'Dashboard', icon: 'grid' },
 	{ to: '/admin/projects', label: 'Projects', icon: 'folder' },
+	{ to: '/admin/shop', label: 'Shop', icon: 'briefcase' },
 	{ to: '/admin/gears', label: 'Gears', icon: 'monitor' },
 	{ to: '/admin/photography', label: 'Photography', icon: 'camera' },
 	{ to: '/admin/tech-stack', label: 'Tech Stack', icon: 'cpu' },

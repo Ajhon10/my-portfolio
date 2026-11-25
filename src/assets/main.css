@@ -8,7 +8,7 @@
 	color-scheme: dark;
 }
 
-html.light {
+html[data-theme="primary"] {
 	color-scheme: light;
 }
 
@@ -22,7 +22,7 @@ body {
 	scroll-behavior: smooth;
 }
 
-html.light body {
+html[data-theme="primary"] body {
 	background-color: #f8fafc;
 	color: #0f172a;
 }
@@ -53,13 +53,13 @@ body {
 	background: #334155;
 }
 
-html.light ::-webkit-scrollbar-track {
+html[data-theme="primary"] ::-webkit-scrollbar-track {
 	background: #e2e8f0;
 }
-html.light ::-webkit-scrollbar-thumb {
+html[data-theme="primary"] ::-webkit-scrollbar-thumb {
 	background: #94a3b8;
 }
-html.light ::-webkit-scrollbar-thumb:hover {
+html[data-theme="primary"] ::-webkit-scrollbar-thumb:hover {
 	background: #64748b;
 }
 
@@ -162,49 +162,49 @@ html.light ::-webkit-scrollbar-thumb:hover {
 	font-family: 'Inter', sans-serif;
 }
 
-/* ===== LIGHT MODE OVERRIDES ===== */
-html.light .card {
+/* Primary theme controls and surfaces. */
+html[data-theme="primary"] .card {
 	background-color: rgba(255, 255, 255, 0.9);
 	border-color: rgba(0, 0, 0, 0.08);
 }
-html.light .card-hover:hover {
+html[data-theme="primary"] .card-hover:hover {
 	border-color: rgba(0, 102, 255, 0.4);
 }
-html.light .input {
+html[data-theme="primary"] .input {
 	background-color: #ffffff;
 	border-color: #cbd5e1;
 	color: #0f172a;
 }
-html.light .input::placeholder {
+html[data-theme="primary"] .input::placeholder {
 	color: #94a3b8;
 }
-html.light .input:focus {
+html[data-theme="primary"] .input:focus {
 	border-color: #0066ff;
 }
-html.light .btn-ghost {
+html[data-theme="primary"] .btn-ghost {
 	color: #475569;
 }
-html.light .btn-ghost:hover {
+html[data-theme="primary"] .btn-ghost:hover {
 	color: #0f172a;
 	background-color: rgba(0, 0, 0, 0.05);
 }
-html.light .btn-outline {
+html[data-theme="primary"] .btn-outline {
 	border-color: rgba(0, 102, 255, 0.5);
 	color: #0055dd;
 }
-html.light .btn-outline:hover {
+html[data-theme="primary"] .btn-outline:hover {
 	background-color: rgba(0, 102, 255, 0.08);
 }
-html.light .label {
+html[data-theme="primary"] .label {
 	color: #334155;
 }
-html.light .animated-gradient {
+html[data-theme="primary"] .animated-gradient {
 	background: linear-gradient(120deg, #f0f4ff, #e8f0ff, #f0f4ff, #dbeafe);
 }
-html.light .bg-grid {
+html[data-theme="primary"] .bg-grid {
 	background-image: linear-gradient(to right, rgba(0, 102, 255, 0.06) 1px, transparent 1px),
 		linear-gradient(to bottom, rgba(0, 102, 255, 0.06) 1px, transparent 1px);
 }
-html.light .light-mobile-menu {
+html[data-theme="primary"] .light-mobile-menu {
 	background-color: rgba(248, 250, 252, 0.97) !important;
 }

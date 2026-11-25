@@ -4,6 +4,7 @@ import { RouterView, useRoute } from 'vue-router'
 import { computed } from 'vue'
 import PublicLayout from '@/layout/PublicLayout.vue'
 import AdminLayout from '@/layout/AdminLayout.vue'
+import ConnectionStatusBar from '@/components/ConnectionStatusBar.vue'
 import { useUserStore } from '@/stores/user'
 import { useTheme } from '@/composables/useTheme'
 import { useSiteBranding, BRANDING_EVENT_KEY } from '@/composables/useSiteBranding'
@@ -42,6 +43,7 @@ onMounted(async () => {
 </script>
 
 <template>
+	<ConnectionStatusBar />
 	<RouterView v-slot="{ Component }">
 		<template v-if="Component">
 			<Suspense>

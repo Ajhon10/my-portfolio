@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useClientRequestProvider } from '@/composables/provider/client-request.provider'
 import { useUserStore } from '@/stores/user'
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { toast } from 'vue3-toastify'
 
+const route = useRoute()
 const provider = useClientRequestProvider()
 const userStore = useUserStore()
 
@@ -18,6 +20,18 @@ const form = reactive({
 	description: '',
 	referenceLinks: '',
 })
+
+watch(
+	() => route.query.item,
+	(item) => {
+		if (typeof item === 'string' && item.trim() && !form.description) {
+			form.projectType = 'Other'
+			form.description = `I'd like to inquire about ${item.slice(0, 160)}.`
+			form.referenceLinks = `${window.location.origin}/shop`
+		}
+	},
+	{ immediate: true },
+)
 
 const errors = reactive<Record<string, string>>({})
 const submitting = ref(false)
@@ -138,7 +152,12 @@ const submit = async () => {
 		</div>
 		<div>
 			<label class="label">Tell me about your project *</label>
-			<textarea v-model="form.description" rows="5" class="input resize-none" placeholder="Goals, audience, key features..." />
+			<textarea
+				v-model="form.description"
+				rows="5"
+				class="input resize-none"
+				placeholder="Goals, audience, key features..."
+			/>
 			<p v-if="errors.description" class="text-xs text-red-400 mt-1">{{ errors.description }}</p>
 		</div>
 		<button type="submit" class="btn btn-primary w-full sm:w-auto" :disabled="submitting">

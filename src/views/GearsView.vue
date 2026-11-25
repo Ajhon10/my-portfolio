@@ -97,7 +97,7 @@ onMounted(load)
 <style scoped>
 .gear-page {
 	min-height: 70vh;
-	background: linear-gradient(180deg, rgb(13 25 44 / 0.76), rgb(9 15 27 / 0) 360px), #090f1b;
+	background: linear-gradient(180deg, var(--folio-surface), rgb(9 15 27 / 0) 360px), var(--folio-bg);
 }
 .gear-hero {
 	display: grid;
@@ -105,7 +105,7 @@ onMounted(load)
 	align-items: end;
 	gap: 64px;
 	padding-bottom: 44px;
-	border-bottom: 1px solid #243044;
+	border-bottom: 1px solid var(--folio-line);
 }
 .gear-kicker,
 .gear-meta,
@@ -116,7 +116,7 @@ onMounted(load)
 .gear-kicker {
 	margin-bottom: 18px;
 	font-size: 11px;
-	color: #83adff;
+	color: var(--folio-accent);
 }
 .gear-hero h1 {
 	font-family: 'Space Grotesk', sans-serif;
@@ -126,13 +126,13 @@ onMounted(load)
 	letter-spacing: -0.055em;
 }
 .gear-hero h1 span {
-	color: #80adff;
+	color: var(--folio-accent);
 }
 .gear-hero > p {
 	max-width: 460px;
 	font-size: 16px;
 	line-height: 1.75;
-	color: #9aaac1;
+	color: var(--folio-muted);
 }
 .gear-filters {
 	display: flex;
@@ -143,10 +143,10 @@ onMounted(load)
 .gear-filters button {
 	min-height: 42px;
 	padding: 0 16px;
-	border: 1px solid #2b3d58;
+	border: 1px solid var(--folio-line);
 	border-radius: 999px;
 	font-size: 13px;
-	color: #9fb0c9;
+	color: var(--folio-muted);
 	transition:
 		border-color 160ms ease,
 		background-color 160ms ease,
@@ -155,9 +155,9 @@ onMounted(load)
 .gear-filters button:hover,
 .gear-filters button:focus-visible,
 .gear-filters button.active {
-	border-color: #6f9ee6;
-	background: #17335b;
-	color: #edf3ff;
+	border-color: var(--folio-accent);
+	background: var(--folio-selected);
+	color: var(--folio-ink);
 }
 .gear-grid {
 	display: grid;
@@ -168,15 +168,15 @@ onMounted(load)
 .gear-card {
 	min-width: 0;
 	overflow: hidden;
-	border: 1px solid #283850;
+	border: 1px solid var(--folio-line);
 	border-radius: 10px;
-	background: #101a2b;
+	background: var(--folio-surface);
 	transition:
 		border-color 180ms ease,
 		transform 180ms ease;
 }
 .gear-card:hover {
-	border-color: #46658f;
+	border-color: var(--folio-line);
 	transform: translateY(-3px);
 }
 .gear-media {
@@ -185,8 +185,8 @@ onMounted(load)
 	place-items: center;
 	aspect-ratio: 4 / 3;
 	padding: 24px;
-	border-bottom: 1px solid #25364e;
-	background: linear-gradient(135deg, rgb(51 103 178 / 0.16), transparent 62%), #0b1525;
+	border-bottom: 1px solid var(--folio-line);
+	background: linear-gradient(135deg, rgb(51 103 178 / 0.16), transparent 62%), var(--folio-surface);
 }
 .gear-media img {
 	width: 100%;
@@ -198,18 +198,18 @@ onMounted(load)
 	font-size: 56px;
 	font-weight: 500;
 	letter-spacing: -0.08em;
-	color: #80adff;
+	color: var(--folio-accent);
 }
 .gear-featured {
 	position: absolute;
 	top: 14px;
 	left: 14px;
 	padding: 6px 9px;
-	border: 1px solid #5175a9;
+	border: 1px solid var(--folio-line);
 	border-radius: 999px;
-	background: rgb(10 24 43 / 0.88);
+	background: var(--folio-surface);
 	font-size: 9px;
-	color: #c5d9fa;
+	color: var(--folio-soft);
 }
 .gear-copy {
 	display: flex;
@@ -222,7 +222,7 @@ onMounted(load)
 	justify-content: space-between;
 	gap: 12px;
 	font-size: 9px;
-	color: #7893b8;
+	color: var(--folio-muted);
 }
 .gear-copy h2 {
 	margin-top: 14px;
@@ -235,38 +235,38 @@ onMounted(load)
 	margin-top: 10px;
 	font-size: 14px;
 	line-height: 1.65;
-	color: #9aaac1;
+	color: var(--folio-muted);
 }
 .gear-specifications {
 	margin-top: 14px;
 	padding-top: 14px;
-	border-top: 1px solid #243044;
+	border-top: 1px solid var(--folio-line);
 	font:
 		11px/1.65 'JetBrains Mono',
 		monospace;
 	white-space: pre-line;
-	color: #adc5e9;
+	color: var(--folio-soft);
 }
 .gear-link {
 	width: fit-content;
 	margin-top: auto;
 	padding-top: 20px;
 	font-size: 13px;
-	color: #9ec1ff;
+	color: var(--folio-accent);
 }
 .gear-link:hover {
-	color: #fff;
+	color: var(--folio-ink);
 }
 .gear-state {
 	margin-top: 36px;
 	padding: 48px 24px;
-	border: 1px solid #243044;
+	border: 1px solid var(--folio-line);
 	text-align: center;
-	color: #9aaac1;
+	color: var(--folio-muted);
 }
 .gear-state button {
 	margin-left: 6px;
-	color: #9ec1ff;
+	color: var(--folio-accent);
 	text-decoration: underline;
 	text-underline-offset: 4px;
 }

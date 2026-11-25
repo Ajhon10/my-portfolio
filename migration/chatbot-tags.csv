@@ -1,0 +1,11 @@
+id,createdAt,updatedAt,deletedAt,deleted,name,label,sortOrder
+fc6263ed-e4b6-4b16-b3cf-4cf7fd6a7a6c,2026-05-03T23:49:44.715Z,2026-05-03T23:49:44.715Z,\N,false,skills,Skills,1
+8be08b1d-544a-47ce-961f-cdbce7f5dad0,2026-05-03T23:49:44.719Z,2026-05-03T23:49:44.719Z,\N,false,services,Services,2
+02e16178-a24d-41fe-af32-082bf53ab920,2026-05-03T23:49:44.721Z,2026-05-03T23:49:44.721Z,\N,false,experience,Experience,3
+f8260d31-1332-48d0-b636-f7f996b0c6d7,2026-05-03T23:49:44.722Z,2026-05-03T23:49:44.722Z,\N,false,projects,Projects,4
+4ba981ba-fccc-45fc-bbd4-2121040e9513,2026-05-03T23:49:44.723Z,2026-05-03T23:49:44.723Z,\N,false,tech,Tech Stack,5
+9a0390fd-72a8-42d5-9ddd-e2961981e4c7,2026-05-03T23:49:44.724Z,2026-05-03T23:49:44.724Z,\N,false,availability,Availability,6
+6ea8bc96-7bba-4c38-b3c1-2de8bdc2b46b,2026-05-03T23:49:44.725Z,2026-05-03T23:49:44.725Z,\N,false,pricing,Pricing,7
+a282538d-15d7-48a1-a287-7329bf4eed6f,2026-05-03T23:49:44.727Z,2026-05-03T23:49:44.727Z,\N,false,contact,Contact,8
+8fd4bff8-58c1-4660-b4e8-5ff7eaeb1ff0,2026-05-03T23:49:44.729Z,2026-05-03T23:49:44.729Z,\N,false,background,Background,9
+6a477b8c-18f7-43c4-9512-a1bebb811bbe,2026-05-03T23:49:44.730Z,2026-05-03T23:49:44.730Z,\N,false,portfolio,Portfolio,10
