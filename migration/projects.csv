@@ -83,3 +83,47 @@ Implemented features
 Technology: React, TypeScript, Tauri 2, Rust, SQLite, and Recharts.
 
 Platform: Windows desktop. Web and mobile clients are planned; this entry does not present them as released applications.","A local-first personal finance desktop app for accounts, income and expenses, transfers, budgets, goals, receipts, and financial insights.",https://my-portfolio.itsajhon.workers.dev/uploads/92c69359-53f1-43f3-8d2e-a084e6939011.png,\N,\N,Desktop Application,true,true,5
+189c96e7-e10c-4324-a6c5-0120d592b656,2026-11-25T00:00:00.000Z,2026-11-25T00:00:00.000Z,\N,false,FableSplice Studio,fablesplice,"FableSplice Studio
+
+A personal, offline-first English story-to-video prototype for Windows. The current implementation focuses on a headless pipeline and private local API.
+
+Implemented features
+- Validated scene and character plans, with managed local Qwen story generation.
+- SQLite project storage, immutable imported media, asset checksums, revision checks, and explicit approval before rendering.
+- Supplied or locally generated images and narration, timed captions, and portrait H.264/AAC MP4 exports through FFmpeg.
+- A loopback FastAPI project API with readiness checks and render-job history.
+- Experimental local image-to-video generation and video-clip assembly toward character animation.
+
+Technology: Python, FastAPI, Pydantic, SQLite, FFmpeg, and explicitly configured local AI engines.
+
+Status: Phase 0 prototype. The desktop scene-board interface and cinematic character-animation quality remain development targets; this is not a finished desktop release.","A Windows story-to-video prototype with local AI story planning, approved media workflows, captions, and experimental character animation.",\N,\N,https://github.com/Ajhon10/FableSplice,AI Prototype,false,true,6
+f5ca7067-156e-4582-9a9c-17b7cf627850,2026-11-25T00:00:00.000Z,2026-11-25T00:00:00.000Z,\N,false,MemeCam,meme-camera,"MemeCam / meme-camera
+
+A Windows-first desktop camera studio that attaches image reactions to tracked faces, hands, and body positions. Camera processing and effect storage run locally.
+
+Implemented features
+- Face, hand, and pose tracking with MediaPipe inference in a dedicated worker.
+- Gesture-triggered effects with configurable placement, smoothing, timed playback, and toggle behavior.
+- Custom image effects, a searchable gesture guide, recorded upper-body pose matching, and local IndexedDB persistence.
+- A processed camera preview, clean output view, and canvas video stream.
+- A native Windows 11 virtual camera, plus a manual OBS window-capture workflow.
+- An offline tutorial and user handbook, camera controls, and detector settings.
+
+Technology: Vue 3, TypeScript, Electron, Vite, Pinia, MediaPipe, Canvas 2D, and native C++ camera components.
+
+Platform: Windows desktop; the native virtual camera requires Windows 11. Physical-camera accuracy and meeting-app compatibility depend on device testing.","A local Windows camera studio that turns face, hand, and body gestures into live image effects, with a native Windows 11 virtual camera.",\N,\N,https://github.com/Ajhon10/meme-camera,Desktop Application,false,true,7
+604aefd5-5dbf-4509-ad4a-a7836561c3d0,2026-11-25T00:00:00.000Z,2026-11-25T00:00:00.000Z,\N,false,MuniAlert,munialert,"MuniAlert - Municipal Emergency and Public Hazard Reporting
+
+A responsive web and Android project for Basista, Pangasinan, supporting photo and location-based incident reporting across its 13 barangays.
+
+Implemented features
+- Citizen hazard reports with photos, location details, and incident observations.
+- Map and list views, hazard filters, reviewed public news, comments, and reactions.
+- An administrator operations workspace for report review, status updates, resolution evidence, and weekly/monthly incident summaries.
+- Editable emergency hotlines, map defaults, badge descriptions, and citizen guides.
+- Email/password accounts, optional identity review, authenticator two-factor authentication, and account recovery.
+- Private original evidence and exact locations, with approximate areas and separately reviewed text for public maps.
+
+Technology: Vue 3, TypeScript, Vite, Capacitor Android, MapLibre, Laravel, PHP, and MySQL.
+
+Status: web and Android implementation with a Hostinger deployment target. Production delivery and physical-device acceptance remain separate verification steps; no public live URL is listed.","A municipal hazard-reporting system for Basista with photo and location-based reports, citizen updates, and an administrator review workspace.",\N,\N,https://github.com/Ajhon10/MuniAlert,Web & Mobile Application,false,true,8

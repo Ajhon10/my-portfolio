@@ -53,14 +53,14 @@ captured read-only from the production public API at
 
 | CSV | Seed records |
 | --- | ---: |
-| `projects.csv` | 6 |
+| `projects.csv` | 9 |
 | `tech-stack.csv` | 24 |
 | `experiences.csv` | 3 |
 | `site-content.csv` | 38 |
 | `chatbot-tags.csv` | 10 |
 | `chatbot-knowledge.csv` | 13 |
 | `project-media.csv` | 13 |
-| `project-technologies.csv` | 0 |
+| `project-technologies.csv` | 10 |
 | `certifications.csv` | 0 |
 | `photography.csv` | 4 |
 | `gears.csv` | 0 |
@@ -78,7 +78,16 @@ categories live in the existing `photography.csv`. The original JPEGs are
 bundled under `public/seed/photography/` with their original filenames and bytes,
 so they work in fresh installs without uploading media or creating an account.
 These deliberately supplied seed assets are distinct from runtime upload files
-and backups, which remain ignored. The seed now contains 111 records overall.
+and backups, which remain ignored.
+
+Three personal projects were added from their public repository documentation
+on November 25, 2026: [FableSplice Studio](https://github.com/Ajhon10/FableSplice),
+[MemeCam](https://github.com/Ajhon10/meme-camera), and
+[MuniAlert](https://github.com/Ajhon10/MuniAlert). They include summaries, scoped
+features, platform/development status and repository links. FableSplice remains
+labelled a Phase 0 prototype. Ten project/technology links reuse existing skill
+records without changing proficiency ratings. No live URLs or screenshots were
+invented. The seed now contains 124 records overall.
 
 CSV fields support quoted multiline text, commas, quotes, UTF-8 and `\N` for
 database null (distinct from an empty string). Uploaded-asset references use

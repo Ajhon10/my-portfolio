@@ -623,3 +623,26 @@ public seed-after-assets sequence. No production database or build settings
 were changed. Prepared the accumulated authorized changes on
 `feat/portfolio-experience`, based on current `origin/main`, for the requested
 GitHub push. No merge into main or production release is included.
+
+## Personal repository project seeds — November 25, 2026
+
+Added FableSplice Studio, MemeCam and MuniAlert to the existing `projects.csv`
+after reading their public repository READMEs and relevant package metadata.
+Entries include scoped descriptions, summaries, categories, repository URLs and
+development/platform limits. FableSplice is explicitly a Phase 0 prototype.
+Existing selected/featured projects and their content remain unchanged; the
+new entries are published in the seed with subsequent display order. Ten
+technology relationships reuse existing skill records in
+`project-technologies.csv`, without inventing proficiency ratings. No public
+live URL or screenshot was supplied by these repositories, so those fields
+remain empty. Seed filenames are unchanged; total seed records are now 124.
+
+The three existing public-seed tests passed. An independent in-memory import
+and second seed confirmed nine projects, ten technology links, no duplicate
+links and no foreign-key violations. Applied the repeatable seed locally only.
+Focused browser checks passed for all three cards/detail views, their GitHub
+links, expected technology associations and 1440/390px reflow, with no page
+errors. Reviewed rendered desktop/mobile detail captures. Evidence:
+`.test-artifacts/personal-projects/report.json` and adjacent screenshots.
+This is a content-only update; runtime/schema code is unchanged. Production
+seeding and release remain separate from the requested GitHub source push.
