@@ -325,9 +325,14 @@ export class PortfolioHub extends DurableObject<Env> {
 					request &&
 					!request.deleted &&
 					(peer.role === 'admin' || request.client_user_id === peer.user.id) &&
-					peer.projects.length < 30
-				)
+					(peer.projects.length < 30 || peer.projects.includes(requestId))
+				) {
 					peer.projects = [...new Set([...peer.projects, requestId])]
+					// Acknowledge only after authorization and the hibernation attachment
+					// are complete. HTTP broadcasts can arrive on a separate request.
+					ws.serializeAttachment(peer)
+					this.send(ws, 'project-chat:joined', { requestId })
+				}
 			}
 			if (event === 'project-chat:leave') peer.projects = peer.projects.filter((id) => id !== input.requestId)
 			if (

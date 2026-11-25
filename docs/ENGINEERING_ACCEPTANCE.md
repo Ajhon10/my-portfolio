@@ -865,3 +865,36 @@ production D1 Time Travel bookmark and public-row hash baseline under ignored
 Production migrations 0010/0011 were applied successfully before the code push.
 Production seeding/deployment must additionally be confirmed against the exact
 GitHub commit; source push and local tests alone do not establish a live rollout.
+
+### Production presentation rollout and automatic-build repair
+
+Pushed application revision `4b39313` to main and the feature branch. Both
+GitHub CI runs passed. Cloudflare's build failed in the Worker test waiting for
+`project-chat:message`; the owner's log showed the HTTP send racing an
+unacknowledged asynchronous room join, on Node 24.22.1. This was a test ordering
+defect, not evidence of a portrait/shop deployment failure. Added an authorized,
+persisted `project-chat:joined` acknowledgment and made the integration test
+await it. Rejoining an existing room remains valid at the subscription limit.
+Added `.nvmrc` with Node 22, shared by GitHub Actions and Cloudflare Builds,
+rather than relying on a dashboard setting that the log showed was not active.
+
+The verified `4b39313` bundle was deployed through the existing Wrangler login
+as Worker version `4bcc6058-3181-42d5-8c6c-2aa21ca80b2a`. Then ran the existing
+remote seeder successfully. Public-content hashes confirmed preservation of
+all 114 pre-existing public rows, excluding only the specifically authorized
+project curation/new empty statistics. Three home settings were added. Remote
+foreign-key check found zero violations; migrations 0001–0011 are recorded.
+Live read-only desktop/mobile checks passed for the three featured WWC projects,
+white badge text, earlier back-to-top, visible footer after SPA navigation,
+compact shop cards/details, zero/no-rating defaults, exact-byte guest resume
+download and bundled GLB. No test messages or inquiries were submitted to live
+production. Evidence: `.test-artifacts/presentation-production-20261125/report.json`
+and ignored `.wrangler/private/presentation-release-verification-20261125.private.json`.
+Final local GLB checks also verified pointer rotation, hidden loading text and
+portrait fallback after an intentional fixture-only model failure.
+
+The pipeline repair passed all 53 Node tests and 206 Worker integration checks,
+including the explicit join acknowledgment before message delivery. Build logs:
+`.test-artifacts/pipeline-repair-build.log`. The existing browser acceptance
+above covers the presentation bundle; the follow-up changes only the build
+runtime selection and the additive socket acknowledgment.

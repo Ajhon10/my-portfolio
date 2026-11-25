@@ -2,6 +2,14 @@
 
 Updated: 25 November 2026 (Asia/Manila).
 
+The repository's `.nvmrc` pins Node 22 for Cloudflare Builds; GitHub Actions
+reads the same file. Cloudflare's image otherwise selected Node 24.22.1 in the
+failed November 25 build. Keep any dashboard `NODE_VERSION` override consistent
+with `.nvmrc`. See the official [build-image version rules](https://developers.cloudflare.com/workers/ci-cd/builds/build-image/).
+The WebSocket integration check now waits for `project-chat:joined` before
+posting its HTTP message. It previously raced the asynchronous subscription,
+occasionally missing the broadcast under the hosted build's scheduling.
+
 Home/shop presentation release: also apply `0010_presentation_and_shop_stats.sql`
 and `0011_curate_featured_projects.sql` before deploying this source. The first
 adds fields with zero/empty defaults; the second deliberately updates featured

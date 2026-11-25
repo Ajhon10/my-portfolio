@@ -814,6 +814,10 @@ try {
 	checks++
 	const clientScope = await socket({ token: linkedToken })
 	clientScope.send('project-chat:join', { requestId })
+	// WebSocket join authorization and the next HTTP request are independent.
+	// Wait for the persisted subscription, not a scheduler-dependent delay.
+	assert.equal((await clientScope.event('project-chat:joined')).requestId, requestId)
+	checks++
 	status(
 		await api('/client-requests/' + requestId + '/chat', {
 			token: owner,
