@@ -96,6 +96,11 @@ try {
 	assert.ok(projects.body.data.length >= 3)
 	checks++
 	status(await api('/projects/create', { method: 'POST', data: { title: 'no', description: 'unauthorized' } }), 401)
+	const seededProject = projects.body.data.find((project) => project.slug === 'fablesplice')
+	status(await api('/projects/' + seededProject.id, { token: owner, method: 'PUT', data: seededProject }), 200)
+	status(await api('/projects/' + seededProject.id, { token: client, method: 'PUT', data: seededProject }), 403)
+	for (const thumbnailUrl of ['/seed/projects/../../.dev.vars', '/seed/projects/fablesplice/unknown.svg'])
+		status(await api('/projects/' + seededProject.id, { token: owner, method: 'PUT', data: { thumbnailUrl } }), 422)
 	const seededPhotos = await api('/photography')
 	status(seededPhotos, 200)
 	assert.equal(seededPhotos.body.data.length, 4)

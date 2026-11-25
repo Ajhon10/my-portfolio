@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { useSiteBranding } from '@/composables/useSiteBranding'
 
 const props = withDefaults(defineProps<{ src?: string; density?: number; strength?: number }>(), {
@@ -9,6 +9,14 @@ const props = withDefaults(defineProps<{ src?: string; density?: number; strengt
 })
 const emit = defineEmits<{ (event: 'fallback', active: boolean): void }>()
 const { resolveAssetUrl } = useSiteBranding()
+// The public seed references this exact immutable production upload. Its
+// byte-identical bundled copy keeps canvas pixel reads on the current origin.
+const portraitSource = computed(() => {
+	const source = resolveAssetUrl(props.src)
+	return source === 'https://my-portfolio.itsajhon.workers.dev/uploads/505c2b02-6264-45fa-b236-b006a9948cce.png'
+		? '/seed/portrait/505c2b02-6264-45fa-b236-b006a9948cce.png'
+		: source
+})
 const canvas = ref<HTMLCanvasElement>()
 const error = ref(false)
 const fallbackFailed = ref(false)
@@ -91,7 +99,7 @@ async function build() {
 	if (props.src) {
 		const img = new Image()
 		img.crossOrigin = 'anonymous'
-		img.src = resolveAssetUrl(props.src)
+		img.src = portraitSource.value
 		try {
 			await img.decode()
 			if (token !== generation) return
@@ -189,7 +197,7 @@ onBeforeUnmount(() => {
 		/>
 		<img
 			v-if="error && props.src && !fallbackFailed"
-			:src="resolveAssetUrl(props.src)"
+			:src="portraitSource"
 			alt="Profile portrait"
 			class="static-portrait"
 			@error="fallbackFailed = true"

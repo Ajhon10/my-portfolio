@@ -6,9 +6,7 @@ import { computed } from 'vue'
 const props = defineProps<{ project: Project }>()
 
 const { resolveAssetUrl } = useSiteBranding()
-const imgSrc = computed(() =>
-	resolveAssetUrl(props.project.thumbnailUrl || props.project.images?.[0]?.url || ''),
-)
+const imgSrc = computed(() => resolveAssetUrl(props.project.thumbnailUrl || props.project.images?.[0]?.url || ''))
 </script>
 
 <template>
@@ -24,6 +22,7 @@ const imgSrc = computed(() =>
 				:src="imgSrc"
 				:alt="project.title"
 				class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+				:class="{ 'object-top': project.thumbnailUrl?.startsWith('/seed/projects/') }"
 				loading="lazy"
 			/>
 			<div v-else class="w-full h-full flex items-center justify-center text-brand-gray-500 font-mono text-sm">

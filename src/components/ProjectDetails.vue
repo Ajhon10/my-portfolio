@@ -62,6 +62,7 @@ function enlarge(url: string) {
 						:alt="`${project.title} image ${index + 1}`"
 						loading="lazy"
 						class="w-full max-h-72 object-contain rounded"
+						:class="{ 'seed-project-preview': url.startsWith('/seed/projects/') && url.endsWith('.png') }"
 					/>
 				</button>
 			</template>
@@ -110,6 +111,11 @@ function enlarge(url: string) {
 	</article>
 </template>
 <style scoped>
+.seed-project-preview {
+	height: 16rem;
+	object-fit: cover;
+	object-position: top;
+}
 .project-close,
 .image-close {
 	display: inline-flex;

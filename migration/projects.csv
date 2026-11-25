@@ -96,7 +96,7 @@ Implemented features
 
 Technology: Python, FastAPI, Pydantic, SQLite, FFmpeg, and explicitly configured local AI engines.
 
-Status: Phase 0 prototype. The desktop scene-board interface and cinematic character-animation quality remain development targets; this is not a finished desktop release.","A Windows story-to-video prototype with local AI story planning, approved media workflows, captions, and experimental character animation.",\N,\N,https://github.com/Ajhon10/FableSplice,AI Prototype,false,true,6
+Status: Phase 0 prototype. The desktop scene-board interface and cinematic character-animation quality remain development targets; this is not a finished desktop release.","A Windows story-to-video prototype with local AI story planning, approved media workflows, captions, and experimental character animation.",/seed/projects/fablesplice/cover.svg,\N,https://github.com/Ajhon10/FableSplice,AI Prototype,false,true,6
 f5ca7067-156e-4582-9a9c-17b7cf627850,2026-11-25T00:00:00.000Z,2026-11-25T00:00:00.000Z,\N,false,MemeCam,meme-camera,"MemeCam / meme-camera
 
 A Windows-first desktop camera studio that attaches image reactions to tracked faces, hands, and body positions. Camera processing and effect storage run locally.
@@ -111,7 +111,7 @@ Implemented features
 
 Technology: Vue 3, TypeScript, Electron, Vite, Pinia, MediaPipe, Canvas 2D, and native C++ camera components.
 
-Platform: Windows desktop; the native virtual camera requires Windows 11. Physical-camera accuracy and meeting-app compatibility depend on device testing.","A local Windows camera studio that turns face, hand, and body gestures into live image effects, with a native Windows 11 virtual camera.",\N,\N,https://github.com/Ajhon10/meme-camera,Desktop Application,false,true,7
+Platform: Windows desktop; the native virtual camera requires Windows 11. Physical-camera accuracy and meeting-app compatibility depend on device testing.","A local Windows camera studio that turns face, hand, and body gestures into live image effects, with a native Windows 11 virtual camera.",/seed/projects/meme-camera/studio.png,\N,https://github.com/Ajhon10/meme-camera,Desktop Application,false,true,7
 604aefd5-5dbf-4509-ad4a-a7836561c3d0,2026-11-25T00:00:00.000Z,2026-11-25T00:00:00.000Z,\N,false,MuniAlert,munialert,"MuniAlert - Municipal Emergency and Public Hazard Reporting
 
 A responsive web and Android project for Basista, Pangasinan, supporting photo and location-based incident reporting across its 13 barangays.
@@ -126,4 +126,4 @@ Implemented features
 
 Technology: Vue 3, TypeScript, Vite, Capacitor Android, MapLibre, Laravel, PHP, and MySQL.
 
-Status: web and Android implementation with a Hostinger deployment target. Production delivery and physical-device acceptance remain separate verification steps; no public live URL is listed.","A municipal hazard-reporting system for Basista with photo and location-based reports, citizen updates, and an administrator review workspace.",\N,\N,https://github.com/Ajhon10/MuniAlert,Web & Mobile Application,false,true,8
+Status: web and Android implementation with a Hostinger deployment target. Production delivery and physical-device acceptance remain separate verification steps; no public live URL is listed.","A municipal hazard-reporting system for Basista with photo and location-based reports, citizen updates, and an administrator review workspace.",/seed/projects/munialert/desktop.png,\N,https://github.com/Ajhon10/MuniAlert,Web & Mobile Application,false,true,8

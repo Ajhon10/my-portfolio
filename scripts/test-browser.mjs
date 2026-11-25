@@ -112,8 +112,21 @@ try {
 	)
 	assert.equal(await page.locator('.folio-logo svg').count(), 1)
 	assert.equal(await page.locator('.hero-actions svg').count(), 2)
-	await page.locator('.hero-art .static-portrait').waitFor()
-	await page.waitForFunction(() => document.querySelector('.hero-art .static-portrait')?.naturalWidth > 0)
+	const particleCanvas = page.locator('.hero-art .particle-portrait canvas')
+	await page.waitForFunction(() => {
+		const canvas = document.querySelector('.hero-art .particle-portrait canvas')
+		return (
+			canvas &&
+			canvas
+				.getContext('2d')
+				.getImageData(0, 0, canvas.width, canvas.height)
+				.data.some((channel) => channel > 0)
+		)
+	})
+	assert.equal(await page.locator('.hero-art .static-portrait').count(), 0)
+	const reducedPortrait = await particleCanvas.evaluate((canvas) => canvas.toDataURL())
+	await particleCanvas.hover()
+	assert.equal(await particleCanvas.evaluate((canvas) => canvas.toDataURL()), reducedPortrait)
 	assert.equal(await page.getByText('Portrait unavailable.', { exact: true }).count(), 0)
 	await page.screenshot({ path: artifact + '/primary-desktop.png' })
 	for (const width of [768, 920, 921, 1024]) {
@@ -122,6 +135,13 @@ try {
 	}
 	await page.setViewportSize({ width: 1440, height: 1000 })
 	await page.emulateMedia({ reducedMotion: 'no-preference' })
+	const portraitBox = await particleCanvas.boundingBox()
+	await page.mouse.move(portraitBox.x + portraitBox.width * 0.45, portraitBox.y + portraitBox.height * 0.45)
+	await page.waitForFunction(
+		(before) => document.querySelector('.hero-art .particle-portrait canvas').toDataURL() !== before,
+		reducedPortrait,
+	)
+	await page.mouse.move(0, 0)
 	// Sample the real CSS transition at its midpoint within one browser task,
 	// avoiding wall-clock assertions that can miss the animation on a busy host.
 	const transitionProof = await page.getByRole('button', { name: 'Toggle dark mode' }).evaluate(async (button) => {
@@ -593,7 +613,7 @@ try {
 					'all 12 admin pages',
 					'Light/Dark labels, Light default, theme persistence, animated changes and reduced motion',
 					'live viewer wording for one, two and five sessions; game toggle beside viewers',
-					'imported portrait static fallback, SVG icons and responsive navigation boundaries',
+					'same-origin seeded particle portrait, hover response, reduced motion, SVG icons and responsive navigation',
 					'shop categories, draft privacy, multiple media upload, video playback, filtering and inquiry prefill',
 					'multi-image project upload, cover selection, video playback and image lightbox',
 					'Gears/Photography sidebar navigation, image uploads and saved records',

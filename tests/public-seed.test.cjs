@@ -54,9 +54,26 @@ test('public CSV seed restores page data and galleries idempotently without repl
 			originalMedia.length,
 		)
 		const site = readSeedCsv('SiteContent', 'site-content.csv')[0]
+		const covered = projects.filter((p) => p.thumbnailUrl?.startsWith('/seed/projects/'))
+		const [emptyCover, customCover, deletedProject] = covered
+		db.prepare('UPDATE project SET thumbnail_url=NULL WHERE slug=?').run(emptyCover.slug)
+		db.prepare('UPDATE project SET thumbnail_url=? WHERE slug=?').run('/uploads/custom-cover.png', customCover.slug)
+		db.prepare('UPDATE project SET thumbnail_url=NULL,deleted=1 WHERE slug=?').run(deletedProject.slug)
 		db.prepare('UPDATE site_content SET value=? WHERE key=?').run('Keep my local customization', site.key)
 		const before = db.prepare('SELECT COUNT(*) n FROM project_image').get().n
 		db.exec(seedSql())
+		assert.equal(
+			db.prepare('SELECT thumbnail_url FROM project WHERE slug=?').get(emptyCover.slug).thumbnail_url,
+			emptyCover.thumbnailUrl,
+		)
+		assert.equal(
+			db.prepare('SELECT thumbnail_url FROM project WHERE slug=?').get(customCover.slug).thumbnail_url,
+			'/uploads/custom-cover.png',
+		)
+		assert.equal(
+			db.prepare('SELECT thumbnail_url FROM project WHERE slug=?').get(deletedProject.slug).thumbnail_url,
+			null,
+		)
 		assert.equal(db.prepare('SELECT COUNT(*) n FROM project_image').get().n, before)
 		assert.equal(db.prepare('SELECT COUNT(*) n FROM photograph').get().n, 4)
 		assert.equal(

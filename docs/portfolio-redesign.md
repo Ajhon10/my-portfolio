@@ -53,7 +53,10 @@ current. The metadata row wraps at narrower widths.
 
 The production public-content snapshot now lives in CSVs beside the original
 seed files; see README.md for counts, scope and media-link behavior.
-When a linked portrait cannot be read into canvas from another origin, the saved
+The seeded portrait now uses a byte-identical same-origin source asset for canvas
+reads, restoring the actual particle drawing and pointer scatter locally. The
+rendering, sampling and scatter physics remain unchanged. When another linked
+portrait cannot be read into canvas from another origin, the saved
 image remains visible as a static preview and the caption reflects that state.
 
 ## Primary / Secondary themes and shop — November 25, 2026

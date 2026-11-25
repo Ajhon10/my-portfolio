@@ -646,3 +646,47 @@ errors. Reviewed rendered desktop/mobile detail captures. Evidence:
 `.test-artifacts/personal-projects/report.json` and adjacent screenshots.
 This is a content-only update; runtime/schema code is unchanged. Production
 seeding and release remain separate from the requested GitHub source push.
+
+## Project images and local particle rendering — November 25, 2026
+
+Added the original MemeCam studio screenshot from its local browser evidence
+and MuniAlert's public November 24 desktop/mobile demo screenshots. The latter
+contain fictional demonstration records. FableSplice has no published screenshot
+or finished UI; its authored SVG cover labels the Phase 0 prototype and depicts
+the documented story/media/render pipeline. Source assets are deliberately
+bundled under `public/seed/projects/`; three thumbnail fields and four gallery
+rows were added to the existing CSVs. Total seed records are now 128. Tall seed
+screenshots preview from the top in cards/galleries; lightboxes show the original
+complete images. No source screenshot bytes were edited.
+
+Repeat seeding fills empty project covers while preserving chosen covers,
+custom descriptions and deleted projects. Applied locally only. Existing seed
+tests now cover those invariants. The project API accepts the three exact bundled
+cover paths; isolated Worker checks confirm owner edits succeed, client edits
+remain forbidden and traversal/unknown bundled paths are rejected.
+
+The earlier cross-origin fallback hid the seeded portrait canvas locally because
+the production image response does not grant local canvas pixel access. Bundled
+the same original published portrait under `public/seed/portrait/` and map only
+that exact immutable production URL to its same-origin copy in ParticlePortrait.
+No rendering/sampling/scatter parameters or physics changed. Custom portraits
+keep their normal URL and the existing static fallback when canvas reads fail.
+
+Verification passed: 49 Node tests, 154 isolated Worker checks, types, production
+build, deployment dry run and full browser suite. Browser assertions now require
+a nonempty canvas, actual hover pixel changes with motion enabled, and stable
+pixels under reduced motion. All previous admin, media, shop, viewer, theme and
+inquiry flows passed with no page errors/API failures. Evidence:
+`.test-artifacts/browser-55dae161-7165-4959-8d90-e73a5a704c6a` and
+`.test-artifacts/project-media-build.log`.
+
+Focused desktop/mobile checks verified all three loaded covers, four loaded
+gallery images, Escape-dismissed lightboxes and the real local portrait canvas;
+rendered captures were reviewed. Evidence:
+`.test-artifacts/project-media-portrait/report.json`. Final built-Worker checks
+also passed at 1440/390px after the thumbnail adjustment: 256px top-cropped
+previews, complete mobile screenshot in its lightbox, nonempty particle canvas,
+and no overflow or page errors. Evidence in the same folder: `built-report.json`
+and `munialert-gallery-final-*.png`. No production migration,
+seeding or release was performed; the source push continues the existing
+authorized feature-branch workflow.

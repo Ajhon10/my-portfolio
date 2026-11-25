@@ -113,6 +113,13 @@ export function seedSql() {
 					),
 			)
 		}
+	// Fill newly supplied covers on older installs, preserving chosen covers,
+	// descriptions and soft-deleted rows.
+	for (const project of projects)
+		if (project.thumbnailUrl)
+			sql.push(
+				`UPDATE project SET thumbnail_url=${literal(project.thumbnailUrl)} WHERE slug=${literal(project.slug)} AND deleted=0 AND (thumbnail_url IS NULL OR thumbnail_url='');`,
+			)
 	// Resolve parents by their existing natural keys so customized local IDs and
 	// rows survive. Public gallery/link records are added without replacing them.
 	const projectIds = new Map(projects.map((p) => [p.id, p.slug]))

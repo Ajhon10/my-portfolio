@@ -59,7 +59,7 @@ captured read-only from the production public API at
 | `site-content.csv` | 38 |
 | `chatbot-tags.csv` | 10 |
 | `chatbot-knowledge.csv` | 13 |
-| `project-media.csv` | 13 |
+| `project-media.csv` | 17 |
 | `project-technologies.csv` | 10 |
 | `certifications.csv` | 0 |
 | `photography.csv` | 4 |
@@ -86,16 +86,22 @@ on November 25, 2026: [FableSplice Studio](https://github.com/Ajhon10/FableSplic
 [MuniAlert](https://github.com/Ajhon10/MuniAlert). They include summaries, scoped
 features, platform/development status and repository links. FableSplice remains
 labelled a Phase 0 prototype. Ten project/technology links reuse existing skill
-records without changing proficiency ratings. No live URLs or screenshots were
-invented. The seed now contains 124 records overall.
+records without changing proficiency ratings. Project media now includes the
+original MemeCam studio screenshot and MuniAlert's desktop/mobile demo captures.
+FableSplice uses an authored SVG prototype cover illustrating its actual pipeline,
+not an application screenshot. These assets live under `public/seed/projects/`.
+No live URLs were invented. The seed now contains 128 records overall.
 
 CSV fields support quoted multiline text, commas, quotes, UTF-8 and `\N` for
 database null (distinct from an empty string). Uploaded-asset references use
 absolute URLs to the existing production files; binary uploads are not copied
 into Git or recreated in D1. This is a public-content bootstrap, not a full
-database/media backup. Canvas-based portraits need the asset origin's CORS
-permission when used from another origin; local previews show a static portrait
-when those permissions prevent particle rendering. Account credentials, inquiries, private
+database/media backup. The seeded particle portrait has a byte-identical bundled
+copy under `public/seed/portrait/`; the canvas maps only that exact production
+URL to the same-origin copy, restoring local particle rendering and hover.
+Other external portraits need their asset origin's CORS permission for canvas
+reads; a static fallback remains available when those permissions are absent.
+Account credentials, inquiries, private
 chat and notifications are excluded.
 
 The header uses an accessible sun/moon button for Light/Dark mode. Light remains
@@ -103,7 +109,9 @@ the default; the icon rotates/fades while the theme colors change. Reduced motio
 disables both animations. The button is visible beside Menu on mobile.
 
 Run `npm.cmd run db:seed` after local migrations. Repeated seeding adds missing
-content without overwriting customized records. Gallery relationships resolve
+content without overwriting customized records. Missing project covers are filled
+from the seed; existing chosen covers and soft-deleted projects are preserved.
+Gallery relationships resolve
 projects by slug so existing local IDs remain valid. Updating the CSVs does not
 modify production data or publish the site.
 

@@ -41,7 +41,16 @@ const projectSchema = z.object({
 	title: text(2, 200),
 	description: text(10, 40000),
 	shortSummary: nullableText(300),
-	thumbnailUrl: mediaUrl.nullable().optional(),
+	thumbnailUrl: mediaUrl
+		.or(
+			z.enum([
+				'/seed/projects/fablesplice/cover.svg',
+				'/seed/projects/meme-camera/studio.png',
+				'/seed/projects/munialert/desktop.png',
+			]),
+		)
+		.nullable()
+		.optional(),
 	liveUrl: urlSchema.nullable().optional(),
 	repoUrl: urlSchema.nullable().optional(),
 	category: nullableText(100),
