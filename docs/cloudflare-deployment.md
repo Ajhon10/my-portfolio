@@ -2,6 +2,26 @@
 
 Updated: 25 November 2026 (Asia/Manila).
 
+Password recovery/folder update: schema SQL now lives in `database/migrations/`;
+Wrangler still tracks the original filenames. Apply `0012_password_recovery.sql`
+before deploying this release. `npm.cmd run db:migrate` / `db:migrate:remote` /
+`db:migrate:preview` retain their names. Public CSVs are now in
+`database/seeders/data/`; historical import mapping is in `database/legacy/`.
+See [folder audit](project-structure.md) and [user seeding](../database/README.md).
+
+User seeding is an explicit operator operation: `npm.cmd run db:seed:users`.
+For the owner's requested legacy admin restoration, use
+`npm.cmd run db:seed:users -- --restore-default-admin` (local), or add `--remote`
+for the deployed database. The account uses a temporary password, requires
+authenticator enrollment/verification, then requires a different password before
+receiving a session. Content seeds never change account credentials. User seed
+CSV rows refer to environment variable names rather than personal passwords.
+
+The login page links to password recovery. Existing Resend `MAIL_API_TOKEN` and
+`MAIL_FROM` secrets enable reset emails. No email is claimed sent when they are
+missing; `.local` accounts need an owner reset. Owner → Users → Edit accepts a
+temporary password that requires a change and revokes existing sessions.
+
 The repository's `.nvmrc` pins Node 22 for Cloudflare Builds; GitHub Actions
 reads the same file. Cloudflare's image otherwise selected Node 24.22.1 in the
 failed November 25 build. Keep any dashboard `NODE_VERSION` override consistent
@@ -237,7 +257,7 @@ actual ID from step 3. Keep binding, name and migrations directory unchanged:
     "binding": "DB",
     "database_name": "portfolio",
     "database_id": "PASTE-YOUR-REAL-DATABASE-ID-HERE",
-    "migrations_dir": "migrations"
+    "migrations_dir": "database/migrations"
   }
 ]
 ```
@@ -318,7 +338,7 @@ unapplied migrations; it should report none remaining after success.
 Import the prepared records and uploads into the empty migrated database:
 
 ```powershell
-node scripts/migration/apply-legacy.mjs --remote
+node scripts/legacy/apply-legacy.mjs --remote
 ```
 
 Keep `--remote`; without it, the helper writes locally. The helper refuses a
@@ -333,7 +353,7 @@ clear a database containing real records to bypass the guard. With the updated
 helper, resume this exact snapshot using:
 
 ```powershell
-node scripts/migration/apply-legacy.mjs --remote --resume
+node scripts/legacy/apply-legacy.mjs --remote --resume
 ```
 
 Resume compares every stored record field in all 20 application tables with the
@@ -405,7 +425,7 @@ administrator password.
 
 ## 8. Deploy the full Worker with its secret, then connect main
 
-After migrations/import and owner reset have succeeded, run this from the
+After database/migrations/import and owner reset have succeeded, run this from the
 portfolio folder containing your real D1 ID and the private file from step 5:
 
 ```powershell
@@ -558,7 +578,7 @@ Use the fixed helper with `--remote --resume`; do not restart or delete D1.
 | Invalid credentials / reset required          | Use the existing email and `owner:create -- --remote --reset`.                                                                                                                                                              |
 | TOTP code already used                        | Wait for a new code and use an automatically synchronized phone clock. Keep AUTH_SECRET stable.                                                                                                                             |
 | Live service unavailable / missing binding    | Verify PORTFOLIO_HUB/class migration deployed. Previews need their own declared binding.                                                                                                                                    |
-| Account/token permission error                | Verify account/build token. Worker upload needs Workers Scripts access; database lookup/management needs corresponding D1 access. A CI job running migrations/import needs D1 write access. Local steps use Wrangler OAuth. |
+| Account/token permission error                | Verify account/build token. Worker upload needs Workers Scripts access; database lookup/management needs corresponding D1 access. A CI job running database/migrations/import needs D1 write access. Local steps use Wrangler OAuth. |
 | Old Vercel check remains red                  | Old results are historical. If new Vercel builds continue, check for another project still linked to this repository.                                                                                                       |
 | Static page loads but API fails               | Check `/api/health` and runtime logs; a previous static-only deployment can serve a page without the new backend.                                                                                                           |
 
@@ -589,7 +609,7 @@ target, then use your actual extraction path in:
 
 ```powershell
 node scripts/test-migration.mjs --dir='C:\private-restore\legacy-import'
-node scripts/migration/apply-legacy.mjs --dir='C:\private-restore\legacy-import' --remote
+node scripts/legacy/apply-legacy.mjs --dir='C:\private-restore\legacy-import' --remote
 ```
 
 The archived secret belongs to the local environment. Keep the separate production

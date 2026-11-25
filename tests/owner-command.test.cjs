@@ -11,8 +11,8 @@ async function fixture() {
 	const directory = resolve('.test-artifacts/owner-command', randomUUID())
 	await mkdir(resolve(directory, 'node_modules/wrangler/bin'), { recursive: true })
 	const db = new DatabaseSync(resolve(directory, 'fixture.sqlite'))
-	for (const file of (await readdir('migrations')).filter((file) => file.endsWith('.sql')).sort())
-		db.exec(await readFile('migrations/' + file, 'utf8'))
+	for (const file of (await readdir('database/migrations')).filter((file) => file.endsWith('.sql')).sort())
+		db.exec(await readFile('database/migrations/' + file, 'utf8'))
 	for (const [id, role] of [
 		['owner', 'OWNER'],
 		['client', 'CLIENT'],

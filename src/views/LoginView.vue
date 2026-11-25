@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import TwoFactorSetupModal from '@/components/TwoFactorSetupModal.vue'
+import PasswordResetForm from '@/components/PasswordResetForm.vue'
 import { useUserStore } from '@/stores/user'
 import { Role } from '@/types'
 import { nextTick, reactive, ref } from 'vue'
@@ -14,6 +15,14 @@ const form = reactive({ email: '', password: '' })
 const submitting = ref(false)
 const showPassword = ref(false)
 const errorMsg = ref('')
+const changeToken = ref('')
+const passwordChanged = ref(false)
+function finishPasswordChange() {
+	changeToken.value = ''
+	passwordChanged.value = true
+	form.password = ''
+	show2FAVerify.value = false
+}
 
 // 2FA state
 const show2FASetup = ref(false)
@@ -34,6 +43,10 @@ const submit = async () => {
 
 	const res = await userStore.login(form.email, form.password)
 	submitting.value = false
+	if (res.requiresPasswordChange && res.changeToken) {
+		changeToken.value = res.changeToken
+		return
+	}
 
 	if (res.requiresInitialTwoFactorSetup && res.setupData) {
 		setupData.value = res.setupData
@@ -75,6 +88,11 @@ const on2FAVerify = async () => {
 	verifyError.value = ''
 	const res = await userStore.login(form.email, form.password, verifyCode.value)
 	verifyLoading.value = false
+	if (res.requiresPasswordChange && res.changeToken) {
+		changeToken.value = res.changeToken
+		show2FAVerify.value = false
+		return
+	}
 
 	if (res.success) {
 		show2FAVerify.value = false
@@ -121,9 +139,20 @@ const backToCredentials = async () => {
 				Back to site
 			</router-link>
 
-			<div v-if="!show2FAVerify">
+			<div v-if="changeToken">
+				<h1 class="font-display text-3xl font-bold mb-3">Choose your password</h1>
+				<p class="text-sm text-brand-gray-400 mb-6">
+					Your temporary password must be replaced before you can access your account.
+				</p>
+				<PasswordResetForm :token="changeToken" @done="finishPasswordChange" />
+				<button type="button" class="btn btn-ghost mt-3" @click="changeToken = ''">Back to sign in</button>
+			</div>
+			<div v-else-if="!show2FAVerify">
 				<h1 class="font-display text-3xl font-bold mb-1">Welcome back</h1>
 				<p class="text-sm text-brand-gray-400 mb-8">Sign in to your portfolio admin.</p>
+				<p v-if="passwordChanged" role="status" class="text-sm text-brand-blueLight mb-4">
+					Password updated. Sign in with your new password.
+				</p>
 
 				<div
 					v-if="errorMsg"
@@ -171,6 +200,9 @@ const backToCredentials = async () => {
 						<span v-else>Sign in</span>
 					</button>
 				</form>
+				<router-link to="/forgot-password" class="inline-block text-sm text-brand-blueLight mt-5"
+					>Forgot password?</router-link
+				>
 			</div>
 
 			<div v-else>

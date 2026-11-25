@@ -12,6 +12,7 @@
 	--folio-on-accent: #ffffff;
 	--folio-selected: #dfebfd;
 	--folio-overlay: #eaf0f8ed;
+	--folio-error: #b42318;
 }
 :root[data-theme='secondary'] {
 	color-scheme: dark;
@@ -26,11 +27,15 @@
 	--folio-on-accent: #0a1730;
 	--folio-selected: #19345d;
 	--folio-overlay: #030913ed;
+	--folio-error: #ff9a90;
 }
 html,
 body {
 	background: var(--folio-bg);
 	color: var(--folio-ink);
+}
+.auth-error {
+	color: var(--folio-error);
 }
 .folio-nav nav {
 	gap: 20px;

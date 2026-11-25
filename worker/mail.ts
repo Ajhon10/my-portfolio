@@ -15,24 +15,34 @@ export function queueMail(
 	subject: string,
 	content: string,
 	id = crypto.randomUUID(),
+	expiresAt: string | null = null,
 ) {
 	return db
-		.prepare('INSERT INTO mail_outbox(id,recipient,subject,content,created_at,available_at) VALUES(?,?,?,?,?,?)')
-		.bind(id, recipient, subject.slice(0, 200), content.slice(0, 40000), now(), now())
+		.prepare(
+			'INSERT INTO mail_outbox(id,recipient,subject,content,created_at,available_at,expires_at) VALUES(?,?,?,?,?,?,?)',
+		)
+		.bind(id, recipient, subject.slice(0, 200), content.slice(0, 40000), now(), now(), expiresAt)
+}
+export function expiredRecoveryMail(db: D1Database) {
+	return db
+		.prepare(
+			"UPDATE mail_outbox SET content='Password recovery link expired.',failed_at=CASE WHEN delivered_at IS NULL THEN COALESCE(failed_at,?) ELSE failed_at END WHERE expires_at IS NOT NULL AND expires_at<? AND content<>'Password recovery link expired.'",
+		)
+		.bind(now(), now())
 }
 export async function flushMail(env: Env, messageId?: string) {
 	if (!mailConfigured(env)) return { configured: false, delivered: 0 }
 	const pending = await env.DB.prepare(
-		`SELECT id FROM mail_outbox WHERE delivered_at IS NULL AND failed_at IS NULL AND attempts<5 AND available_at<=? AND (lease_until IS NULL OR lease_until<?) ${messageId ? 'AND id=?' : ''} ORDER BY created_at LIMIT 5`,
+		`SELECT id FROM mail_outbox WHERE delivered_at IS NULL AND failed_at IS NULL AND attempts<5 AND available_at<=? AND (lease_until IS NULL OR lease_until<?) AND (expires_at IS NULL OR expires_at>?) ${messageId ? 'AND id=?' : ''} ORDER BY created_at LIMIT 5`,
 	)
-		.bind(now(), now(), ...(messageId ? [messageId] : []))
+		.bind(now(), now(), now(), ...(messageId ? [messageId] : []))
 		.all<{ id: string }>()
 	let delivered = 0
 	for (const item of pending.results) {
 		const row = await env.DB.prepare(
-			'UPDATE mail_outbox SET lease_until=?,attempts=attempts+1 WHERE id=? AND delivered_at IS NULL AND failed_at IS NULL AND attempts<5 AND available_at<=? AND (lease_until IS NULL OR lease_until<?) RETURNING *',
+			'UPDATE mail_outbox SET lease_until=?,attempts=attempts+1 WHERE id=? AND delivered_at IS NULL AND failed_at IS NULL AND attempts<5 AND available_at<=? AND (lease_until IS NULL OR lease_until<?) AND (expires_at IS NULL OR expires_at>?) RETURNING *',
 		)
-			.bind(new Date(Date.now() + 120000).toISOString(), item.id, now(), now())
+			.bind(new Date(Date.now() + 120000).toISOString(), item.id, now(), now(), now())
 			.first<Row>()
 		if (!row) continue
 		let providerStatus: number | null = null

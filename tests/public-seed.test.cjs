@@ -19,8 +19,8 @@ test('public CSV seed restores page data and galleries idempotently without repl
 	const { insertSql, metadata } = await import('../scripts/lib.mjs')
 	const db = new DatabaseSync(':memory:')
 	try {
-		for (const file of (await readdir('migrations')).filter((f) => f.endsWith('.sql')).sort())
-			db.exec(await readFile('migrations/' + file, 'utf8'))
+		for (const file of (await readdir('database/migrations')).filter((f) => f.endsWith('.sql')).sort())
+			db.exec(await readFile('database/migrations/' + file, 'utf8'))
 		const projects = readSeedCsv('Project', 'projects.csv')
 		assert.deepEqual(
 			projects
@@ -109,8 +109,8 @@ test('subcategory migration preserves existing catalog rows and seeds scoped chi
 	const { seedSql } = await import('../scripts/seed.mjs')
 	const db = new DatabaseSync(':memory:')
 	try {
-		for (const file of (await readdir('migrations')).filter((f) => f.endsWith('.sql') && f < '0008').sort())
-			db.exec(await readFile('migrations/' + file, 'utf8'))
+		for (const file of (await readdir('database/migrations')).filter((f) => f.endsWith('.sql') && f < '0008').sort())
+			db.exec(await readFile('database/migrations/' + file, 'utf8'))
 		const parentId = randomUUID(),
 			productId = randomUUID()
 		db.prepare(
@@ -120,10 +120,10 @@ test('subcategory migration preserves existing catalog rows and seeds scoped chi
 			"INSERT INTO shop_product(id,name,description,created_at,updated_at) VALUES(?,'Keep this item','Existing product',datetime('now'),datetime('now'))",
 		).run(productId)
 		db.prepare('INSERT INTO shop_product_category(product_id,category_id) VALUES(?,?)').run(productId, parentId)
-		db.exec(await readFile('migrations/0008_shop_subcategories.sql', 'utf8'))
-		db.exec(await readFile('migrations/0009_shop_downloads.sql', 'utf8'))
-		db.exec(await readFile('migrations/0010_presentation_and_shop_stats.sql', 'utf8'))
-		db.exec(await readFile('migrations/0011_curate_featured_projects.sql', 'utf8'))
+		db.exec(await readFile('database/migrations/0008_shop_subcategories.sql', 'utf8'))
+		db.exec(await readFile('database/migrations/0009_shop_downloads.sql', 'utf8'))
+		db.exec(await readFile('database/migrations/0010_presentation_and_shop_stats.sql', 'utf8'))
+		db.exec(await readFile('database/migrations/0011_curate_featured_projects.sql', 'utf8'))
 		db.exec(seedSql())
 		db.exec(seedSql())
 		assert.equal(db.prepare('SELECT COUNT(*) n FROM shop_category').get().n, 2)
@@ -189,11 +189,11 @@ test('one-time curation changes only featured flags and the three requested cate
 	const { seedSql } = await import('../scripts/seed.mjs')
 	const db = new DatabaseSync(':memory:')
 	try {
-		for (const file of (await readdir('migrations')).filter(f=>f.endsWith('.sql') && f<'0011').sort()) db.exec(await readFile('migrations/'+file,'utf8'))
+		for (const file of (await readdir('database/migrations')).filter(f=>f.endsWith('.sql') && f<'0011').sort()) db.exec(await readFile('database/migrations/'+file,'utf8'))
 		db.exec(seedSql())
 		db.exec("UPDATE project SET featured=1,category='Old category',company='';")
 		const before = db.prepare('SELECT id,description,thumbnail_url,published FROM project ORDER BY id').all()
-		db.exec(await readFile('migrations/0011_curate_featured_projects.sql','utf8'))
+		db.exec(await readFile('database/migrations/0011_curate_featured_projects.sql','utf8'))
 		assert.deepEqual(db.prepare('SELECT id,description,thumbnail_url,published FROM project ORDER BY id').all(),before)
 		const selected = db.prepare('SELECT category,company FROM project WHERE featured=1').all()
 		assert.equal(selected.length,3)

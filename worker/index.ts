@@ -7,7 +7,7 @@ import { shopRoutes } from './shop'
 import { uploadRoutes, serveMedia } from './media'
 import { requestRoutes } from './requests'
 import { chatRoutes } from './chat'
-import { flushMail } from './mail'
+import { flushMail, expiredRecoveryMail } from './mail'
 import type { AppEnv, Env } from './types'
 export { PortfolioHub } from './hub'
 
@@ -98,6 +98,8 @@ export default {
 				await env.DB.batch([
 					env.DB.prepare('DELETE FROM sessions WHERE expires_at<?').bind(new Date().toISOString()),
 					env.DB.prepare('DELETE FROM auth_challenges WHERE expires_at<?').bind(new Date().toISOString()),
+					env.DB.prepare('DELETE FROM password_reset_challenges WHERE expires_at<?').bind(new Date().toISOString()),
+					expiredRecoveryMail(env.DB),
 					env.DB.prepare('DELETE FROM rate_limits WHERE expires_at<?').bind(Date.now()),
 				])
 				await flushMail(env)

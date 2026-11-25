@@ -14,6 +14,8 @@ export interface LoginResult {
 	setupData?: { qrCode: string; setupToken: string }
 	/** 2FA code needed */
 	requires2FA?: boolean
+	requiresPasswordChange?: boolean
+	changeToken?: string
 }
 
 export const useUserStore = defineStore('userStore', () => {
@@ -43,11 +45,7 @@ export const useUserStore = defineStore('userStore', () => {
 		}
 	}
 
-	const login = async (
-		email: string,
-		password: string,
-		totpToken?: string,
-	): Promise<LoginResult> => {
+	const login = async (email: string, password: string, totpToken?: string): Promise<LoginResult> => {
 		try {
 			const res = await authProvider.login({ email, password, totpToken })
 
@@ -55,6 +53,13 @@ export const useUserStore = defineStore('userStore', () => {
 			// or in res.data for successful ones. For 2FA flows the flags live at the
 			// root of the server body, so we normalise access here.
 			const raw: any = (res.success ? res.data : res.error || res.data) || {}
+			if (raw.requiresPasswordChange) {
+				clearToken()
+				_user.value = undefined
+				disconnectAdminSocket()
+				disconnectClientSocket()
+				return { success: false, requiresPasswordChange: true, changeToken: raw.changeToken }
+			}
 
 			// Server signals 2FA setup needed (success:true, no .data wrapper)
 			if (raw.requiresInitialTwoFactorSetup) {

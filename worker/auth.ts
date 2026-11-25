@@ -5,6 +5,8 @@ import { encryptSecret, decryptSecret, qrData, randomToken, sha256, totpSecret, 
 import { hub } from './hub-client'
 import { insert, update } from './db'
 import type { AppEnv, Env, Row, User } from './types'
+import { mailConfigured, queueMail, flushMail } from './mail'
+import { passwordChallenge, replacePassword, resetPasswordSchema } from './password-recovery'
 
 const credentials = z.object({
 	email: z.string().trim().toLowerCase().email().max(200),
@@ -38,7 +40,7 @@ export async function authenticate(env: Env, token: string): Promise<User | null
 	if (!/^[A-Za-z0-9_-]{40,100}$/.test(token)) return null
 	const hash = await sha256(token)
 	const row = await env.DB.prepare(
-		`SELECT ${userProjection} FROM sessions s JOIN "user" u ON u.id=s.user_id JOIN auth a ON a.id=u.auth_id WHERE s.token_hash=? AND s.expires_at>? AND u.deleted=0 AND a.deleted=0`,
+		`SELECT ${userProjection} FROM sessions s JOIN "user" u ON u.id=s.user_id JOIN auth a ON a.id=u.auth_id WHERE s.token_hash=? AND s.expires_at>? AND u.deleted=0 AND a.deleted=0 AND a.password_reset_required=0`,
 	)
 		.bind(hash, now())
 		.first<Row>()
@@ -48,6 +50,7 @@ export async function revokeUser(env: Env, userId: string) {
 	await env.DB.batch([
 		env.DB.prepare('DELETE FROM sessions WHERE user_id=?').bind(userId),
 		env.DB.prepare('DELETE FROM auth_challenges WHERE user_id=?').bind(userId),
+		env.DB.prepare('DELETE FROM password_reset_challenges WHERE user_id=?').bind(userId),
 	])
 	await hub(env, '/revoke', { userId })
 }
@@ -61,12 +64,21 @@ export async function rateLimit(env: Env, name: string, identity: string, maximu
 		.first<{ count: number }>()
 	if (row && row.count > maximum) throw new ApiError(429, 'Too many requests. Please try again later.')
 }
-export async function issueSession(env: Env, user: User) {
+export async function issueSession(env: Env, user: User, expectedPassword: string) {
 	const accessToken = randomToken()
 	const hours = Math.min(24, Math.max(1, Number(env.SESSION_HOURS) || 8))
-	await env.DB.prepare('INSERT INTO sessions(token_hash,user_id,created_at,expires_at) VALUES(?,?,?,?)')
-		.bind(await sha256(accessToken), user.id, now(), new Date(Date.now() + hours * 3600000).toISOString())
+	const created = await env.DB.prepare(
+		'INSERT INTO sessions(token_hash,user_id,created_at,expires_at) SELECT ?,u.id,?,? FROM "user" u JOIN auth a ON a.id=u.auth_id WHERE u.id=? AND u.deleted=0 AND a.deleted=0 AND a.password=? AND a.password_reset_required=0',
+	)
+		.bind(
+			await sha256(accessToken),
+			now(),
+			new Date(Date.now() + hours * 3600000).toISOString(),
+			user.id,
+			expectedPassword,
+		)
 		.run()
+	if (!created.meta.changes) throw new ApiError(401, 'Credentials changed. Please sign in again.')
 	return { accessToken, user: publicUser(user) }
 }
 export async function accountRow(env: Env, email: string) {
@@ -107,9 +119,8 @@ authRoutes.post('/login', async (c) => {
 	const row = await accountRow(c.env, input.email)
 	const valid =
 		row &&
-		!row.password_reset_required &&
 		(await hub<{ valid: boolean }>(c.env, '/password/verify', { password: input.password, hash: row.password })).valid
-	if (!row || !valid) throw new ApiError(401, 'Invalid credentials or password reset required.')
+	if (!row || !valid) throw new ApiError(401, 'Invalid credentials.')
 	const user = sessionUser(row)
 	if (user.twoFactorEnabled && !row.two_factor_secret) {
 		const secret = totpSecret(),
@@ -141,7 +152,12 @@ authRoutes.post('/login', async (c) => {
 		if (!used) throw new ApiError(403, 'This two-factor code has already been used.')
 	}
 	await update(c.env.DB, 'Auth', user.authId, { lastLogin: now(), loginAttempts: 0 }).run()
-	return ok(c, await issueSession(c.env, user), 'Login successful')
+	if (row.password_reset_required) {
+		const challenge = await passwordChallenge(c.env, user.id, row.password, 'temporary')
+		await challenge.statement.run()
+		return ok(c, { requiresPasswordChange: true, changeToken: challenge.token }, 'Choose a new password to continue.')
+	}
+	return ok(c, await issueSession(c.env, user, row.password), 'Login successful')
 })
 authRoutes.post('/register', async (c) => {
 	owner(c)
@@ -187,9 +203,77 @@ authRoutes.post('/change-password', async (c) => {
 	)
 		throw new ApiError(422, 'Current password is incorrect.')
 	const { hash } = await hub<{ hash: string }>(c.env, '/password/hash', { password: input.newPassword })
-	await update(c.env.DB, 'Auth', user.authId, { password: hash }).run()
-	await revokeUser(c.env, user.id)
+	if (input.newPassword === input.currentPassword) throw new ApiError(422, 'Choose a different password.')
+	await replacePassword(c.env, user.id, user.authId, row!.password, hash)
 	return ok(c, undefined, 'Password updated. Sign in again.')
+})
+
+authRoutes.get('/password-recovery', (c) => ok(c, { emailEnabled: mailConfigured(c.env) }))
+authRoutes.post('/forgot-password', async (c) => {
+	const { email } = await body(c, z.object({ email: z.string().trim().toLowerCase().email().max(200) }))
+	await rateLimit(c.env, 'recovery-ip', c.req.header('CF-Connecting-IP') || 'local', 10)
+	await rateLimit(c.env, 'recovery-email', email, 3)
+	// Queue account lookup/delivery outside the response to keep its timing uniform.
+	if (mailConfigured(c.env) && !email.endsWith('.local'))
+		c.executionCtx.waitUntil(
+			(async () => {
+				const row = await accountRow(c.env, email)
+				if (!row) return
+				const challenge = await passwordChallenge(c.env, row.id, row.password, 'email')
+				const requestUrl = new URL(c.req.url)
+				const origin = ['localhost', '127.0.0.1'].includes(requestUrl.hostname)
+					? requestUrl.origin
+					: 'https://my-portfolio.itsajhon.workers.dev'
+				const url = `${origin}/reset-password#token=${challenge.token}`
+				const mailId = crypto.randomUUID()
+				await c.env.DB.batch([
+					challenge.statement,
+					queueMail(
+						c.env.DB,
+						email,
+						'Reset your portfolio password',
+						`Use this link within 15 minutes to choose a new password:\n${url}\n\nIf you did not request this, ignore this email.`,
+						mailId,
+						challenge.expiresAt,
+					),
+				])
+				await flushMail(c.env, mailId)
+			})().catch(() => {
+				console.warn('Password recovery could not be queued or delivered.')
+			}),
+		)
+	return ok(
+		c,
+		undefined,
+		'If this account can receive recovery email, a reset link will be sent. Otherwise, ask the portfolio owner to reset your password.',
+	)
+})
+authRoutes.post('/reset-password', async (c) => {
+	const input = await body(c, resetPasswordSchema)
+	await rateLimit(c.env, 'reset-ip', c.req.header('CF-Connecting-IP') || 'local', 15)
+	const tokenHash = await sha256(input.token)
+	const row = await c.env.DB.prepare(
+		'SELECT r.*,a.id AS auth_id,a.password,u.deleted AS user_deleted,a.deleted AS auth_deleted FROM password_reset_challenges r JOIN "user" u ON u.id=r.user_id JOIN auth a ON a.id=u.auth_id WHERE r.token_hash=?',
+	)
+		.bind(tokenHash)
+		.first<Row>()
+	if (
+		!row ||
+		row.used_at ||
+		row.expires_at <= now() ||
+		row.user_deleted ||
+		row.auth_deleted ||
+		(await sha256(row.password)) !== row.credential_fingerprint
+	)
+		throw new ApiError(403, 'This password reset is invalid or expired. Request a new link or sign in again.')
+	if (
+		(await hub<{ valid: boolean }>(c.env, '/password/verify', { password: input.newPassword, hash: row.password }))
+			.valid
+	)
+		throw new ApiError(422, 'Choose a different password.')
+	const { hash } = await hub<{ hash: string }>(c.env, '/password/hash', { password: input.newPassword })
+	await replacePassword(c.env, row.user_id, row.auth_id, row.password, hash, tokenHash)
+	return ok(c, undefined, 'Password reset. Sign in with your new password and authenticator, if enabled.')
 })
 authRoutes.post('/2fa/verify', async (c) => {
 	const input = await body(c, z.object({ token: z.string().regex(/^\d{6}$/), setupToken: z.string().min(40).max(100) }))

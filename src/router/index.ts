@@ -14,6 +14,8 @@ const router = createRouter({
 		return { top: 0, behavior }
 	},
 	routes: [
+		{ path: '/forgot-password', component: () => import('@/views/ForgotPasswordView.vue') },
+		{ path: '/reset-password', component: () => import('@/views/ResetPasswordView.vue') },
 		{ path: '/photography', redirect: { path: '/', hash: '#photography' } },
 		{
 			path: '/admin/photography',

@@ -26,7 +26,7 @@ onBeforeUnmount(() => {
 
 const layout = computed(() => {
 	if (route.path.startsWith('/admin')) return 'admin'
-	if (route.path === '/login') return 'blank'
+	if (['/login', '/forgot-password', '/reset-password'].includes(route.path)) return 'blank'
 	return 'public'
 })
 

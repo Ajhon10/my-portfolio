@@ -1,5 +1,23 @@
 # Jhon's portfolio
 
+Folder map: [project structure](docs/project-structure.md).
+Database schema and seeds: [database guide](database/README.md).
+
+Account definitions now live in `database/seeders/data/users.csv`; the account
+seeder is `database/seeders/users.mjs`. Public content remains a separate
+`npm.cmd run db:seed` operation. `npm.cmd run db:seed:users` adds missing users
+without resetting existing passwords. Use `-- --restore-default-admin` only for
+the explicitly requested `admin@portfolio.local` bootstrap restoration; add
+`--remote` for Cloudflare. The temporary password requires authenticator setup/
+verification and a new password before any full session is issued. Existing
+owner accounts, profiles, roles and authenticator settings are preserved.
+
+Forgot password is available at `/forgot-password`; one-use links expire after
+15 minutes. Email recovery uses the existing `MAIL_API_TOKEN` and `MAIL_FROM`
+configuration. Without those settings, the page directs users to the owner.
+`.local` addresses need an owner-provided temporary password or a CLI reset.
+Resetting a password revokes sessions and does not disable an authenticator.
+
 One integrated Vue 3 + TypeScript application deployed to Cloudflare Workers
 with D1 and a SQLite Durable Object. The public design, admin CMS, owner/admin/
 client roles, authenticator login, project inquiries/chat, chatbot with live
@@ -7,7 +25,7 @@ takeover, photography, gears, certifications and portfolio game are retained.
 
 There are no separately deployed client/server applications. Run commands at
 the repository root; Vue lives in `src/`, HTTP/live backend code in `worker/`,
-and database migrations in `migrations/`.
+and database migrations in `database/migrations/`.
 
 For local setup, deployment and recovery, start with the
 [complete Cloudflare setup guide](docs/cloudflare-deployment.md). It separates
@@ -46,8 +64,8 @@ is recoverable from Git and the private pre-conversion backup.
 
 ## Current public seed data
 
-The existing `scripts/seed.mjs` command and all original `migration/*.mjs`
-filenames are retained. The seeder now reads the CSV files in `migration/`,
+The existing `scripts/seed.mjs` command and all original `database/legacy/*.mjs`
+filenames are retained. The seeder now reads the CSV files in `database/seeders/data/`,
 captured read-only from the production public API at
 `https://my-portfolio.itsajhon.workers.dev` on November 25, 2026 (Asia/Manila).
 

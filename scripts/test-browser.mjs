@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { spawn, execFileSync } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, randomBytes, createHash } from 'node:crypto'
 import { chromium } from 'playwright'
-import { executeSql, queryD1, wrangler } from './lib.mjs'
+import { executeSql, queryD1, wrangler, literal } from './lib.mjs'
 import { seedSql } from './seed.mjs'
 const artifact = '.test-artifacts/browser-' + randomUUID()
 await mkdir(artifact, { recursive: true })
@@ -761,6 +761,91 @@ try {
 	assert.ok(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
 	await mobile.screenshot({ path: artifact + '/offline-mobile.png' })
 	await mobile.context().setOffline(false)
+	// Owner-provided temporary password, forced rotation and email-link recovery.
+	const recoveryEmail = 'browser-recovery@example.test',
+		temporaryPassword = randomUUID() + '-temporary',
+		rotatedPassword = randomUUID() + '-rotated'
+	const recoveryUser = await page.evaluate(
+		async ({ email, password }) => {
+			const r = await fetch('/api/users/create', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: 'Bearer ' + localStorage.getItem('portfolio_token'),
+				},
+				body: JSON.stringify({ email, password, firstName: 'Recovery', lastName: 'Fixture', role: 'CLIENT' }),
+			})
+			if (r.status !== 201) throw new Error('Recovery fixture creation failed')
+			return (await r.json()).data
+		},
+		{ email: recoveryEmail, password: temporaryPassword },
+	)
+	await page.goto('http://127.0.0.1:5179/admin/users', { waitUntil: 'networkidle' })
+	await page
+		.getByRole('row')
+		.filter({ hasText: recoveryEmail })
+		.getByRole('button', { name: 'Edit', exact: true })
+		.click()
+	await page.locator('form input[type="password"]').fill(temporaryPassword)
+	const ownerResetSaved = page.waitForResponse(
+		(r) => r.url().endsWith('/api/users/' + recoveryUser.id) && r.request().method() === 'PUT',
+	)
+	await page.getByRole('button', { name: 'Save', exact: true }).click()
+	assert.equal((await ownerResetSaved).status(), 200)
+	const recoveryContext = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' })
+	try {
+		const recovery = await recoveryContext.newPage()
+		recovery.on('pageerror', (e) => errors.push(e.stack || e.message))
+		await recovery.goto('http://127.0.0.1:5179/login', { waitUntil: 'networkidle' })
+		await recovery.evaluate(() => localStorage.setItem('portfolio_token', 'expired-session-fixture'))
+		await recovery.getByRole('link', { name: 'Forgot password?', exact: true }).click()
+		await recovery.getByText('Email recovery is unavailable.', { exact: false }).waitFor()
+		assert.ok(await recovery.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
+		await recovery.screenshot({ path: artifact + '/forgot-password-mobile.png' })
+		await recovery.goto('http://127.0.0.1:5179/login', { waitUntil: 'networkidle' })
+		await recovery.locator('#login-email').fill(recoveryEmail)
+		await recovery.locator('#login-password').fill(temporaryPassword)
+		await recovery.getByRole('button', { name: 'Sign in', exact: true }).click()
+		await recovery.getByRole('heading', { name: 'Choose your password', exact: true }).waitFor()
+		assert.equal(await recovery.evaluate(() => localStorage.getItem('portfolio_token')), null)
+		await recovery.locator('#reset-password').fill(rotatedPassword)
+		await recovery.locator('#reset-confirm').fill('different-confirmation')
+		await recovery.getByRole('button', { name: 'Save new password', exact: true }).click()
+		await recovery.getByText('Passwords do not match.', { exact: true }).waitFor()
+		await recovery.screenshot({ path: artifact + '/temporary-password-mobile.png' })
+		await recovery.locator('#reset-confirm').fill(rotatedPassword)
+		await recovery.getByRole('button', { name: 'Save new password', exact: true }).click()
+		await recovery.getByText('Password updated. Sign in with your new password.', { exact: true }).waitFor()
+		await recovery.locator('#login-password').fill(rotatedPassword)
+		await recovery.getByRole('button', { name: 'Sign in', exact: true }).click()
+		await recovery.waitForURL('**/client/portal')
+		const resetToken = randomBytes(32).toString('base64url'),
+			tokenHash = createHash('sha256').update(resetToken).digest('hex')
+		const fixtureAuth = (
+			await queryD1([
+				'--command',
+				`SELECT a.password FROM auth a JOIN user u ON u.auth_id=a.id WHERE u.id=${literal(recoveryUser.id)}`,
+			])
+		)[0].results[0]
+		const fingerprint = createHash('sha256').update(fixtureAuth.password).digest('hex')
+		await executeSql(
+			`INSERT INTO password_reset_challenges(token_hash,user_id,credential_fingerprint,purpose,created_at,expires_at) VALUES(${literal(tokenHash)},${literal(recoveryUser.id)},${literal(fingerprint)},'email',${literal(new Date().toISOString())},${literal(new Date(Date.now() + 900000).toISOString())});`,
+		)
+		await recovery.setViewportSize({ width: 1440, height: 1000 })
+		await recovery.goto('http://127.0.0.1:5179/reset-password#token=' + resetToken, { waitUntil: 'networkidle' })
+		await recovery.getByRole('heading', { name: 'Reset password', exact: true }).waitFor()
+		assert.equal(new URL(recovery.url()).hash, '')
+		await recovery.screenshot({ path: artifact + '/reset-password-desktop.png' })
+		await recovery.locator('#reset-password').fill(randomUUID() + '-email-reset')
+		await recovery.locator('#reset-confirm').fill(await recovery.locator('#reset-password').inputValue())
+		await recovery.getByRole('button', { name: 'Save new password', exact: true }).click()
+		await recovery.getByRole('heading', { name: 'Password updated', exact: true }).waitFor()
+		await recovery.setViewportSize({ width: 390, height: 844 })
+		assert.ok(await recovery.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
+		await recovery.screenshot({ path: artifact + '/reset-password-mobile.png' })
+	} finally {
+		await recoveryContext.close()
+	}
 	assert.deepEqual(errors, [])
 	assert.deepEqual(failures, [])
 	const counts = (

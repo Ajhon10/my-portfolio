@@ -5,7 +5,7 @@
 			"binding": "PREVIEW_DB",
 			"database_name": "portfolio-preview",
 			"database_id": "ec67fc74-caa0-4cd6-aed3-e20488ed2206",
-			"migrations_dir": "migrations",
+			"migrations_dir": "database/migrations",
 		},
 	],
 }

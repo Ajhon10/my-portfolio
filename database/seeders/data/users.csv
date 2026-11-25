@@ -1,0 +1,2 @@
+email,firstName,lastName,role,passwordEnv
+admin@portfolio.local,Admin,Portfolio,ADMIN,SEED_ADMIN_PASSWORD

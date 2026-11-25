@@ -50,7 +50,7 @@ export function readSeedCsv(
 		? { ...metadata.models.Project.fields, company: metadata.models.Experience.fields.company }
 		: metadata.models[model]?.fields,
 ) {
-	const [columns, ...rows] = parseCsv(readFileSync(new URL('../migration/' + filename, import.meta.url), 'utf8'))
+	const [columns, ...rows] = parseCsv(readFileSync(new URL('../database/seeders/data/' + filename, import.meta.url), 'utf8'))
 	if (!columns?.length || new Set(columns).size !== columns.length || columns.some((key) => !fields[key]))
 		throw new Error(`Invalid seed CSV columns: ${filename}`)
 	return rows.map((values, index) => {

@@ -2,7 +2,7 @@ import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { d1FailureMessage, parseD1Output } from './wrangler-output.mjs'
-export const metadata = JSON.parse(await readFile(new URL('../migration/model-map.json', import.meta.url), 'utf8'))
+export const metadata = JSON.parse(await readFile(new URL('../database/legacy/model-map.json', import.meta.url), 'utf8'))
 export const quote = (value) => '"' + value.replaceAll('"', '""') + '"'
 export function splitSql(sql) {
 	const result = []

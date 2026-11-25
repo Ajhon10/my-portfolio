@@ -9,7 +9,7 @@ Read `docs/cloudflare-unified-architecture.md`, `docs/cloudflare-deployment.md`
 and `docs/ENGINEERING_ACCEPTANCE.md` before architecture or deployment changes.
 Also follow the workspace engineering memory and standard.
 
-- Vue UI: `src/`. Worker API: `worker/`. Database: `migrations/`.
+- Vue UI: `src/`. Worker API: `worker/`. Database: `database/migrations/`.
 - Preserve the existing portfolio design and public/admin/client feature paths.
 - Use same-origin `/api`, `/uploads` and `/socket`; never expose server secrets
   through VITE variables or add a separate backend origin.

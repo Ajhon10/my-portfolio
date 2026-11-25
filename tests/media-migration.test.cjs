@@ -8,8 +8,8 @@ test('video migration preserves legacy file bytes, foreign keys and limits', asy
 	const { insertSql } = await import('../scripts/lib.mjs')
 	const db = new DatabaseSync(':memory:')
 	try {
-		for (const file of (await readdir('migrations')).filter((f) => f.endsWith('.sql') && f < '0006').sort())
-			db.exec(await readFile('migrations/' + file, 'utf8'))
+		for (const file of (await readdir('database/migrations')).filter((f) => f.endsWith('.sql') && f < '0006').sort())
+			db.exec(await readFile('database/migrations/' + file, 'utf8'))
 		const authId = randomUUID(),
 			ownerId = randomUUID(),
 			projectId = randomUUID(),
@@ -33,7 +33,7 @@ test('video migration preserves legacy file bytes, foreign keys and limits', asy
 		for (let i = 0; i < bytes.length; i += 524288)
 			db.prepare('INSERT INTO media_chunks VALUES(?,?,?)').run(fileId, i / 524288, bytes.subarray(i, i + 524288))
 		db.exec('BEGIN')
-		db.exec(await readFile('migrations/0006_project_video.sql', 'utf8'))
+		db.exec(await readFile('database/migrations/0006_project_video.sql', 'utf8'))
 		db.exec('COMMIT')
 		assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), [])
 		assert.equal(db.prepare('SELECT chunk_bytes FROM media_files').get().chunk_bytes, 524288)

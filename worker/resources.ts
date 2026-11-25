@@ -417,7 +417,7 @@ resourceRoutes.put('/users/:id', async (c) => {
 	if (password) {
 		const { hash } = await hub<{ hash: string }>(c.env, '/password/hash', { password })
 		statements.push(
-			c.env.DB.prepare('UPDATE auth SET password=?,password_reset_required=0,updated_at=? WHERE id=?').bind(
+			c.env.DB.prepare('UPDATE auth SET password=?,password_reset_required=1,updated_at=? WHERE id=?').bind(
 				hash,
 				now(),
 				user.authId,

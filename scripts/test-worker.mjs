@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFile, readdir, mkdir } from 'node:fs/promises'
-import { randomUUID, pbkdf2Sync, randomBytes, createHmac } from 'node:crypto'
+import { randomUUID, pbkdf2Sync, randomBytes, createHmac, createHash } from 'node:crypto'
 import { build } from 'esbuild'
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare'
 import { seedSql } from './seed.mjs'
@@ -35,8 +35,8 @@ try {
 	async function sql(source) {
 		for (const statement of splitSql(source)) await db.prepare(statement).run()
 	}
-	for (const filename of (await readdir('migrations')).filter((f) => f.endsWith('.sql')).sort())
-		await sql(await readFile(`migrations/${filename}`, 'utf8'))
+	for (const filename of (await readdir('database/migrations')).filter((f) => f.endsWith('.sql')).sort())
+		await sql(await readFile(`database/migrations/${filename}`, 'utf8'))
 	await sql(seedSql())
 	const totalSeed = (await db.prepare('SELECT COUNT(*) n FROM project').first()).n
 	await sql(seedSql())
@@ -141,7 +141,12 @@ try {
 	const draft = await api('/projects/create', {
 		token: owner,
 		method: 'POST',
-		data: { title: 'Private draft', description: 'This draft must stay private.', published: false, company: 'Fixture employer' },
+		data: {
+			title: 'Private draft',
+			description: 'This draft must stay private.',
+			published: false,
+			company: 'Fixture employer',
+		},
 	})
 	status(draft, 201)
 	assert.equal(draft.body.data.company, 'Fixture employer')
@@ -422,10 +427,10 @@ try {
 	assert.equal(ratedFixture.ratingCount, 2)
 	for (const value of ['particles', 'portrait', 'model', 'bogus']) {
 		const savedVisual = await api('/site-content/upsert', {
-				token: owner,
-				method: 'POST',
-				data: { key: 'hero_visual_mode', label: 'Home visual', value },
-			})
+			token: owner,
+			method: 'POST',
+			data: { key: 'hero_visual_mode', label: 'Home visual', value },
+		})
 		status(savedVisual, value === 'bogus' ? 422 : 200)
 		if (value !== 'bogus') {
 			assert.equal(savedVisual.body.data.key, 'hero_visual_mode')
@@ -798,10 +803,150 @@ try {
 	assert.ok(verified.body.data.accessToken)
 	checks++
 	status(await api('/auth/whoami', { token: users.ADMIN.token }), 401)
+	// Temporary credentials never grant an API session and still require enrolled MFA.
+	await db.prepare('UPDATE auth SET password_reset_required=1 WHERE id=?').bind(users.ADMIN.authId).run()
+	status(await api('/auth/whoami', { token: verified.body.data.accessToken }), 401)
+	const needsMfa = await api('/auth/login', { method: 'POST', data: { email: users.ADMIN.email, password } })
+	assert.equal(needsMfa.body.requires2FA, true)
+	status(
+		await api('/auth/login', {
+			method: 'POST',
+			data: { email: users.ADMIN.email, password, totpToken: code(step + 1) },
+		}),
+		403,
+	)
+	await db.prepare('UPDATE user SET last_totp_step=NULL WHERE id=?').bind(users.ADMIN.id).run()
+	const temporary = await api('/auth/login', {
+		method: 'POST',
+		data: { email: users.ADMIN.email, password, totpToken: code(step + 1) },
+	})
+	status(temporary, 200)
+	assert.equal(temporary.body.data.requiresPasswordChange, true)
+	assert.equal(temporary.body.data.accessToken, undefined)
+	status(await api('/auth/whoami', { token: temporary.body.data.changeToken }), 401)
+	status(
+		await api('/auth/reset-password', {
+			method: 'POST',
+			data: { token: temporary.body.data.changeToken, newPassword: password },
+		}),
+		422,
+	)
+	const rotated = await api('/auth/reset-password', {
+		method: 'POST',
+		data: { token: temporary.body.data.changeToken, newPassword: 'rotated-test-password-2026' },
+	})
+	status(rotated, 200)
+	status(
+		await api('/auth/reset-password', {
+			method: 'POST',
+			data: { token: temporary.body.data.changeToken, newPassword: 'another-test-password' },
+		}),
+		403,
+	)
+	assert.equal(
+		(await db.prepare('SELECT two_factor_enabled FROM user WHERE id=?').bind(users.ADMIN.id).first())
+			.two_factor_enabled,
+		1,
+	)
+	assert.equal(
+		(
+			await api('/auth/login', {
+				method: 'POST',
+				data: { email: users.ADMIN.email, password: 'rotated-test-password-2026' },
+			})
+		).body.requires2FA,
+		true,
+	)
+	const recoveryStatus = await api('/auth/password-recovery')
+	assert.equal(recoveryStatus.body.data.emailEnabled, false)
+	const recoveryHeaders = { 'CF-Connecting-IP': '198.51.100.15' }
+	const knownRecovery = await api('/auth/forgot-password', {
+		method: 'POST',
+		data: { email: users.OWNER.email },
+		headers: recoveryHeaders,
+	})
+	const unknownRecovery = await api('/auth/forgot-password', {
+		method: 'POST',
+		data: { email: 'nobody@example.test' },
+		headers: recoveryHeaders,
+	})
+	assert.deepEqual(knownRecovery.body, unknownRecovery.body)
+	assert.equal(
+		(await db.prepare("SELECT COUNT(*) n FROM password_reset_challenges WHERE purpose='email'").first()).n,
+		0,
+	)
+	for (let i = 0; i < 2; i++)
+		status(
+			await api('/auth/forgot-password', {
+				method: 'POST',
+				data: { email: users.OWNER.email },
+				headers: recoveryHeaders,
+			}),
+			200,
+		)
+	status(
+		await api('/auth/forgot-password', {
+			method: 'POST',
+			data: { email: users.OWNER.email },
+			headers: recoveryHeaders,
+		}),
+		429,
+	)
+	const fingerprint = createHash('sha256').update(hash).digest('hex')
+	async function recoveryToken(options = {}) {
+		const token = randomBytes(32).toString('base64url'),
+			tokenHash = createHash('sha256').update(token).digest('hex')
+		await db
+			.prepare(
+				'INSERT INTO password_reset_challenges(token_hash,user_id,credential_fingerprint,purpose,created_at,expires_at) VALUES(?,?,?,?,?,?)',
+			)
+			.bind(
+				tokenHash,
+				users.OWNER.id,
+				options.fingerprint || fingerprint,
+				'email',
+				new Date().toISOString(),
+				options.expired ? '2000-01-01T00:00:00.000Z' : new Date(Date.now() + 900000).toISOString(),
+			)
+			.run()
+		return token
+	}
+	for (const token of [
+		await recoveryToken({ expired: true }),
+		await recoveryToken({ fingerprint: 'stale' }),
+		randomBytes(32).toString('base64url'),
+	])
+		status(
+			await api('/auth/reset-password', {
+				method: 'POST',
+				data: { token, newPassword: 'new-recovery-password' },
+				headers: recoveryHeaders,
+			}),
+			403,
+		)
+	const concurrentToken = await recoveryToken()
+	const contenders = await Promise.all(
+		['first-recovery-password', 'second-recovery-password'].map((newPassword) =>
+			api('/auth/reset-password', {
+				method: 'POST',
+				data: { token: concurrentToken, newPassword },
+				headers: recoveryHeaders,
+			}),
+		),
+	)
+	assert.deepEqual(contenders.map((r) => r.status).sort(), [200, 403])
+	status(await api('/auth/whoami', { token: owner }), 401)
+	// Restore only the isolated owner's fixture so the remaining authorization checks can run.
+	await db
+		.prepare('UPDATE auth SET password=?,password_reset_required=0 WHERE id=?')
+		.bind(hash, users.OWNER.authId)
+		.run()
+	const refreshedOwner = await api('/auth/login', { method: 'POST', data: { email: users.OWNER.email, password } })
+	const recoveryOwner = refreshedOwner.body.data.accessToken
 	// D1 batch failure must leave no partial project or broken relationship.
 	const before = (await db.prepare('SELECT COUNT(*) n FROM project').first()).n
 	const invalid = await api('/projects/create', {
-		token: owner,
+		token: recoveryOwner,
 		method: 'POST',
 		data: {
 			title: 'Invalid relationship',
@@ -820,7 +965,7 @@ try {
 	checks++
 	status(
 		await api('/client-requests/' + requestId + '/chat', {
-			token: owner,
+			token: recoveryOwner,
 			method: 'POST',
 			data: { message: 'An update for your project.' },
 		}),
@@ -837,15 +982,15 @@ try {
 	checks++
 	status(
 		await api('/site-content/upsert', {
-			token: owner,
+			token: recoveryOwner,
 			method: 'POST',
 			data: { key: 'test', value: 'test' },
 			headers: { Origin: 'https://evil.example' },
 		}),
 		403,
 	)
-	status(await api('/auth/logout', { token: owner, method: 'POST' }), 200)
-	status(await api('/auth/whoami', { token: owner }), 401)
+	status(await api('/auth/logout', { token: recoveryOwner, method: 'POST' }), 200)
+	status(await api('/auth/whoami', { token: recoveryOwner }), 401)
 	console.log(
 		`Worker integration: ${checks} checks passed (D1, roles, sessions, uploads, chat, live takeover, atomic relationships).`,
 	)

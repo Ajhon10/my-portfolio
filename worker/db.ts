@@ -1,4 +1,4 @@
-import metadata from '../migration/model-map.json'
+import metadata from '../database/legacy/model-map.json'
 import { ApiError, now } from './http'
 import type { Row } from './types'
 type D1DatabaseBindingValue = string | number | null | ArrayBuffer | ArrayBufferView

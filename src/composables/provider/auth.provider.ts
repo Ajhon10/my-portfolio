@@ -3,6 +3,10 @@ import { useApiProvider } from './api.provider'
 
 export const useAuthProvider = () => {
 	const api = useApiProvider()
+	const recoveryOptions = () => api.GET<{ emailEnabled: boolean }>('/auth/password-recovery', {}, { silent: true })
+	const forgotPassword = (email: string) => api.POST('/auth/forgot-password', { email }, {}, { silent: true })
+	const resetPassword = (token: string, newPassword: string) =>
+		api.POST('/auth/reset-password', { token, newPassword }, {}, { silent: true })
 	const enable2FA = async () => api.POST('/auth/2fa/enable')
 
 	const login = async (data: { email: string; password: string; totpToken?: string }) => {
@@ -50,5 +54,19 @@ export const useAuthProvider = () => {
 		return await api.PUT<User>('/auth/profile', data, {}, options)
 	}
 
-	return { login, verify2FA, enable2FA, disable2FA, adminReset2FA, get2FAStatus, register, whoAmI, changePassword, updateProfile }
+	return {
+		login,
+		verify2FA,
+		enable2FA,
+		disable2FA,
+		adminReset2FA,
+		get2FAStatus,
+		register,
+		whoAmI,
+		changePassword,
+		updateProfile,
+		recoveryOptions,
+		forgotPassword,
+		resetPassword,
+	}
 }

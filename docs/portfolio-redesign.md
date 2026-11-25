@@ -20,7 +20,7 @@ reduced motion, returns focus to the logo, and removes the button at the top.
 ## Owner photography and animated theme icons — November 25, 2026
 
 Four supplied originals are bundled at `/seed/photography/<original-filename>.jpg`
-and seeded through the existing `migration/photography.csv`, in the supplied order:
+and seeded through the existing `database/seeders/data/photography.csv`, in the supplied order:
 Sorsogon Capitol Park, Makati City, Sorsogon City, and Rompeolas, Sorsogon City.
 The seed includes truthful captions, descriptive alt text, locations, categories,
 display order and published status. The JPEG bytes and existing seed filenames

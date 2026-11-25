@@ -520,7 +520,7 @@ separate; this work did not publish, push or commit source changes.
 
 Read current published portfolio data from the production public API and enabled
 chatbot answers through one read-only D1 content query. Added 11 CSV files under
-`migration/`, containing 107 records in total. Original seed filenames and the
+`database/seeders/data/`, containing 107 records in total. Original seed filenames and the
 `npm run db:seed` entry point remain unchanged. README.md records individual
 counts and empty sections. Accounts, inquiries, conversations, notifications,
 disabled answers and binary uploads were excluded. Production data was not
@@ -561,7 +561,7 @@ and workload acceptance have not been performed as part of this update.
 
 Added the four supplied JPEGs as deliberate source assets in
 `public/seed/photography/`, preserving original filenames and SHA-256-matched
-bytes. Added their published records to the existing `migration/photography.csv`
+bytes. Added their published records to the existing `database/seeders/data/photography.csv`
 in the supplied order: Sorsogon Capitol Park; Makati City; Sorsogon City;
 Rompeolas, Sorsogon City. Captions, accessible descriptions, categories and
 display order are seeded and editable through Photography administration.
@@ -859,7 +859,7 @@ curation preserves descriptions, covers and publication flags.
 Evidence: `.test-artifacts/presentation-build.log`,
 `.test-artifacts/presentation-browser.log` and
 `.test-artifacts/browser-42e5a6cc-ce85-4d51-9be0-20fd7d096ef4/report.json`.
-Deployment dry run passed. Local migrations/seeds were applied. Recorded a fresh
+Deployment dry run passed. Local database/migrations/seeds were applied. Recorded a fresh
 production D1 Time Travel bookmark and public-row hash baseline under ignored
 `.wrangler/private/presentation-*` metadata, without private database export.
 Production migrations 0010/0011 were applied successfully before the code push.
@@ -898,3 +898,61 @@ including the explicit join acknowledgment before message delivery. Build logs:
 `.test-artifacts/pipeline-repair-build.log`. The existing browser acceptance
 above covers the presentation bundle; the follow-up changes only the build
 runtime selection and the additive socket acknowledgment.
+
+## Password recovery, user seeding and folder audit — November 25, 2026
+
+The owner explicitly requested password recovery, organized database/seed folders,
+user seed data and restoration of the legacy default for the named local admin
+email. That email was absent in both the current local and production databases;
+the dedicated account seeder will create it without changing existing owners.
+The default is a temporary bootstrap value, with MFA setup/verification and
+mandatory password rotation before a full session. Normal public content seeds
+do not run account seeds or reset credentials. Repeating account seeds preserves
+existing users; the explicit restore option affects only the requested legacy
+admin, preserving its role/profile/authenticator and revoking old sessions.
+
+Moved SQL to `database/migrations/`, CSVs to `database/seeders/data/`, legacy schema/
+mapping/source to `database/legacy/`, legacy utilities to `scripts/legacy/`, and
+retired notes to `docs/legacy/`. Audited every root folder and retained normal
+framework entry points and the existing frontend/Worker responsibilities. Updated
+configuration, imports, scripts, tests and docs. All 27 pre-existing CSV/SQL files
+were compared with Git HEAD after newline normalization: contents unchanged.
+Migration filenames remain unchanged so D1 history will not reapply old files.
+See `docs/project-structure.md` and `database/README.md` for the full folder map.
+
+Migration 0012 adds hash-only, account/credential-bound 15-minute reset challenges
+and email expiry. Forgot/reset screens, generic public responses, account/IP
+limits, atomic single-use consumption, current-session revocation, MFA retention,
+new-password reuse rejection and stale-session-safe recovery clients are
+implemented. Mail is queued with the challenge, uses the fixed production origin
+and does not retry expired links; cron redacts expired link content. The .local
+bootstrap email cannot receive mail, so owner temporary-password/CLI recovery
+remains available. Existing owner user-edit password changes now require rotation.
+
+The first complete build passed 55 Node tests and 220 Worker integration checks,
+including stale/expired/unknown/used reset tokens, concurrent reset contenders,
+temporary-token restrictions, MFA/replay gates, generic recovery responses and
+revoked sessions. The subsequently added isolated email happy-path test passed
+with a mocked provider, verifying canonical links, hashed tokens, expiry, queue
+intent, consumption and no automatic login. Actual mail was not sent.
+Full browser checks passed all existing public/admin/client/shop/3D/theme flows
+plus owner temporary-password edits, forced rotation, mismatch recovery, sign-in
+with the rotated password, email-link reset, token removal from the URL, stale
+stored sessions and narrow/wide recovery layouts. Existing fixture inquiry/chat
+counts stayed unchanged. Screenshots were reviewed; a focused follow-up verified
+improved light/dark error contrast. Evidence:
+`.test-artifacts/recovery-build.log`, `.test-artifacts/recovery-browser.log`,
+`.test-artifacts/browser-12a0f0e3-2ed2-486a-98e2-89a85afc556f/report.json`, and
+`.test-artifacts/recovery-error-*.png`. Final build, actual migrations/user seed
+and deployment evidence must additionally be recorded before claiming rollout.
+
+The final build passed all 56 Node tests, 220 Worker checks, typechecks and Vite
+builds (`.test-artifacts/recovery-final-build.log`); the deployment dry run also
+passed. Wrangler listed only 0012 as pending in both local and production after
+the directory move, confirming that the original migrations were not repeated.
+Applied 0012 locally and in production after recording a fresh D1 Time Travel
+bookmark/public-content hash baseline. Brought the isolated preview schema from
+0006 through 0012 as well. Created the requested local bootstrap admin through
+the explicit user seeder; its password-change/MFA gates are enabled. Existing
+owner records were preserved. Production account creation is deliberately after
+the new recovery code deploys so that its forced-change sign-in is supported.

@@ -154,7 +154,12 @@ const resetUser2FA = async (u: User) => {
 					<input v-model="form.email" type="email" class="input" :disabled="!!editingId" />
 				</FormField>
 				<FormField
-					:label="editingId ? 'New password (leave blank to keep current)' : 'Password'"
+					:label="editingId ? 'Temporary password (leave blank to keep current)' : 'Password'"
+					:hint="
+						editingId
+							? 'Requires a password change on next sign-in and revokes existing sessions. Authenticator settings are kept.'
+							: undefined
+					"
 					:error="errors.password"
 					:required="!editingId"
 				>
@@ -175,7 +180,7 @@ const resetUser2FA = async (u: User) => {
 						v-if="editingId && userStore.isOwner"
 						type="button"
 						class="btn btn-ghost text-red-400 hover:text-red-300 text-sm !px-3 !py-2"
-						@click="resetUser2FA(items.find(u => u.id === editingId)!)"
+						@click="resetUser2FA(items.find((u) => u.id === editingId)!)"
 					>
 						Reset 2FA
 					</button>

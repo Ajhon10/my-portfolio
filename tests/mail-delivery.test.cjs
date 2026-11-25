@@ -12,11 +12,14 @@ test('email queue preserves saved replies and reports provider acceptance honest
 	await mkdir(directory, { recursive: true })
 	const filename = resolve(directory, 'mail.mjs')
 	await build({ entryPoints: ['worker/mail.ts'], outfile: filename, bundle: true, format: 'esm', platform: 'browser' })
-	const { queueMail, flushMail, replyMailStatus } = await import(pathToFileURL(filename).href)
-	const schema = (await readFile('migrations/0002_runtime.sql', 'utf8')).match(/^CREATE TABLE mail_outbox[^\r\n]+/m)[0]
+	const { queueMail, flushMail, replyMailStatus, expiredRecoveryMail } = await import(pathToFileURL(filename).href)
+	const schema = (await readFile('database/migrations/0002_runtime.sql', 'utf8')).match(
+		/^CREATE TABLE mail_outbox[^\r\n]+/m,
+	)[0]
 	function fixture() {
 		const db = new DatabaseSync(':memory:')
 		db.exec(schema)
+		db.exec('ALTER TABLE mail_outbox ADD COLUMN expires_at TEXT;')
 		return {
 			db,
 			env: {
@@ -70,6 +73,22 @@ test('email queue preserves saved replies and reports provider acceptance honest
 		})
 	}
 	try {
+		await scenario('expired recovery links are not delivered by the retry worker', async ({ db, env }) => {
+			await queueMail(
+				env.DB,
+				'recipient@example.test',
+				'Reset',
+				'Expired fixture link',
+				'expired-reset',
+				'2000-01-01T00:00:00.000Z',
+			).run()
+			assert.equal((await flushMail(env)).delivered, 0)
+			assert.equal(calls.length, 0)
+			assert.equal(db.prepare('SELECT attempts FROM mail_outbox').get().attempts, 0)
+			await expiredRecoveryMail(env.DB).run()
+			assert.equal(db.prepare('SELECT content FROM mail_outbox').get().content, 'Password recovery link expired.')
+			assert.ok(db.prepare('SELECT failed_at FROM mail_outbox').get().failed_at)
+		})
 		await scenario('missing configuration keeps the queued intent without attempting delivery', async ({ db, env }) => {
 			await queueMail(env.DB, 'recipient@example.test', 'Fixture', 'Fixture message', 'reply-1').run()
 			delete env.MAIL_API_TOKEN

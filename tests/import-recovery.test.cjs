@@ -5,14 +5,14 @@ const { readFile, writeFile, mkdir, readdir } = require('node:fs/promises')
 const { randomUUID, createHash } = require('node:crypto')
 const sqlite = import('node:sqlite')
 const helpers = import('../scripts/lib.mjs')
-const recovery = import('../scripts/migration/restore-plan.mjs')
+const recovery = import('../scripts/legacy/restore-plan.mjs')
 
 async function fixture() {
 	const { DatabaseSync } = await sqlite
 	const { insertSql, literal, metadata } = await helpers
 	const db = new DatabaseSync(':memory:')
-	for (const file of (await readdir('migrations')).filter((file) => file.endsWith('.sql')).sort())
-		db.exec(await readFile('migrations/' + file, 'utf8'))
+	for (const file of (await readdir('database/migrations')).filter((file) => file.endsWith('.sql')).sort())
+		db.exec(await readFile('database/migrations/' + file, 'utf8'))
 	const directory = resolve('.test-artifacts/import-recovery', randomUUID())
 	await mkdir(directory, { recursive: true })
 	const authId = randomUUID(),

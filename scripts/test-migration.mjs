@@ -23,8 +23,8 @@ try {
 		for (let i = 0; i < statements.length; i += 30)
 			await db.batch(statements.slice(i, i + 30).map((s) => db.prepare(s)))
 	}
-	for (const name of (await readdir('migrations')).filter((f) => f.endsWith('.sql')).sort())
-		await apply(await readFile('migrations/' + name, 'utf8'))
+	for (const name of (await readdir('database/migrations')).filter((f) => f.endsWith('.sql')).sort())
+		await apply(await readFile('database/migrations/' + name, 'utf8'))
 	const files = (await readdir(directory))
 		.filter((f) => f.endsWith('.private.sql'))
 		.sort((a, b) => (a === 'records.private.sql' ? -1 : b === 'records.private.sql' ? 1 : a.localeCompare(b)))

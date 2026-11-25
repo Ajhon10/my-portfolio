@@ -67,11 +67,28 @@ URLs during import. PostgreSQL UUID defaults/enums become application-created
 UUIDs and checked SQLite values. Interactive transactions become explicit
 atomic D1 batches. Invalid relationships must roll back the complete batch.
 
-No default public administrator password. Owner provisioning is an explicit
-operator command. Sessions must recheck live user/account state and be revoked
+Owner provisioning is an explicit operator command. The owner's November 25
+request adds a separate, opt-in legacy admin user seeder with a temporary default
+and forced password rotation after MFA. It is never run by the public content
+seeder, CI, application startup or migration. Existing seeded users are preserved
+unless the operator explicitly restores that named legacy admin. Sessions must
+recheck live user/account state and be revoked
 on credential/role changes. 2FA setup challenges are short-lived, attempt-bound
 and single-use; secrets are encrypted. Legacy Argon2 credentials need a documented
 secure migration/reset path; do not pretend native Node hashing runs in Workers.
+
+Password recovery uses `password_reset_challenges` (migration 0012): a random
+32-byte token hashed in D1, account/credential binding, 15-minute expiry and
+conditional atomic consumption. Password updates and revocation are in one D1
+batch. Temporary-password login challenges are restricted to reset; they are
+issued only after required MFA and cannot authenticate API requests. Email reset
+does not remove MFA or automatically issue a session. Public recovery responses
+are generic and background the account lookup/email work; IP/account limits
+apply. Email links use fragments, a fixed production origin, and are removed
+from the browser URL. Mail intent is queued with the challenge atomically;
+expired recovery mail is not retried and its old link content is redacted by
+the existing scheduled worker. Email delivery remains conditional on provider
+configuration. The `.local` bootstrap account uses owner/CLI recovery instead.
 
 ## External features and release state
 
@@ -173,7 +190,7 @@ replacing customized rows. Parent/child IDs resolve from their scoped names.
 ## Bundled photography seeds — November 25, 2026
 
 Four owner-supplied JPEGs are deliberate static source assets under
-`public/seed/photography/`; metadata is seeded through `migration/photography.csv`.
+`public/seed/photography/`; metadata is seeded through `database/seeders/data/photography.csv`.
 They are independent of runtime `/uploads` and require neither a media-file owner
 record nor D1 chunks. Photograph input validation permits their narrow UUID/JPEG
 path shape so existing CMS editing works. They deploy with Static Assets and do

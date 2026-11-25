@@ -43,10 +43,17 @@ export const useApiProvider = () => {
 		},
 	})
 
-	// Attach Bearer token on every request
+	// Recovery and sign-in must remain usable with an expired stored session.
+	const publicAuthPaths = [
+		'/auth/login',
+		'/auth/password-recovery',
+		'/auth/forgot-password',
+		'/auth/reset-password',
+		'/auth/2fa/verify',
+	]
 	instance.interceptors.request.use((config: axios.InternalAxiosRequestConfig) => {
 		const token = getToken()
-		if (token) {
+		if (token && !publicAuthPaths.includes(config.url || '')) {
 			config.headers = config.headers || {}
 			;(config.headers as any).Authorization = `Bearer ${token}`
 		}
@@ -90,11 +97,7 @@ export const useApiProvider = () => {
 
 	const isErrorStatus = (status: number) => status >= 400
 
-	const handleResponse = <T>(
-		responseData: any,
-		status: number,
-		options: CustomConfig = {},
-	): TApiResponse<T> => {
+	const handleResponse = <T>(responseData: any, status: number, options: CustomConfig = {}): TApiResponse<T> => {
 		// Backend always returns { success, message, data? }
 		if (isErrorStatus(status) || responseData?.success === false) {
 			const message = responseData?.message || 'Request failed'

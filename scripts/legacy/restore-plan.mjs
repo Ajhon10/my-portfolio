@@ -22,7 +22,7 @@ export async function restoreLegacyImport({ directory, query, applyFile, resume 
 		)
 			throw new Error('Unexpected recovery SQL files; review the private import directory.')
 		const files = ['records.private.sql', ...names.filter((name) => name !== 'records.private.sql').sort()]
-		const migrations = new URL('../../migrations/', import.meta.url)
+		const migrations = new URL('../../database/migrations/', import.meta.url)
 		for (const file of (await readdir(migrations)).filter((name) => name.endsWith('.sql')).sort())
 			expected.exec(await readFile(new URL(file, migrations), 'utf8'))
 		const parts = []
