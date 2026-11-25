@@ -788,3 +788,41 @@ the actual free product card. Evidence: `.test-artifacts/free-resume-build.log`,
 production deployment was changed.
 
 The final deployment dry run and source/private-artifact audit also passed.
+
+## Production rollout and missing-content seed — November 25, 2026
+
+User explicitly authorized updating the deployed website, adding local content
+missing from production and pushing GitHub. Production was still at schema 0006;
+its deployed shop API returned 500 because the shop tables had not been applied.
+Recorded a current Cloudflare D1 Time Travel bookmark in ignored private release
+metadata. No full private database export was downloaded. Applied the tested,
+additive 0007, 0008 and 0009 migrations successfully.
+
+Fetched main at `8b4715e` (PR #9, through `f1ecd20`), merged its history into the
+feature branch and verified that the resulting `06f0312` source tree exactly
+matched tested application revision `40b75b2`. Pushed it to GitHub main and the
+feature branch. Both [Portfolio CI](https://github.com/Ajhon10/my-portfolio/actions/runs/45561501539)
+and [Cloudflare Workers Builds](https://github.com/Ajhon10/my-portfolio/runs/139027033454)
+passed. Confirmed the new live API and an exact-byte matching resume ZIP before
+running `npm.cmd run db:seed -- --remote` successfully.
+
+Read-only public-content hashes verified all 107 previously active public rows
+remained unchanged. Public projects increased 6→9, photographs 0→4, project media
+13→17 and public project/technology links 0→10. Production now has two shop
+categories, five subcategories and one published Free resume template with its
+preview. Site content, technology, experience and enabled chatbot content stayed
+unchanged. Existing additional/removed production rows were preserved; the seed
+does not copy local accounts, inquiries or conversations. Foreign-key check
+returned zero violations and migration history includes 0001–0009.
+
+Live read-only browser checks passed at 1440px and 390px: nine project cards,
+all three new project galleries, four loaded photographs, the real particle
+canvas, scoped Kids/Resume templates filters and a guest ZIP download matching
+the bundled file exactly. No inquiries, account changes or test chat messages
+were submitted to production. No page errors or failed page API responses were
+recorded; rendered screenshots were reviewed. Evidence:
+`.test-artifacts/production-release-20261125/report.json` and adjacent captures.
+Public-row hash comparisons and recovery metadata remain under ignored
+`.wrangler/private/`, without private database payloads. This establishes the
+observed live flows; traffic capacity and optional email/AI delivery remain
+separate acceptance questions.

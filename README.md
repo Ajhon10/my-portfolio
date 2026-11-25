@@ -9,7 +9,7 @@ There are no separately deployed client/server applications. Run commands at
 the repository root; Vue lives in `src/`, HTTP/live backend code in `worker/`,
 and database migrations in `migrations/`.
 
-For the incomplete Cloudflare installation, start with the
+For local setup, deployment and recovery, start with the
 [complete Cloudflare setup guide](docs/cloudflare-deployment.md). It separates
 dashboard settings, PC commands, production restoration and first login.
 
@@ -36,8 +36,8 @@ See [local setup, Cloudflare deployment and data restoration](docs/cloudflare-de
 [architecture decisions](docs/cloudflare-unified-architecture.md), and
 [verification evidence and release limits](docs/ENGINEERING_ACCEPTANCE.md).
 
-Cloudflare account setup and a real D1 binding are still required before remote
-deployment. Core hosting targets the Free plan. Optional AI and email providers
+The existing Cloudflare Worker and D1 binding are configured. Core hosting targets
+the Free plan. Optional AI and email providers
 are separate integrations; the app works without their credentials. Private
 records, secrets, uploads, local database state and backup archives stay out of Git.
 
@@ -143,6 +143,14 @@ projects by slug so existing local IDs remain valid. Updating the CSVs does not
 modify production data or publish the site.
 
 ## Automatic checks and deployment
+
+Production was updated and seeded on November 25, 2026 (Asia/Manila):
+[live portfolio](https://my-portfolio.itsajhon.workers.dev) now has nine public
+projects, four photographs and the free resume item. Migrations 0007–0009 are
+applied. All 107 pre-existing active public records retained their exact values.
+Live desktop/mobile checks passed for project images, particles, photography,
+shop category filters and an anonymous resume download with matching file bytes.
+See [production release evidence](docs/ENGINEERING_ACCEPTANCE.md).
 
 The existing connection is active: the latest `main` commit checked on
 November 25, 2026 passed both Portfolio CI and Workers Builds. Push a feature

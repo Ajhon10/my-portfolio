@@ -1,6 +1,6 @@
 # Complete Cloudflare setup for this portfolio
 
-Updated: 5 November 2026 (Asia/Manila).
+Updated: 25 November 2026 (Asia/Manila).
 
 Shop update (November 25, 2026): before releasing source that includes the shop,
 back up the intended D1 target and apply pending additive migrations, including
@@ -27,10 +27,10 @@ that old revision will still fail to find package.json.
 | Application source             | Migrated, locally verified, pushed and merged into main.                                                                                         |
 | Existing Cloudflare Worker     | Keep `my-portfolio`.                                                                                                                             |
 | Production D1 ID               | Configured in wrangler.jsonc for the existing portfolio database.                                                                                |
-| Portfolio data                 | Restored locally and now verified in the configured remote D1: 184 records and 14 media files. Skip the completed import and continue at step 7. |
+| Portfolio data                 | Production seeded and verified November 25: nine public projects, four photos and one free resume item. Existing public records were preserved. |
 | Private restore files          | Present on this workstation and in the private backup.                                                                                           |
 | Production secret/login        | Configured; preserve the established AUTH_SECRET. Local secrets are not uploaded by Git.                                                         |
-| Deployment/workload acceptance | Requires remote verification; local checks do not establish production capacity.                                                                 |
+| Deployment/workload acceptance | Live desktop/mobile data and download checks passed November 25. Production capacity remains unmeasured. |
 
 Follow steps 1–9 in order. Run terminal commands individually and continue only
 after each succeeds. **Cloudflare dashboard** means your browser; **PowerShell**
@@ -74,9 +74,9 @@ Sources: [existing Worker connection](https://developers.cloudflare.com/workers/
 
 ### Push to deploy without opening Cloudflare
 
-Verified November 25, 2026: the latest `main` revision, `e72a782`, passed both
-[Portfolio CI](https://github.com/Ajhon10/my-portfolio/actions/runs/42029970138)
-and [Workers Builds](https://github.com/Ajhon10/my-portfolio/runs/127254833450).
+Verified November 25, 2026: application release `06f0312` on `main` passed both
+[Portfolio CI](https://github.com/Ajhon10/my-portfolio/actions/runs/45561501539)
+and [Workers Builds](https://github.com/Ajhon10/my-portfolio/runs/139027033454).
 The GitHub/Cloudflare pipeline is already connected. Keep the existing Worker
 and repository connection; a second GitHub deployment job is unnecessary.
 
@@ -103,16 +103,19 @@ Runtime secrets remain in the existing Worker configuration. The GitHub CI job
 needs no Cloudflare production token. Check both GitHub Actions and Workers
 Builds for the exact commit; a completed source push alone is not deployment.
 
-This pending portfolio update includes the additive shop/subcategory/download migrations and new
-seeded photos. After backing up the intended production D1 target, apply
-`npm.cmd run db:migrate:remote` **before merging this release**. Once the new
+This release applied migrations 0007–0009, deployed the Worker/assets, and seeded
+missing production content. For future schema changes, record a recovery point
+for the intended production D1 target and apply
+`npm.cmd run db:migrate:remote` **before merging that release**. Once the new
 Worker and its bundled image assets have deployed, run
-`npm.cmd run db:seed -- --remote` once to add missing public content and the four
-photos. Existing customized rows are preserved. These are explicit database/
+`npm.cmd run db:seed -- --remote` once to add missing public content.
+Existing customized rows are preserved. These are explicit database/
 content release steps, not commands to run against production from CI tests.
 Future ordinary code updates deploy automatically; future schema/content changes
-still need their corresponding reviewed database step. This task did not apply
-production migrations, seed production, change build settings or merge `main`.
+still need their corresponding reviewed database step. The November 25 release
+used an existing [D1 Time Travel recovery point](https://developers.cloudflare.com/d1/reference/time-travel/),
+without downloading private accounts/messages. Build settings and runtime
+authentication secrets were preserved. A source push alone does not seed D1.
 
 Cloudflare sources: [connect an existing Worker](https://developers.cloudflare.com/workers/ci-cd/builds/#connect-an-existing-worker)
 and [build/deploy configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/).
