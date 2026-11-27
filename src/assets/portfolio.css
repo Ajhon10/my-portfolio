@@ -69,17 +69,21 @@
 }
 .folio-nav {
 	max-width: 1240px;
+	min-height: 112px;
 	width: 100%;
 	margin: auto;
-	padding: 27px 40px;
+	padding: 20px 40px;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	column-gap: 16px;
 	border-bottom: 1px solid var(--folio-line);
 }
 .folio-logo {
 	display: flex;
 	align-items: center;
+	min-width: 0;
+	max-width: min(192px, 40%);
 	gap: 9px;
 	font-size: 24px;
 	font-weight: 700;
@@ -90,8 +94,10 @@
 	font-size: 30px;
 }
 .folio-logo img {
-	max-width: 140px;
-	max-height: 40px;
+	height: 64px;
+	max-width: 100%;
+	object-fit: contain;
+	object-position: left center;
 }
 .folio-nav nav {
 	display: flex;
@@ -313,28 +319,15 @@
 }
 @media (max-width: 767px) {
 	.folio-nav {
-		padding: 20px 24px;
-		position: relative;
+		min-height: 100px;
+		padding: 16px 24px;
+	}
+	.folio-logo img {
+		height: 56px;
 	}
 	.nav-toggle {
 		display: block;
 		font-size: 13px;
-	}
-	.folio-nav nav {
-		display: none;
-	}
-	.folio-nav nav.open {
-		display: flex;
-		position: absolute;
-		top: 78px;
-		left: 16px;
-		right: 16px;
-		flex-direction: column;
-		align-items: stretch;
-		background: var(--folio-surface);
-		z-index: 50;
-		padding: 25px;
-		border: 1px solid var(--folio-line);
 	}
 	.folio-hero {
 		padding: 22px 24px 0;

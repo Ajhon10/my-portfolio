@@ -4,6 +4,8 @@ import { authenticate, authRoutes, rateLimit } from './auth'
 import { ApiError, ok } from './http'
 import { resourceRoutes } from './resources'
 import { shopRoutes } from './shop'
+import { dashboardRoutes } from './dashboard'
+import { contentUndoRoutes } from './content-undo'
 import { uploadRoutes, serveMedia } from './media'
 import { requestRoutes } from './requests'
 import { chatRoutes } from './chat'
@@ -41,6 +43,8 @@ app.route('/api/upload', uploadRoutes)
 app.route('/api/client-requests', requestRoutes)
 app.route('/api/chatbot', chatRoutes)
 app.route('/api/shop', shopRoutes)
+app.route('/api/admin/dashboard', dashboardRoutes)
+app.route('/api/admin/content-undo', contentUndoRoutes)
 app.route('/api', resourceRoutes)
 app.all('/socket', (c) => {
 	if (c.req.header('Upgrade')?.toLowerCase() !== 'websocket')
@@ -101,6 +105,7 @@ export default {
 					env.DB.prepare('DELETE FROM password_reset_challenges WHERE expires_at<?').bind(new Date().toISOString()),
 					expiredRecoveryMail(env.DB),
 					env.DB.prepare('DELETE FROM rate_limits WHERE expires_at<?').bind(Date.now()),
+					env.DB.prepare('DELETE FROM content_undo WHERE expires_at<?').bind(Date.now()),
 				])
 				await flushMail(env)
 			})(),

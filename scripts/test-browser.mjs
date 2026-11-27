@@ -266,6 +266,47 @@ try {
 	await page.locator('#login-password').fill(password)
 	await page.locator('form button[type=submit]').click()
 	await page.waitForURL('**/admin/dashboard')
+	await page.locator('.Toastify__close-button').evaluateAll((buttons) => buttons.forEach((button) => button.click()))
+	await page.locator('.Toastify__toast').first().waitFor({ state: 'hidden' })
+	const activity = page.getByRole('region', { name: 'Recent activity' })
+	await activity.getByRole('button', { name: '7 days', exact: true }).click()
+	await activity.getByText('1 client request in the last 7 days', { exact: true }).waitFor()
+	const inquiryDay = activity.getByRole('button', { name: /, 1 client request$/ })
+	await inquiryDay.focus()
+	await page.keyboard.press('Enter')
+	assert.equal(await inquiryDay.getAttribute('aria-pressed'), 'true')
+	await activity.getByRole('combobox', { name: 'Activity metric' }).selectOption('conversations')
+	await activity.getByRole('button', { name: '90 days', exact: true }).click()
+	assert.equal(
+		await activity.getByRole('button', { name: '90 days', exact: true }).getAttribute('aria-pressed'),
+		'true',
+	)
+	const requestsByStatus = page.getByRole('region', { name: 'Requests by status' })
+	await requestsByStatus.getByRole('button', { name: 'Pending 1', exact: true }).click()
+	await requestsByStatus.getByText('Pending · 100% of all requests', { exact: true }).waitFor()
+	const techByCategory = page.getByRole('region', { name: 'Tech by category' })
+	await techByCategory.getByRole('button').first().click()
+	await techByCategory.getByText(/of all tech items/).waitFor()
+	await page.screenshot({ path: artifact + '/admin-dashboard-interactive.png', fullPage: true })
+	await page.setViewportSize({ width: 390, height: 844 })
+	await page.waitForFunction(() => document.querySelector('aside').getBoundingClientRect().right <= 0)
+	assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+	await page.screenshot({ path: artifact + '/admin-dashboard-mobile.png', fullPage: true })
+	const accountButton = page.getByRole('button', { name: 'Account options' })
+	assert.equal(await page.locator('aside').getByRole('link', { name: 'Profile', exact: true }).count(), 0)
+	await accountButton.click()
+	assert.ok(await page.getByRole('button', { name: 'Sign out', exact: true }).isVisible())
+	await page.keyboard.press('Escape')
+	assert.equal(await accountButton.getAttribute('aria-expanded'), 'false')
+	const notificationButton = page.getByRole('button', { name: 'Notifications', exact: true })
+	await notificationButton.click()
+	const mobileNotifications = await page.getByRole('region', { name: 'Notifications' }).boundingBox()
+	assert.ok(mobileNotifications.x >= 8 && mobileNotifications.x + mobileNotifications.width <= 382)
+	await page.keyboard.press('Escape')
+	await accountButton.click()
+	await page.getByRole('link', { name: 'Profile', exact: true }).click()
+	await page.waitForURL('**/admin/profile')
+	await page.setViewportSize({ width: 1440, height: 1000 })
 	for (const route of [
 		'projects',
 		'tech-stack',
@@ -294,7 +335,17 @@ try {
 	)
 	await page.getByRole('button', { name: 'Save photograph', exact: true }).click()
 	assert.equal((await seededPhotoSaved).status(), 200)
+	await executeSql(
+		`INSERT INTO project(id,title,slug,description,sort_order,published) VALUES
+		(${literal(randomUUID())},'Pagination project A','pagination-project-a','Test project',90,0),
+		(${literal(randomUUID())},'Pagination project B','pagination-project-b','Test project',91,0);`,
+	)
 	await page.goto('http://127.0.0.1:5179/admin/projects', { waitUntil: 'networkidle' })
+	const projectPagination = page.getByRole('navigation', { name: 'Table pagination' })
+	await projectPagination.getByRole('button', { name: 'Next' }).click()
+	await projectPagination.getByText('Page 2 of 2', { exact: true }).waitFor()
+	await page.getByRole('cell', { name: 'Pagination project B', exact: true }).waitFor()
+	await projectPagination.getByRole('button', { name: 'Previous' }).click()
 	const initialGallery = (
 		await (
 			await page.request.get('http://127.0.0.1:5179/api/projects/slug/designated-establishment-online-submission-deos')
@@ -404,6 +455,35 @@ try {
 	}
 	await page.getByRole('link', { name: 'Gears', exact: true }).click()
 	await page.waitForURL('**/admin/gears')
+	await page
+		.getByRole('button', { name: 'Dismiss change notification' })
+		.evaluateAll((buttons) => buttons.forEach((button) => button.click()))
+	const addGear = page.getByRole('button', { name: 'Add gear', exact: true })
+	await addGear.click()
+	const gearEditor = page.getByRole('dialog', { name: 'Add gear' })
+	await gearEditor.waitFor()
+	assert.equal(Math.round((await gearEditor.boundingBox()).height), 704)
+	await page.setViewportSize({ width: 390, height: 500 })
+	const scrolling = await gearEditor.evaluate((dialog) => {
+		const [header, body] = dialog.children
+		const start = header.getBoundingClientRect().top
+		body.scrollTop = body.scrollHeight
+		return {
+			height: dialog.getBoundingClientRect().height,
+			headerFixed: header.getBoundingClientRect().top === start,
+			bodyScrolls: body.scrollTop > 0,
+		}
+	})
+	assert.deepEqual(scrolling, { height: 468, headerFixed: true, bodyScrolls: true })
+	await page.setViewportSize({ width: 1440, height: 1000 })
+	await page.keyboard.press('Shift+Tab')
+	assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), 'Create gear')
+	await page.keyboard.press('Tab')
+	assert.equal(await page.evaluate(() => document.activeElement.getAttribute('aria-label')), 'Close')
+	await page.keyboard.press('Escape')
+	await gearEditor.waitFor({ state: 'hidden' })
+	assert.ok(await addGear.evaluate((button) => document.activeElement === button))
+	await addGear.click()
 	const gearUpload = page.waitForResponse((r) => r.url().endsWith('/api/upload/image'))
 	await page.locator('#gear-file').setInputFiles(fixtureImage)
 	assert.equal((await gearUpload).status(), 201)
@@ -413,28 +493,36 @@ try {
 	await page.locator('#gear-alt').fill('A small fixture image for the gear test')
 	await page.locator('#gear-description').fill('Fixture hardware used to verify admin image upload and saving.')
 	const gearCreated = page.waitForResponse((r) => r.url().endsWith('/api/gears') && r.request().method() === 'POST')
-	await page.getByRole('button', { name: 'Add gear', exact: true }).click()
+	await gearEditor.getByRole('button', { name: 'Create gear', exact: true }).click()
 	assert.equal((await gearCreated).status(), 201)
-	await page.getByRole('heading', { name: 'Browser fixture gear', exact: true }).waitFor()
+	await page.getByRole('cell', { name: 'Browser fixture gear', exact: true }).waitFor()
 	await page.reload({ waitUntil: 'networkidle' })
-	await page.getByRole('heading', { name: 'Browser fixture gear', exact: true }).waitFor()
+	await page.getByRole('cell', { name: 'Browser fixture gear', exact: true }).waitFor()
 	await page.screenshot({ path: artifact + '/admin-gears.png', fullPage: true })
 	// Create a categorized shop item, upload multiple media, publish and inquire.
 	await page.goto('http://127.0.0.1:5179/admin/shop', { waitUntil: 'networkidle' })
+	const categorySection = page.getByRole('region', { name: 'Categories & subcategories' })
 	await page.getByLabel('Category name', { exact: true }).fill('Browser templates')
 	await page.getByRole('button', { name: 'Add category', exact: true }).click()
-	await page.getByLabel('Browser templates', { exact: true }).waitFor()
+	await categorySection
+		.locator('span')
+		.filter({ hasText: /^Browser templates$/ })
+		.waitFor()
 	await page.getByLabel('Category name', { exact: true }).fill('Digital collection')
 	await page.getByRole('button', { name: 'Add category', exact: true }).click()
-	await page.getByLabel('Digital collection', { exact: true }).waitFor()
+	await categorySection
+		.locator('span')
+		.filter({ hasText: /^Digital collection$/ })
+		.waitFor()
 	await page.getByLabel('Parent category (optional)', { exact: true }).selectOption({ label: 'Digital collection' })
 	await page.getByLabel('Category name', { exact: true }).fill('Children')
 	await page.getByRole('button', { name: 'Add subcategory', exact: true }).click()
-	await page.getByLabel('Digital collection → Children', { exact: true }).waitFor()
 	await page.getByRole('button', { name: 'Rename Digital collection → Children', exact: true }).click()
 	await page.getByLabel('Category name', { exact: true }).fill('Kids')
 	await page.getByRole('button', { name: 'Save subcategory', exact: true }).click()
-	await page.getByLabel('Digital collection → Kids', { exact: true }).waitFor()
+	await page.getByRole('button', { name: 'Rename Digital collection → Kids', exact: true }).waitFor()
+	await page.getByRole('button', { name: 'Add product', exact: true }).click()
+	await page.getByRole('dialog', { name: 'Add product' }).waitFor()
 	await page.getByLabel('Product name', { exact: true }).fill('Browser shop template')
 	await page
 		.getByLabel('Description', { exact: true })
@@ -448,7 +536,21 @@ try {
 	await page.getByLabel('Price label (optional)', { exact: true }).fill('₱500')
 	await page.getByLabel('External purchase link (optional)', { exact: true }).fill('https://example.com/product')
 	await page.getByRole('button', { name: 'Create product', exact: true }).click()
-	await page.getByRole('heading', { name: 'Browser shop template', exact: true }).waitFor()
+	const productRow = page
+		.getByRole('row')
+		.filter({ has: page.getByRole('cell', { name: 'Browser shop template', exact: true }) })
+	await productRow.waitFor()
+	const productEditor = page.getByRole('dialog', { name: 'Edit product' })
+	await productEditor.waitFor()
+	const bottomRightOffsets = (button) =>
+		button.evaluate((el) => {
+			const stack = el.closest('[aria-label="Recent changes"]').getBoundingClientRect()
+			const boundary = el.closest('[role="dialog"]')?.getBoundingClientRect() ?? {
+				right: innerWidth,
+				bottom: innerHeight,
+			}
+			return { right: boundary.right - stack.right, bottom: boundary.bottom - stack.bottom }
+		})
 	const browserShopId = await page.evaluate(async () => {
 		const response = await fetch('/api/shop/products/admin', {
 			headers: { Authorization: 'Bearer ' + localStorage.getItem('portfolio_token') },
@@ -512,11 +614,22 @@ try {
 	await page.getByRole('status').filter({ hasText: '3 of 3 files uploaded.' }).waitFor()
 	await page.getByLabel('Published', { exact: true }).check()
 	await page.getByRole('button', { name: 'Save product', exact: true }).click()
-	await page
-		.locator('article')
-		.filter({ has: page.getByRole('heading', { name: 'Browser shop template', exact: true }) })
-		.getByText('Published ·', { exact: false })
-		.waitFor()
+	const modalUndo = productEditor.getByRole('button', { name: 'Undo', exact: true }).last()
+	await modalUndo.waitFor()
+	assert.deepEqual(await bottomRightOffsets(modalUndo), { right: 13, bottom: 13 })
+	await page.screenshot({ path: artifact + '/admin-shop-modal.png' })
+	await productEditor.getByRole('button', { name: 'Close', exact: true }).click()
+	await productRow.getByRole('cell', { name: 'Published', exact: true }).waitFor()
+	await executeSql(
+		"WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n<10) INSERT INTO shop_product(id,name,description,sort_order,created_at,updated_at) SELECT printf('00000000-0000-4000-8000-%012d',n),printf('Pagination product %02d',n),'Browser pagination fixture',100+n,datetime('now'),datetime('now') FROM seq;",
+	)
+	await page.reload({ waitUntil: 'networkidle' })
+	const productPagination = page.getByRole('navigation', { name: 'Table pagination' })
+	await productPagination.getByRole('button', { name: 'Next' }).click()
+	await productPagination.getByText('Page 2', { exact: true }).waitFor()
+	await page.getByRole('cell', { name: 'Pagination product 10', exact: true }).waitFor()
+	assert.ok(await productPagination.getByRole('button', { name: 'Next' }).isDisabled())
+	await productPagination.getByRole('button', { name: 'Previous' }).click()
 	await page.screenshot({ path: artifact + '/admin-shop.png', fullPage: true })
 	await page.setViewportSize({ width: 390, height: 844 })
 	assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
@@ -525,7 +638,7 @@ try {
 	await page.getByRole('button', { name: 'Toggle menu', exact: true }).click()
 	await page.getByRole('button', { name: 'Close menu', exact: true }).click()
 	await page.waitForFunction(() => document.querySelector('aside').getBoundingClientRect().right <= 0)
-	await page.getByLabel('Digital collection → Kids', { exact: true }).scrollIntoViewIfNeeded()
+	await categorySection.getByText('Digital collection → Kids', { exact: true }).scrollIntoViewIfNeeded()
 	await page.screenshot({ path: artifact + '/admin-shop-subcategories-mobile.png' })
 	await page.getByRole('heading', { name: 'Categories & subcategories', exact: true }).scrollIntoViewIfNeeded()
 	assert.ok((await page.getByLabel('Parent category (optional)', { exact: true }).boundingBox()).width > 240)
@@ -639,6 +752,8 @@ try {
 	await page.goto('http://127.0.0.1:5179/admin/gears', { waitUntil: 'networkidle' })
 	await page.getByRole('link', { name: 'Photography', exact: true }).click()
 	await page.waitForURL('**/admin/photography')
+	await page.getByRole('button', { name: 'Add photograph', exact: true }).click()
+	await page.getByRole('dialog', { name: 'Add photograph' }).waitFor()
 	const photoUpload = page.waitForResponse((r) => r.url().endsWith('/api/upload/image'))
 	await page.locator('#photo-file').setInputFiles(fixtureImage)
 	assert.equal((await photoUpload).status(), 201)
@@ -668,6 +783,22 @@ try {
 		`UPDATE notification SET link='/admin/client-requests' WHERE json_extract(metadata,'$.requestId')=${literal(originalInquiry.id)};`,
 	)
 	await page.reload({ waitUntil: 'networkidle' })
+	await page.getByRole('button', { name: 'Notifications', exact: true }).click()
+	const notifications = page.getByRole('region', { name: 'Notifications' })
+	const themeSurface = (element) =>
+		getComputedStyle(element).backgroundColor === getComputedStyle(document.documentElement).backgroundColor
+	assert.ok(await notifications.evaluate(themeSurface))
+	await page.waitForFunction(() => {
+		const panel = document.querySelector('.admin-popover[aria-label="Notifications"]')
+		return panel && getComputedStyle(panel).opacity === '1'
+	})
+	await page.screenshot({ path: artifact + '/admin-notifications-light.png' })
+	await page.keyboard.press('Escape')
+	await page.getByRole('button', { name: 'Toggle dark mode' }).click()
+	await page.getByRole('button', { name: 'Notifications', exact: true }).click()
+	assert.ok(await notifications.evaluate(themeSurface))
+	await page.keyboard.press('Escape')
+	await page.getByRole('button', { name: 'Toggle dark mode' }).click()
 	await page.getByRole('button', { name: 'Notifications', exact: true }).click()
 	await page.getByRole('button').filter({ hasText: 'Browser inquiry submitted a project inquiry.' }).click()
 	await page.waitForURL('**/admin/client-requests?requestId=' + originalInquiry.id)
@@ -705,11 +836,50 @@ try {
 	await logoTextRow.locator('input').fill('Browser brand')
 	await logoTextRow.getByRole('button', { name: 'Save', exact: true }).click()
 	await page.locator('aside').getByRole('link', { name: 'Browser brand Admin — view site', exact: true }).waitFor()
+	const undoBranding = page.getByRole('button', { name: 'Undo', exact: true }).last()
+	await page.setViewportSize({ width: 390, height: 844 })
+	await undoBranding.waitFor()
+	assert.deepEqual(await bottomRightOffsets(undoBranding), { right: 12, bottom: 12 })
+	await undoBranding.focus()
+	await page.screenshot({ path: artifact + '/content-undo-toast.png' })
+	await page.keyboard.press('Enter')
+	await page.setViewportSize({ width: 1440, height: 1000 })
+	await page.waitForFunction(
+		(logo) => document.querySelector('[data-content-key="site_logo_text"] input')?.value === logo,
+		previousLogo,
+	)
+	await page.reload({ waitUntil: 'networkidle' })
+	assert.equal(await logoTextRow.locator('input').inputValue(), previousLogo)
+	await logoTextRow.locator('input').fill('Browser brand')
+	await logoTextRow.getByRole('button', { name: 'Save', exact: true }).click()
+	await page.locator('aside').getByRole('link', { name: 'Browser brand Admin — view site', exact: true }).waitFor()
 	const logoImageRow = page.locator('[data-content-key="site_logo_url"]')
 	await logoImageRow.locator('input[type=file]').setInputFiles(fixtureImage)
-	await page.locator('aside img[alt="Browser brand"]').waitFor()
+	const sidebarLogo = page.locator('aside img[alt="Browser brand"]')
+	await sidebarLogo.waitFor()
 	await page.reload({ waitUntil: 'networkidle' })
-	await page.locator('aside img[alt="Browser brand"]').waitFor()
+	await sidebarLogo.waitFor()
+	assert.equal((await sidebarLogo.boundingBox()).height, 56)
+	assert.equal((await page.locator('header').boundingBox()).height, 80)
+	await mobile.reload({ waitUntil: 'networkidle' })
+	const publicHeader = mobile.locator('.folio-nav')
+	const publicLogo = publicHeader.locator('.folio-logo img')
+	await publicLogo.waitFor()
+	assert.equal((await publicLogo.boundingBox()).height, 56)
+	assert.equal((await publicHeader.boundingBox()).height, 100)
+	await mobile.setViewportSize({ width: 320, height: 720 })
+	const publicTools = publicHeader.locator('.nav-tools')
+	const [logoBounds, controlsBounds] = await Promise.all([publicLogo.boundingBox(), publicTools.boundingBox()])
+	assert.ok(logoBounds.x + logoBounds.width < controlsBounds.x)
+	await mobile.getByRole('button', { name: 'Menu +' }).click()
+	assert.ok(
+		await publicHeader
+			.locator('nav')
+			.evaluate((nav) => nav.getBoundingClientRect().top >= nav.parentElement.getBoundingClientRect().bottom - 1),
+	)
+	await mobile.screenshot({ path: artifact + '/uploaded-logo-mobile.png' })
+	await mobile.getByRole('button', { name: 'Close -' }).click()
+	await mobile.setViewportSize({ width: 390, height: 844 })
 	await logoImageRow.getByRole('button', { name: 'x', exact: true }).click()
 	await page.locator('aside img').waitFor({ state: 'hidden' })
 	await logoTextRow.locator('input').fill(previousLogo)
@@ -1050,6 +1220,9 @@ try {
 	} finally {
 		await recoveryContext.close()
 	}
+	await page.getByRole('button', { name: 'Account options' }).click()
+	await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+	await page.waitForURL('**/login')
 	assert.deepEqual(errors, [])
 	assert.deepEqual(failures, [])
 	const counts = (
@@ -1076,6 +1249,7 @@ try {
 					'authenticator enrollment, enrolled sign-in, temporary password replacement and authenticated return',
 					'login',
 					'all 12 admin pages',
+					'account dropdown, shared modal focus and dismissal, notification themes, table pagination and interactive dashboard',
 					'Light/Dark labels, Light default, theme persistence, animated changes and reduced motion',
 					'live viewer wording for one, two and five sessions; game toggle beside viewers',
 					'same-origin seeded particle portrait, hover response, reduced motion, SVG icons and responsive navigation',

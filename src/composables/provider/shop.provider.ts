@@ -50,6 +50,8 @@ export const useShopProvider = () => {
 			admin = false,
 			filters: { page?: number; search?: string; category?: string; subcategory?: string } = {},
 		) => api.GET<ShopProduct[]>('/shop/products' + (admin ? '/admin' : ''), filters, { silent: true }),
+		adminProductPage: (page: number) =>
+			api.GET<{ products: ShopProduct[]; hasNext: boolean }>('/shop/products/admin', { page, pageSize: 10 }, { silent: true }),
 		categories: () => api.GET<ShopCategory[]>('/shop/categories', {}, { silent: true }),
 		subcategories: () => api.GET<ShopSubcategory[]>('/shop/subcategories', {}, { silent: true }),
 		saveSubcategory: (name: string, categoryId: string, id?: string) =>
@@ -66,7 +68,9 @@ export const useShopProvider = () => {
 				: api.POST<ShopCategory>('/shop/categories', { name }),
 		removeCategory: (id: string) => api.DELETE(`/shop/categories/${id}`),
 		upload: (id: string, file: File) =>
-			api.UPLOAD<ShopMedia>(`/upload/shop-media/${id}`, file, 'file', { silent: true, timeout: 180000 }),
+			api.UPLOAD<ShopMedia>(`/upload/shop-media/${id}`, file, 'file', {
+				silent: true, showUndo: true, successMessage: `${file.name} added to gallery`, timeout: 180000,
+			}),
 		updateMedia: (id: string, input: Partial<Pick<ShopMedia, 'altText' | 'sortOrder'>>) =>
 			api.PUT(`/shop/media/${id}`, input),
 		removeMedia: (id: string) => api.DELETE(`/shop/media/${id}`),

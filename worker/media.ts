@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { commitContentChange, contentSaved } from './content-undo'
 import { z } from 'zod'
 import { ApiError, admin, body, idSchema, ok, owner } from './http'
 import { list, need, update } from './db'
@@ -107,24 +108,37 @@ uploadRoutes.post('/project-images/:projectId', (c) =>
 	acceptUpload(c, 'project-image', idSchema.parse(c.req.param('projectId'))),
 )
 uploadRoutes.put('/project-images/:imageId/sort', async (c) => {
-	admin(c)
+	const user = admin(c)
 	const id = idSchema.parse(c.req.param('imageId'))
 	await need(c.env.DB, 'ProjectImage', id)
 	const input = await body(c, z.object({ sortOrder: z.number().int().min(0).max(10000) }))
-	await update(c.env.DB, 'ProjectImage', id, input).run()
-	return ok(c, undefined, 'Reordered')
+	const { undoId } = await commitContentChange(
+		c.env.DB,
+		user.id,
+		[{ model: 'ProjectImage', keys: [id] }],
+		[update(c.env.DB, 'ProjectImage', id, input)],
+	)
+	return contentSaved(c, undoId, undefined, 'Reordered')
 })
 uploadRoutes.delete('/project-images/:imageId', async (c) => {
-	admin(c)
+	const user = admin(c)
 	const image = await need(c.env.DB, 'ProjectImage', idSchema.parse(c.req.param('imageId')))
-	await c.env.DB.batch([
-		c.env.DB.prepare('UPDATE project SET thumbnail_url=NULL WHERE id=? AND thumbnail_url=?').bind(
-			image.projectId,
-			image.url,
-		),
-		c.env.DB.prepare('DELETE FROM project_image WHERE id=?').bind(image.id),
-	])
-	return ok(c, undefined, 'Gallery item removed')
+	const { undoId } = await commitContentChange(
+		c.env.DB,
+		user.id,
+		[
+			{ model: 'Project', keys: [image.projectId] },
+			{ model: 'ProjectImage', keys: [image.id] },
+		],
+		[
+			c.env.DB.prepare('UPDATE project SET thumbnail_url=NULL WHERE id=? AND thumbnail_url=?').bind(
+				image.projectId,
+				image.url,
+			),
+			c.env.DB.prepare('DELETE FROM project_image WHERE id=?').bind(image.id),
+		],
+	)
+	return contentSaved(c, undoId, undefined, 'Gallery item removed')
 })
 // External Blob token/attachment endpoints are intentionally retired. The
 // unified browser uploads to its own Worker, and never receives storage keys.

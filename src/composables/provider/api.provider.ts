@@ -1,4 +1,5 @@
 import type { TApiResponse } from '@/types'
+import { offerContentUndo, type UndoneContent } from '@/composables/useContentUndo'
 import * as axios from 'axios'
 import { toast } from 'vue3-toastify'
 
@@ -96,7 +97,12 @@ export const useApiProvider = () => {
 		},
 	)
 
-	type CustomConfig = axios.AxiosRequestConfig & { skipToast?: boolean; silent?: boolean }
+	type CustomConfig = axios.AxiosRequestConfig & {
+		skipToast?: boolean
+		silent?: boolean
+		showUndo?: boolean
+		successMessage?: string
+	}
 
 	const isErrorStatus = (status: number) => status >= 400
 
@@ -125,6 +131,29 @@ export const useApiProvider = () => {
 		return { success: true, data: responseData as T, status }
 	}
 
+	const handleMutation = <T>(data: any, status: number, options: CustomConfig): TApiResponse<T> => {
+		const result = handleResponse<T>(data, status, options)
+		if (!result.success || options.skipToast || (options.silent && !options.showUndo)) return result
+		const message = options.successMessage ?? result.message
+		if (!message) return result
+		if (typeof data?.undoId === 'string') {
+			const undoId = data.undoId
+			offerContentUndo(undoId, message, async () => {
+				const undone = await POST<UndoneContent[]>(
+					`/admin/content-undo/${encodeURIComponent(undoId)}`,
+					{},
+					{},
+					{ silent: true },
+				)
+				if (!undone.success) throw new Error(undone.message || 'The change could not be undone.')
+				return undone.data
+			})
+		} else if (!options.silent) {
+			toast.success(message)
+		}
+		return result
+	}
+
 	const GET = async <T>(url: string, params: any = {}, config: CustomConfig = {}): Promise<TApiResponse<T>> => {
 		try {
 			const { data, status } = await instance.get(url, { params, ...config })
@@ -142,11 +171,7 @@ export const useApiProvider = () => {
 	): Promise<TApiResponse<T>> => {
 		try {
 			const { data, status } = await instance.post(url, body, { params, ...config })
-			const result = handleResponse<T>(data, status, config)
-			if (result.success && data?.message && !config.skipToast && !config.silent) {
-				toast.success(data.message)
-			}
-			return result
+			return handleMutation<T>(data, status, config)
 		} catch (err: any) {
 			return { success: false, message: err?.message || 'Network error', status: 500 }
 		}
@@ -160,11 +185,7 @@ export const useApiProvider = () => {
 	): Promise<TApiResponse<T>> => {
 		try {
 			const { data, status } = await instance.patch(url, body, { params, ...config })
-			const result = handleResponse<T>(data, status, config)
-			if (result.success && data?.message && !config.skipToast && !config.silent) {
-				toast.success(data.message)
-			}
-			return result
+			return handleMutation<T>(data, status, config)
 		} catch (err: any) {
 			return { success: false, message: err?.message || 'Network error', status: 500 }
 		}
@@ -178,11 +199,7 @@ export const useApiProvider = () => {
 	): Promise<TApiResponse<T>> => {
 		try {
 			const { data, status } = await instance.put(url, body, { params, ...config })
-			const result = handleResponse<T>(data, status, config)
-			if (result.success && data?.message && !config.skipToast && !config.silent) {
-				toast.success(data.message)
-			}
-			return result
+			return handleMutation<T>(data, status, config)
 		} catch (err: any) {
 			return { success: false, message: err?.message || 'Network error', status: 500 }
 		}
@@ -201,7 +218,7 @@ export const useApiProvider = () => {
 				...config,
 				headers: { ...(config.headers || {}), 'Content-Type': 'multipart/form-data' },
 			})
-			return handleResponse<T>(data, status, config)
+			return config.showUndo ? handleMutation<T>(data, status, config) : handleResponse<T>(data, status, config)
 		} catch (err: any) {
 			return { success: false, message: err?.message || 'Upload failed', status: 500 }
 		}
@@ -210,11 +227,7 @@ export const useApiProvider = () => {
 	const DELETE = async <T>(url: string, params: any = {}, config: CustomConfig = {}): Promise<TApiResponse<T>> => {
 		try {
 			const { data, status } = await instance.delete(url, { params, ...config })
-			const result = handleResponse<T>(data, status, config)
-			if (result.success && data?.message && !config.skipToast && !config.silent) {
-				toast.success(data.message)
-			}
-			return result
+			return handleMutation<T>(data, status, config)
 		} catch (err: any) {
 			return { success: false, message: err?.message || 'Network error', status: 500 }
 		}

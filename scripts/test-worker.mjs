@@ -92,6 +92,42 @@ try {
 	const owner = users.OWNER.token,
 		client = users.CLIENT.token
 	status(await api('/health'), 200)
+	const undoContent = (id, token) =>
+		api('/admin/content-undo/' + id, {
+			token,
+			method: 'POST',
+			headers: { 'CF-Connecting-IP': '198.51.100.16' },
+		})
+	const saveContent = (value) =>
+		api('/site-content/upsert', {
+			token: owner,
+			method: 'POST',
+			data: { key: 'undo_test_copy', label: 'Undo fixture', value },
+		})
+	const firstCopy = await saveContent('Original copy')
+	status(firstCopy, 200)
+	const groupCopy = await api('/site-content/upsert-many', {
+		token: owner,
+		method: 'POST',
+		data: [
+			{ key: 'undo_test_copy', label: 'Edited label', value: 'Edited copy' },
+			{ key: 'undo_test_new', label: 'New content', value: 'New copy' },
+		],
+	})
+	status(groupCopy, 200)
+	const groupUndo = groupCopy.body.undoId
+	status(await undoContent(groupUndo), 401)
+	status(await undoContent(groupUndo, client), 403)
+	status(await undoContent(groupUndo, users.ADMIN.token), 404)
+	status(await undoContent(firstCopy.body.undoId, owner), 409)
+	const undone = await undoContent(groupUndo, owner)
+	status(undone, 200)
+	assert.equal((await api('/site-content/undo_test_copy')).body.data.value, 'Original copy')
+	assert.equal((await api('/site-content/undo_test_copy')).body.data.label, 'Undo fixture')
+	status(await api('/site-content/undo_test_new'), 404)
+	status(await undoContent(groupUndo, owner), 409)
+	await db.prepare('UPDATE content_undo SET expires_at=0 WHERE id=?').bind(firstCopy.body.undoId).run()
+	status(await undoContent(firstCopy.body.undoId, owner), 404)
 	const projects = await api('/projects')
 	status(projects, 200)
 	assert.ok(projects.body.data.length >= 3)
@@ -163,6 +199,21 @@ try {
 	})
 	status(request, 201)
 	const requestId = request.body.data.id
+	status(await api('/admin/dashboard'), 401)
+	status(await api('/admin/dashboard', { token: client }), 403)
+	const dashboard = await api('/admin/dashboard', { token: users.ADMIN.token })
+	status(dashboard, 200)
+	assert.deepEqual(dashboard.body.data.projects, {
+		total: projects.body.data.length + 1,
+		published: projects.body.data.length,
+	})
+	assert.deepEqual(dashboard.body.data.requestStatuses, [{ status: 'PENDING', count: 1 }])
+	assert.deepEqual(dashboard.body.data.activity, [{ day: dashboard.body.data.today, requests: 1, conversations: 0 }])
+	assert.equal(
+		dashboard.body.data.tech.categories.reduce((count, category) => count + category.count, 0),
+		dashboard.body.data.tech.total,
+	)
+	assert.equal(JSON.stringify(dashboard.body.data).includes('Example Client'), false)
 	status(await api('/client-requests/email/status'), 401)
 	status(await api('/client-requests/email/status', { token: client }), 403)
 	const emailStatus = await api('/client-requests/email/status', { token: owner })
@@ -303,8 +354,16 @@ try {
 	invalidVideo.append('file', new File(['not a video'], 'fake.mp4', { type: 'video/mp4' }))
 	status(await api(galleryPath, { token: owner, method: 'POST', raw: invalidVideo }), 422)
 	status(await api('/upload/files/' + videoUrl.split('/').pop().split('.')[0], { token: owner, method: 'DELETE' }), 409)
-	status(await api('/upload/project-images/' + galleryVideo.body.data.id, { token: owner, method: 'DELETE' }), 200)
+	const deleteGallery = () =>
+		api('/upload/project-images/' + galleryVideo.body.data.id, { token: owner, method: 'DELETE' })
+	const galleryRemoval = await deleteGallery()
+	status(galleryRemoval, 200)
+	status(await undoContent(galleryRemoval.body.undoId, owner), 200)
+	assert.equal((await api(galleryPath, { token: owner })).body.data[0].id, galleryVideo.body.data.id)
+	const removedAgain = await deleteGallery()
+	status(removedAgain, 200)
 	status(await api('/upload/files/' + videoUrl.split('/').pop().split('.')[0], { token: owner, method: 'DELETE' }), 200)
+	status(await undoContent(removedAgain.body.undoId, owner), 409)
 	checks += 8
 	const sessionId = 'test-visitor-session-123456'
 	const chat = await api('/chatbot/chat', { method: 'POST', data: { sessionId, message: 'Hello' } })
@@ -399,6 +458,16 @@ try {
 	const shopProduct = await api('/shop/products', { token: owner, method: 'POST', data: shopInput })
 	status(shopProduct, 201)
 	const shopId = shopProduct.body.data.id
+	const shopEdit = await api('/shop/products/' + shopId, {
+		token: owner,
+		method: 'PUT',
+		data: { ...shopInput, name: 'Edited fixture', categoryIds: [shopCategory2.body.data.id] },
+	})
+	status(shopEdit, 200)
+	status(await undoContent(shopEdit.body.undoId, owner), 200)
+	const restoredShop = await api('/shop/products/' + shopId, { token: owner })
+	assert.equal(restoredShop.body.data.name, shopInput.name)
+	assert.deepEqual(restoredShop.body.data.categories.map(({ id }) => id).sort(), shopInput.categoryIds.slice().sort())
 	assert.equal(shopProduct.body.data.soldCount, 0)
 	assert.equal(shopProduct.body.data.ratingCount, 0)
 	assert.equal(shopProduct.body.data.ratingAverage, null)
@@ -547,6 +616,20 @@ try {
 	assert.ok(!firstPage.body.data.some((p) => p.id === secondPage.body.data[0].id))
 	assert.equal((await api('/shop/products?search=081')).body.data.length, 1)
 	assert.equal((await api('/shop/products?category=' + shopCategory2.body.data.id + '&page=2')).body.data.length, 1)
+	const adminPage = '/shop/products/admin?category=' + shopCategory2.body.data.id + '&pageSize=10'
+	status(await api(adminPage, { token: client }), 403)
+	status(await api('/shop/products/admin?pageSize=81', { token: owner }), 422)
+	const penultimateAdminPage = await api(adminPage + '&page=8', { token: owner })
+	const lastAdminPage = await api(adminPage + '&page=9', { token: owner })
+	status(penultimateAdminPage, 200)
+	status(lastAdminPage, 200)
+	assert.equal(penultimateAdminPage.body.data.products.length, 10)
+	assert.equal(penultimateAdminPage.body.data.hasNext, true)
+	assert.deepEqual(
+		lastAdminPage.body.data.products.map((product) => product.name),
+		['Page fixture 081'],
+	)
+	assert.equal(lastAdminPage.body.data.hasNext, false)
 	status(await api('/shop/products?page=0'), 422)
 	status(await api('/shop/products?category=invalid'), 422)
 	checks += 10

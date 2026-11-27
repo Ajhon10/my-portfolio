@@ -6,6 +6,7 @@ import Modal from '@/components/Modal.vue'
 import { useProjectProvider } from '@/composables/provider/project.provider'
 import { useSiteContentProvider } from '@/composables/provider/site-content.provider'
 import { useSiteBranding } from '@/composables/useSiteBranding'
+import { onContentUndo } from '@/composables/useContentUndo'
 import type { SiteContent } from '@/types'
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue'
 import { toast } from 'vue3-toastify'
@@ -293,18 +294,22 @@ const contentGroups = computed(() => [
 	},
 ])
 
-const load = async () => {
-	loading.value = true
+const load = async (preserveDrafts = false) => {
+	if (!preserveDrafts) loading.value = true
 	const res = await provider.list()
 	loadFailed.value = !res.success
 	if (res.success && res.data) {
+		const unsaved = preserveDrafts
+			? Object.fromEntries(items.value.filter(isDirty).map((item) => [item.key, drafts.value[item.key]]))
+			: {}
 		items.value = mergeDefaults(res.data)
-		drafts.value = Object.fromEntries(items.value.map((item) => [item.key, item.value]))
+		drafts.value = { ...Object.fromEntries(items.value.map((item) => [item.key, item.value])), ...unsaved }
 	}
 	loading.value = false
 }
 
-onMounted(load)
+onMounted(() => load())
+onContentUndo(['SiteContent'], () => void load(true))
 
 onBeforeUnmount(() => {
 	if (portraitEditorUrl.value) URL.revokeObjectURL(portraitEditorUrl.value)
@@ -314,30 +319,28 @@ const isDirty = (item: SiteContent) => drafts.value[item.key] !== item.value
 const hasDirty = (list: SiteContent[]) => list.some((item) => isDirty(item))
 const isBrandItem = (item: SiteContent) => BRAND_KEYS.includes(item.key)
 
-const save = async (item: SiteContent, options: { skipToast?: boolean; silent?: boolean } = {}) => {
-	saving.value[item.key] = true
-	const res = await provider.update(item.key, item.label, drafts.value[item.key] ?? '', options)
-	saving.value[item.key] = false
-	if (res.success && res.data) {
-		const idx = items.value.findIndex((entry) => entry.key === item.key)
-		if (idx >= 0) items.value[idx] = res.data
-		if (isBrandItem(item)) await refreshBranding()
+const saveItems = async (list: SiteContent[], successMessage?: string) => {
+	if (!list.length || list.some(({ key }) => saving.value[key])) return false
+	const input = list.map(({ key, label }) => ({ key, label, value: drafts.value[key] ?? '' }))
+	list.forEach(({ key }) => (saving.value[key] = true))
+	try {
+		const res =
+			input.length === 1
+				? await provider.update(input[0], successMessage)
+				: await provider.updateMany(input, successMessage)
+		if (!res.success) return false
+		const saved = Array.isArray(res.data) ? res.data : [res.data]
+		const byKey = new Map(saved.map((item) => [item.key, item]))
+		items.value = items.value.map((item) => byKey.get(item.key) ?? item)
+		if (list.some(isBrandItem)) await refreshBranding()
+		return true
+	} finally {
+		list.forEach(({ key }) => (saving.value[key] = false))
 	}
-	return res.success
 }
 
-const saveAll = async (list: SiteContent[], successMessage: string) => {
-	let saved = false
-	let failed = false
-	for (const item of list) {
-		if (isDirty(item)) {
-			if (await save(item, { silent: true })) saved = true
-			else failed = true
-		}
-	}
-	if (failed) toast.error('Some changes could not be saved. Please retry.')
-	else if (saved) toast.success(successMessage)
-}
+const save = (item: SiteContent) => saveItems([item])
+const saveAll = (list: SiteContent[], successMessage: string) => saveItems(list.filter(isDirty), successMessage)
 
 const portraitItemFor = (direction: PortraitDirection) => {
 	const key = PORTRAIT_DIRECTIONS.find((item) => item.direction === direction)?.key
@@ -389,15 +392,8 @@ const savePortraitUpload = async () => {
 	const adjustments = parsePortraitAdjustments()
 	adjustments[direction] = { ...portraitEditorAdjustment.value }
 	drafts.value[PORTRAIT_ADJUSTMENTS_KEY] = JSON.stringify(adjustments)
-	const [imageSaved, adjustmentsSaved] = await Promise.all([
-		save(item, { silent: true }),
-		save(adjustmentsItem, { silent: true }),
-	])
-	if (imageSaved && adjustmentsSaved) {
-		toast.success(`${item.label} saved`)
+	if (await saveItems([item, adjustmentsItem], `${item.label} saved`)) {
 		closePortraitEditor()
-	} else {
-		toast.error('Image uploaded, but its portrait settings could not be fully saved. Please retry.')
 	}
 }
 
@@ -409,12 +405,7 @@ const clearPortraitAngle = async (direction: PortraitDirection) => {
 	const adjustments = parsePortraitAdjustments()
 	delete adjustments[direction]
 	drafts.value[PORTRAIT_ADJUSTMENTS_KEY] = JSON.stringify(adjustments)
-	const [imageSaved, adjustmentsSaved] = await Promise.all([
-		save(item, { silent: true }),
-		save(adjustmentsItem, { silent: true }),
-	])
-	if (imageSaved && adjustmentsSaved) toast.success(`${item.label} cleared`)
-	else toast.error(`Unable to clear ${item.label.toLowerCase()}`)
+	await saveItems([item, adjustmentsItem], `${item.label} cleared`)
 }
 
 const fileAccept = (item: SiteContent) => {
@@ -465,8 +456,7 @@ const onAssetUpload = async (item: SiteContent, event: Event) => {
 
 	if (result.success && result.url) {
 		drafts.value[item.key] = result.url
-		if (await save(item, { silent: true })) toast.success(uploadSuccessText(item))
-		else toast.error('Image uploaded, but saving failed. Use Save to retry.')
+		await saveItems([item], uploadSuccessText(item))
 	} else {
 		toast.error(result.message || 'Upload failed')
 	}
@@ -476,8 +466,7 @@ const onAssetUpload = async (item: SiteContent, event: Event) => {
 
 const clearAsset = async (item: SiteContent) => {
 	drafts.value[item.key] = ''
-	if (await save(item, { silent: true })) toast.success(`${item.label} cleared`)
-	else toast.error(`Unable to clear ${item.label.toLowerCase()}`)
+	await saveItems([item], `${item.label} cleared`)
 }
 
 const toggleBoolean = (item: SiteContent) => {
@@ -488,7 +477,7 @@ const toggleBoolean = (item: SiteContent) => {
 <template>
 	<LoadingSpinner v-if="loading" size="lg" />
 	<div v-else-if="loadFailed" role="alert" class="card p-6">
-		Unable to load site content. <button class="text-brand-blueLight" @click="load">Try again</button>
+		Unable to load site content. <button class="text-brand-blueLight" @click="load()">Try again</button>
 	</div>
 	<div v-else class="space-y-8">
 		<section v-for="group in contentGroups" :key="group.id" class="card p-6">

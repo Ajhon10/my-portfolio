@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onContentUndo } from '@/composables/useContentUndo'
+import DataTable, { type DataTableColumn } from '@/components/DataTable.vue'
+import Modal from '@/components/Modal.vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue3-toastify'
 import {
 	useShopProvider,
@@ -26,10 +29,21 @@ const subcategories = ref<ShopSubcategory[]>([])
 const childrenOf = (id: string) => subcategories.value.filter((s) => s.categoryId === id)
 const loading = ref(true)
 const page = ref(1)
+const hasNext = ref(false)
 const failed = ref(false)
 const busy = ref(false)
 const uploading = ref(false)
 const editing = ref<string>()
+const editorOpen = ref(false)
+const galleryHeading = ref<HTMLElement>()
+const columns: DataTableColumn<ShopProduct>[] = [
+	{ key: 'name', label: 'Product' },
+	{ key: 'categories', label: 'Categories', render: shopCategoryLabel, className: 'min-w-36 break-words' },
+	{ key: 'priceLabel', label: 'Price', render: (product) => product.priceLabel || '—' },
+	{ key: 'published', label: 'Status', render: (product) => (product.published ? 'Published' : 'Draft') },
+	{ key: 'media', label: 'Media', render: (product) => product.media.length },
+	{ key: 'sortOrder', label: 'Order' },
+]
 const media = ref<ShopMedia[]>([])
 const categoryName = ref('')
 const categoryId = ref<string>()
@@ -84,16 +98,18 @@ const selectSubcategory = (subcategory: ShopSubcategory, event: Event) => {
 		form.value.subcategoryIds.push(subcategory.id)
 	} else form.value.subcategoryIds = form.value.subcategoryIds.filter((id) => id !== subcategory.id)
 }
-const load = async () => {
+const load = async (targetPage = page.value) => {
 	loading.value = true
 	const [items, groups, children] = await Promise.all([
-		api.products(true, { page: page.value }),
+		api.adminProductPage(targetPage),
 		api.categories(),
 		api.subcategories(),
 	])
 	failed.value = !items.success || !groups.success || !children.success
 	if (items.success && groups.success && children.success) {
-		products.value = items.data
+		page.value = targetPage
+		hasNext.value = items.data.hasNext
+		products.value = items.data.products
 		categories.value = groups.data
 		subcategories.value = children.data
 	}
@@ -105,6 +121,10 @@ const reset = () => {
 	media.value = []
 	uploadStatus.value = ''
 	uploadErrors.value = []
+}
+const add = () => {
+	reset()
+	editorOpen.value = true
 }
 const edit = (product: ShopProduct) => {
 	editing.value = product.id
@@ -125,14 +145,16 @@ const edit = (product: ShopProduct) => {
 	media.value = product.media.map((m) => ({ ...m }))
 	uploadStatus.value = ''
 	uploadErrors.value = []
-	window.scrollTo({ top: 0, behavior: 'instant' })
+	editorOpen.value = true
 }
 const save = async () => {
+	if (busy.value || uploading.value || loading.value || failed.value) return
 	if (!form.value.categoryIds.length) {
 		toast.error('Select at least one category.')
 		return
 	}
 	busy.value = true
+	const creating = !editing.value
 	try {
 		const result = await api.save(
 			{
@@ -147,6 +169,10 @@ const save = async () => {
 		if (result.success) {
 			edit(result.data)
 			await load()
+			if (creating) {
+				await nextTick()
+				galleryHeading.value?.focus()
+			}
 		}
 	} finally {
 		busy.value = false
@@ -200,8 +226,7 @@ const remove = async (product: ShopProduct) => {
 	busy.value = true
 	try {
 		if ((await api.remove(product.id)).success) {
-			if (editing.value === product.id) reset()
-			await load()
+			await load(page.value > 1 && products.value.length === 1 ? page.value - 1 : page.value)
 		}
 	} finally {
 		busy.value = false
@@ -273,231 +298,278 @@ const removeMedia = async (item: ShopMedia) => {
 		busy.value = false
 	}
 }
-onMounted(load)
+onMounted(() => load())
+onContentUndo(['ShopProduct', 'ShopCategory', 'ShopSubcategory', 'ShopMedia'], async (changes) => {
+	await load()
+	const id = editing.value
+	if (!editorOpen.value || !id) return
+	const productChange = changes.find(({ model, key }) => model === 'ShopProduct' && key === id)
+	if (productChange && !productChange.existed) {
+		editorOpen.value = false
+		return
+	}
+	if (productChange || changes.some(({ model }) => model === 'ShopMedia')) {
+		const response = await api.product(id)
+		if (!response.success || !editorOpen.value || editing.value !== id) return
+		if (productChange) edit(response.data)
+		else media.value = response.data.media
+	}
+})
 const changePage = (next: number) => {
-	page.value = next
-	void load()
+	if (!loading.value && !busy.value && !uploading.value) void load(next)
 }
 </script>
 <template>
 	<div class="space-y-8">
-		<header>
-			<h2 class="heading-3">Shop</h2>
-			<p class="text-brand-gray-400 mt-2">
-				Manage your collection, categories, and image/video galleries. New products start as drafts.
-			</p>
-			<router-link to="/shop" class="text-brand-blueLight text-sm">View public shop</router-link>
+		<header class="flex flex-wrap items-start justify-between gap-4">
+			<div>
+				<h2 class="heading-3">Shop</h2>
+				<p class="text-brand-gray-400 mt-2">
+					Manage your collection, categories, and image/video galleries. New products start as drafts.
+				</p>
+				<router-link to="/shop" class="text-brand-blueLight text-sm">View public shop</router-link>
+			</div>
+			<button type="button" class="btn btn-primary" :disabled="busy || loading || failed" @click="add">
+				Add product
+			</button>
 		</header>
 		<p v-if="failed" role="alert">
-			Shop data could not be loaded. <button type="button" class="btn btn-outline" @click="load">Retry</button>
+			Shop data could not be loaded.
+			<button type="button" class="btn btn-outline" :disabled="loading" @click="load()">Retry</button>
 		</p>
-		<form class="card p-6 space-y-5" :aria-busy="busy || uploading" @submit.prevent="save">
-			<h3 class="text-lg font-semibold">{{ editing ? 'Edit product' : 'Add product' }}</h3>
-			<fieldset :disabled="busy || uploading || loading || failed" class="space-y-5">
-				<div class="grid sm:grid-cols-2 gap-4">
-					<label class="label"
-						>Product name<input v-model.trim="form.name" required maxlength="160" class="input mt-2"
-					/></label>
-					<label class="label"
-						>Price label (optional)<input
-							v-model.trim="form.priceLabel"
-							maxlength="100"
-							class="input mt-2"
-							placeholder="e.g. ₱500 or Contact for pricing"
-					/></label>
-				</div>
-				<label class="label"
-					>Description<textarea
-						v-model.trim="form.description"
-						required
-						maxlength="10000"
-						rows="4"
-						class="input mt-2"
-					/>
-				</label>
-				<label class="label"
-					>Free download link (optional)
-					<input
-						v-model.trim="form.downloadUrl"
-						maxlength="1500"
-						class="input mt-2"
-						placeholder="https://… or /downloads/ats-friendly-resume-template.zip"
-					/>
-					<span class="block mt-2 text-sm text-brand-gray-400">Add a direct link to a free file or sample.</span>
-				</label>
-				<fieldset class="space-y-2">
-					<legend class="label">Sales &amp; ratings</legend>
-					<p class="text-sm text-brand-gray-400">
-						Use verified totals from your sales channel. Leave the average empty when there are no ratings.
-					</p>
-					<div class="grid sm:grid-cols-3 gap-3">
+		<section aria-labelledby="shop-products-heading" class="space-y-4">
+			<h3 id="shop-products-heading" class="text-lg font-semibold">Products</h3>
+			<DataTable
+				label="Shop products"
+				:rows="products"
+				:columns="columns"
+				:loading="loading"
+				:actions-disabled="busy || failed"
+				:pagination="{ page, hasNext }"
+				:empty="failed ? 'Products are unavailable.' : 'No products on this page.'"
+				@edit="edit"
+				@delete="remove"
+				@page-change="changePage"
+			>
+				<template #cell-name="{ row }">
+					<span class="block min-w-36 font-medium break-words">{{ row.name }}</span>
+				</template>
+			</DataTable>
+		</section>
+		<Modal
+			:open="editorOpen"
+			:title="editing ? 'Edit product' : 'Add product'"
+			:busy="busy || uploading"
+			size="xl"
+			@close="editorOpen = false"
+		>
+			<form @submit.prevent="save">
+				<fieldset :disabled="busy || uploading || loading || failed" class="space-y-5">
+					<div class="grid sm:grid-cols-2 gap-4">
 						<label class="label"
-							>Units sold<input
-								v-model.number="form.soldCount"
-								type="number"
-								min="0"
-								max="1000000000"
-								step="1"
-								required
-								class="input mt-2"
+							>Product name<input v-model.trim="form.name" required maxlength="160" class="input mt-2"
 						/></label>
 						<label class="label"
-							>Rating count<input
-								v-model.number="form.ratingCount"
-								type="number"
-								min="0"
-								max="1000000000"
-								step="1"
-								required
+							>Price label (optional)<input
+								v-model.trim="form.priceLabel"
+								maxlength="100"
 								class="input mt-2"
-						/></label>
-						<label class="label"
-							>Average rating<input
-								v-model.number="form.ratingAverage"
-								type="number"
-								min="0"
-								max="5"
-								step="0.1"
-								:disabled="form.ratingCount === 0"
-								:required="form.ratingCount > 0"
-								class="input mt-2"
+								placeholder="e.g. ₱500 or Contact for pricing"
 						/></label>
 					</div>
-				</fieldset>
-				<fieldset class="space-y-2">
-					<legend class="label">Categories (choose 1–10)</legend>
-					<p v-if="!categories.length" class="text-sm text-brand-gray-400">
-						Create a category below to add your first product.
-					</p>
-					<p class="text-sm text-brand-gray-400">
-						Choose up to 10 subcategories. Selecting one also selects its parent category.
-					</p>
-					<div class="grid sm:grid-cols-2 gap-3">
-						<div
-							v-for="category in categories"
-							:key="category.id"
-							class="border border-white/10 rounded-lg p-3 min-w-0"
-						>
-							<label class="inline-flex items-center gap-2 min-h-11"
-								><input
-									v-model="form.categoryIds"
-									type="checkbox"
-									:value="category.id"
-									:disabled="!form.categoryIds.includes(category.id) && form.categoryIds.length >= 10"
-								/>{{ category.name }}</label
+					<label class="label"
+						>Description<textarea
+							v-model.trim="form.description"
+							required
+							maxlength="10000"
+							rows="4"
+							class="input mt-2"
+						/>
+					</label>
+					<label class="label"
+						>Free download link (optional)
+						<input
+							v-model.trim="form.downloadUrl"
+							maxlength="1500"
+							class="input mt-2"
+							placeholder="https://… or /downloads/ats-friendly-resume-template.zip"
+						/>
+						<span class="block mt-2 text-sm text-brand-gray-400">Add a direct link to a free file or sample.</span>
+					</label>
+					<fieldset class="space-y-2">
+						<legend class="label">Sales &amp; ratings</legend>
+						<p class="text-sm text-brand-gray-400">
+							Use verified totals from your sales channel. Leave the average empty when there are no ratings.
+						</p>
+						<div class="grid sm:grid-cols-3 gap-3">
+							<label class="label"
+								>Units sold<input
+									v-model.number="form.soldCount"
+									type="number"
+									min="0"
+									max="1000000000"
+									step="1"
+									required
+									class="input mt-2"
+							/></label>
+							<label class="label"
+								>Rating count<input
+									v-model.number="form.ratingCount"
+									type="number"
+									min="0"
+									max="1000000000"
+									step="1"
+									required
+									class="input mt-2"
+							/></label>
+							<label class="label"
+								>Average rating<input
+									v-model.number="form.ratingAverage"
+									type="number"
+									min="0"
+									max="5"
+									step="0.1"
+									:disabled="form.ratingCount === 0"
+									:required="form.ratingCount > 0"
+									class="input mt-2"
+							/></label>
+						</div>
+					</fieldset>
+					<fieldset class="space-y-2">
+						<legend class="label">Categories (choose 1–10)</legend>
+						<p v-if="!categories.length" class="text-sm text-brand-gray-400">
+							Create a category in Shop before adding your first product.
+						</p>
+						<p class="text-sm text-brand-gray-400">
+							Choose up to 10 subcategories. Selecting one also selects its parent category.
+						</p>
+						<div class="grid sm:grid-cols-2 gap-3">
+							<div
+								v-for="category in categories"
+								:key="category.id"
+								class="border border-white/10 rounded-lg p-3 min-w-0"
 							>
-							<div v-if="childrenOf(category.id).length" class="pl-5 border-l border-white/10 ml-2 space-y-1">
-								<label
-									v-for="subcategory in childrenOf(category.id)"
-									:key="subcategory.id"
-									class="flex items-center gap-2 min-h-11 break-words"
-								>
-									<input
+								<label class="inline-flex items-center gap-2 min-h-11"
+									><input
+										v-model="form.categoryIds"
 										type="checkbox"
-										:aria-label="`${category.name} → ${subcategory.name}`"
-										:checked="form.subcategoryIds.includes(subcategory.id)"
-										:disabled="
-											!form.subcategoryIds.includes(subcategory.id) &&
-											(form.subcategoryIds.length >= 10 ||
-												(!form.categoryIds.includes(category.id) && form.categoryIds.length >= 10))
-										"
-										@change="selectSubcategory(subcategory, $event)"
-									/>{{ subcategory.name }}
-								</label>
+										:value="category.id"
+										:disabled="!form.categoryIds.includes(category.id) && form.categoryIds.length >= 10"
+									/>{{ category.name }}</label
+								>
+								<div v-if="childrenOf(category.id).length" class="pl-5 border-l border-white/10 ml-2 space-y-1">
+									<label
+										v-for="subcategory in childrenOf(category.id)"
+										:key="subcategory.id"
+										class="flex items-center gap-2 min-h-11 break-words"
+									>
+										<input
+											type="checkbox"
+											:aria-label="`${category.name} → ${subcategory.name}`"
+											:checked="form.subcategoryIds.includes(subcategory.id)"
+											:disabled="
+												!form.subcategoryIds.includes(subcategory.id) &&
+												(form.subcategoryIds.length >= 10 ||
+													(!form.categoryIds.includes(category.id) && form.categoryIds.length >= 10))
+											"
+											@change="selectSubcategory(subcategory, $event)"
+										/>{{ subcategory.name }}
+									</label>
+								</div>
 							</div>
 						</div>
-					</div>
-				</fieldset>
-				<label class="label"
-					>External purchase link (optional)<input
-						v-model.trim="form.purchaseUrl"
-						type="url"
-						maxlength="1500"
-						class="input mt-2"
-						placeholder="https://..."
-				/></label>
-				<div class="flex flex-wrap items-center gap-6">
+					</fieldset>
 					<label class="label"
-						>Display order<input
-							v-model.number="form.sortOrder"
-							type="number"
-							min="0"
-							max="10000"
-							required
-							class="input mt-2 w-28" /></label
-					><label class="inline-flex items-center gap-2 min-h-11"
-						><input v-model="form.published" type="checkbox" />Published</label
-					>
-				</div>
-				<div class="flex flex-wrap gap-3">
-					<button type="submit" class="btn btn-primary">
-						{{ busy ? 'Saving...' : editing ? 'Save product' : 'Create product' }}</button
-					><button v-if="editing" type="button" class="btn btn-ghost" @click="reset">Add another product</button>
-				</div>
-			</fieldset>
-		</form>
-		<section class="card p-6 space-y-5" aria-labelledby="shop-media-heading" :aria-busy="uploading">
-			<h3 id="shop-media-heading" class="text-lg font-semibold">Product media</h3>
-			<p class="text-sm text-brand-gray-400">
-				{{
-					editing
-						? 'Select multiple images or videos at once. The first item by display order is the cover.'
-						: 'Create or edit a product to upload its gallery.'
-				}}
-				Up to 50 files per product; images up to 8 MiB, MP4/WebM up to 32 MiB. Uploads share the existing 256 MiB site
-				budget.
-			</p>
-			<label class="label"
-				>Upload images and videos<input
-					type="file"
-					multiple
-					accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
-					:disabled="!editing || uploading || busy"
-					class="block mt-3 max-w-full"
-					@change="upload"
-			/></label>
-			<p v-if="uploadStatus" role="status" class="text-sm text-brand-blueLight">{{ uploadStatus }}</p>
-			<ul v-if="uploadErrors.length" role="alert" class="text-red-500 text-sm space-y-2">
-				<li v-for="error in uploadErrors" :key="error">{{ error }}</li>
-			</ul>
-			<div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
-				<form v-for="item in media" :key="item.id" class="space-y-3 min-w-0" @submit.prevent="updateMedia(item)">
-					<video
-						v-if="item.mediaType === 'video'"
-						:src="resolveAssetUrl(item.url)"
-						controls
-						playsinline
-						preload="metadata"
-						:aria-label="item.altText || form.name"
-						class="w-full aspect-[4/3] object-contain rounded border border-white/10"
-					/>
-					<img
-						v-else
-						:src="resolveAssetUrl(item.url)"
-						:alt="item.altText"
-						class="w-full aspect-[4/3] object-contain rounded border border-white/10"
-						loading="lazy"
-					/>
-					<fieldset :disabled="busy || uploading" class="space-y-3">
+						>External purchase link (optional)<input
+							v-model.trim="form.purchaseUrl"
+							type="url"
+							maxlength="1500"
+							class="input mt-2"
+							placeholder="https://..."
+					/></label>
+					<div class="flex flex-wrap items-center gap-6">
 						<label class="label"
-							>Media description<input v-model.trim="item.altText" maxlength="500" class="input mt-1" /></label
-						><label class="label"
-							>Media order<input
-								v-model.number="item.sortOrder"
+							>Display order<input
+								v-model.number="form.sortOrder"
 								type="number"
 								min="0"
 								max="10000"
 								required
-								class="input mt-1"
-						/></label>
-						<div class="flex flex-wrap gap-2">
-							<button type="submit" class="btn btn-outline !px-3">Save media</button
-							><button type="button" class="btn btn-danger !px-3" @click="removeMedia(item)">Remove</button>
-						</div>
-					</fieldset>
-				</form>
-			</div>
-		</section>
+								class="input mt-2 w-28" /></label
+						><label class="inline-flex items-center gap-2 min-h-11"
+							><input v-model="form.published" type="checkbox" />Published</label
+						>
+					</div>
+					<div class="flex flex-wrap gap-3">
+						<button type="submit" class="btn btn-primary">
+							{{ busy ? 'Saving...' : editing ? 'Save product' : 'Create product' }}
+						</button>
+					</div>
+				</fieldset>
+			</form>
+			<section
+				v-if="editing"
+				class="mt-6 space-y-5 border-t border-white/10 pt-6"
+				aria-labelledby="shop-media-heading"
+				:aria-busy="uploading"
+			>
+				<h3 id="shop-media-heading" ref="galleryHeading" class="text-lg font-semibold" tabindex="-1">Product media</h3>
+				<p class="text-sm text-brand-gray-400">
+					Select multiple images or videos at once. The first item by display order is the cover. Up to 50 files per
+					product; images up to 8 MiB, MP4/WebM up to 32 MiB. Uploads share the existing 256 MiB site budget.
+				</p>
+				<label class="label"
+					>Upload images and videos<input
+						type="file"
+						multiple
+						accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
+						:disabled="uploading || busy"
+						class="block mt-3 max-w-full"
+						@change="upload"
+				/></label>
+				<p v-if="uploadStatus" role="status" class="text-sm text-brand-blueLight">{{ uploadStatus }}</p>
+				<ul v-if="uploadErrors.length" role="alert" class="text-red-500 text-sm space-y-2">
+					<li v-for="error in uploadErrors" :key="error">{{ error }}</li>
+				</ul>
+				<div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
+					<form v-for="item in media" :key="item.id" class="space-y-3 min-w-0" @submit.prevent="updateMedia(item)">
+						<video
+							v-if="item.mediaType === 'video'"
+							:src="resolveAssetUrl(item.url)"
+							controls
+							playsinline
+							preload="metadata"
+							:aria-label="item.altText || form.name"
+							class="w-full aspect-[4/3] object-contain rounded border border-white/10"
+						/>
+						<img
+							v-else
+							:src="resolveAssetUrl(item.url)"
+							:alt="item.altText"
+							class="w-full aspect-[4/3] object-contain rounded border border-white/10"
+							loading="lazy"
+						/>
+						<fieldset :disabled="busy || uploading" class="space-y-3">
+							<label class="label"
+								>Media description<input v-model.trim="item.altText" maxlength="500" class="input mt-1" /></label
+							><label class="label"
+								>Media order<input
+									v-model.number="item.sortOrder"
+									type="number"
+									min="0"
+									max="10000"
+									required
+									class="input mt-1"
+							/></label>
+							<div class="flex flex-wrap gap-2">
+								<button type="submit" class="btn btn-outline !px-3">Save media</button
+								><button type="button" class="btn btn-danger !px-3" @click="removeMedia(item)">Remove</button>
+							</div>
+						</fieldset>
+					</form>
+				</div>
+			</section>
+		</Modal>
 		<section class="card p-6 space-y-5" aria-labelledby="categories-heading">
 			<h3 id="categories-heading" class="text-lg font-semibold">Categories &amp; subcategories</h3>
 			<p class="text-sm text-brand-gray-400">
@@ -588,56 +660,6 @@ const changePage = (next: number) => {
 					</div>
 				</div>
 			</div>
-		</section>
-		<section aria-labelledby="shop-products-heading" class="space-y-5">
-			<h3 id="shop-products-heading" class="text-lg font-semibold">Products</h3>
-			<p v-if="loading" role="status">Loading products...</p>
-			<p v-else-if="!products.length && !failed" class="text-brand-gray-400">
-				No products yet. Create a category, then add your first product above.
-			</p>
-			<article
-				v-for="product in products"
-				:key="product.id"
-				class="card p-5 flex flex-wrap justify-between items-center gap-4"
-			>
-				<div class="min-w-0">
-					<h4 class="font-semibold break-words">{{ product.name }}</h4>
-					<p class="text-sm text-brand-gray-400">
-						{{ product.published ? 'Published' : 'Draft' }} · {{ shopCategoryLabel(product) }} ·
-						{{ product.media.length }} media
-					</p>
-				</div>
-				<div class="flex gap-3">
-					<button type="button" class="btn btn-outline" :disabled="busy || uploading" @click="edit(product)">
-						Edit</button
-					><button type="button" class="btn btn-danger" :disabled="busy || uploading" @click="remove(product)">
-						Delete
-					</button>
-				</div>
-			</article>
-			<nav
-				v-if="!loading && !failed && (page > 1 || products.length === 80)"
-				class="flex gap-3"
-				aria-label="Product pages"
-			>
-				<button
-					class="btn btn-outline"
-					type="button"
-					:disabled="page === 1 || busy || uploading"
-					@click="changePage(page - 1)"
-				>
-					Previous</button
-				><span class="self-center">Page {{ page }}</span
-				><button
-					v-if="products.length === 80"
-					class="btn btn-outline"
-					type="button"
-					:disabled="busy || uploading"
-					@click="changePage(page + 1)"
-				>
-					Next
-				</button>
-			</nav>
 		</section>
 	</div>
 </template>

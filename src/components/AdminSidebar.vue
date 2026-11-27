@@ -23,7 +23,6 @@ const links = computed(() => [
 	{ to: '/admin/chatbot', label: 'Chatbot AI', icon: 'message' },
 	{ to: '/admin/site-content', label: 'Site Content', icon: 'edit' },
 	...(userStore.user?.role === Role.OWNER ? [{ to: '/admin/users', label: 'Users', icon: 'users' }] : []),
-	{ to: '/admin/profile', label: 'Profile', icon: 'user' },
 ])
 
 const icons: Record<string, string> = {
@@ -41,24 +40,28 @@ const icons: Record<string, string> = {
 	edit: 'M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z',
 	users:
 		'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
-	user: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
 }
 </script>
 
 <template>
 	<aside
-		class="fixed inset-y-0 left-0 z-30 w-64 shrink-0 bg-black/60 backdrop-blur-md border-r border-white/5 transform transition-transform duration-300 md:sticky md:top-0 md:h-dvh md:translate-x-0"
-		:class="open ? 'translate-x-0' : '-translate-x-full'"
+		class="fixed inset-y-0 left-0 z-30 flex w-64 shrink-0 flex-col bg-black/60 backdrop-blur-md border-r border-white/5 transform transition-transform duration-300 motion-reduce:transition-none md:visible md:sticky md:top-0 md:h-dvh md:translate-x-0"
+		:class="open ? 'translate-x-0' : 'invisible -translate-x-full'"
 	>
-		<div class="h-16 flex items-center justify-between px-5 border-b border-white/5">
+		<div class="h-[var(--admin-header-height)] shrink-0 flex items-center justify-between px-5 border-b border-white/5">
 			<router-link
 				to="/"
 				class="flex min-w-0 items-center gap-2 font-display text-lg font-bold text-brand-blueLight"
 				:aria-label="`${logoText} Admin — view site`"
 			>
-				<img v-if="logoUrl" :src="logoUrl" :alt="logoText" class="max-w-[140px] h-8 object-contain" />
+				<img
+					v-if="logoUrl"
+					:src="logoUrl"
+					:alt="logoText"
+					class="h-12 max-w-[140px] object-contain object-left md:h-14 md:max-w-[160px]"
+				/>
 				<span v-else class="truncate">{{ logoText }}</span>
-				<span class="text-xs font-normal text-brand-gray-400">Admin</span>
+				<span class="shrink-0 text-xs font-normal text-brand-gray-400">Admin</span>
 			</router-link>
 			<button class="md:hidden text-brand-gray-400 hover:text-white" aria-label="Close menu" @click="$emit('close')">
 				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -67,13 +70,14 @@ const icons: Record<string, string> = {
 				</svg>
 			</button>
 		</div>
-		<nav class="p-3 space-y-1 overflow-y-auto h-[calc(100vh-8rem)] pb-8">
+		<nav aria-label="Administration" class="min-h-0 flex-1 p-3 space-y-1 overflow-y-auto">
 			<router-link
 				v-for="l in links"
 				:key="l.to"
 				:to="l.to"
 				class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-brand-gray-300 hover:bg-white/5 hover:text-white transition"
 				active-class="bg-brand-blue/15 text-brand-blueLight border border-brand-blue/20"
+				@click="$emit('close')"
 			>
 				<svg
 					width="18"
@@ -90,14 +94,5 @@ const icons: Record<string, string> = {
 				{{ l.label }}
 			</router-link>
 		</nav>
-
-		<div class="absolute bottom-0 inset-x-0 p-4 border-t border-white/5">
-			<button class="btn btn-ghost w-full justify-start text-sm" @click="userStore.logout()">
-				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-					<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
-				</svg>
-				Sign out
-			</button>
-		</div>
 	</aside>
 </template>

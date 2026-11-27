@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onContentUndo } from '@/composables/useContentUndo'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DataTable, { type DataTableColumn } from '@/components/DataTable.vue'
 import FormField from '@/components/FormField.vue'
@@ -72,6 +73,7 @@ const load = async () => {
 }
 
 onMounted(load)
+onContentUndo(['Certification'], load)
 
 const columns: DataTableColumn<Certification>[] = [
 	{ key: 'title', label: 'Certification' },
@@ -204,6 +206,8 @@ const doDelete = async () => {
 		</div>
 
 		<DataTable
+			:key="search"
+			label="Certifications"
 			:columns="columns"
 			:rows="filtered"
 			:loading="loading"
