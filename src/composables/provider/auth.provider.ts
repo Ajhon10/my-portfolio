@@ -1,20 +1,21 @@
-import type { AuthLoginResponse, User } from '@/types'
+import type { AuthLoginResponse, PasswordChangeChallenge, User } from '@/types'
 import { useApiProvider } from './api.provider'
 
 export const useAuthProvider = () => {
 	const api = useApiProvider()
 	const recoveryOptions = () => api.GET<{ emailEnabled: boolean }>('/auth/password-recovery', {}, { silent: true })
 	const forgotPassword = (email: string) => api.POST('/auth/forgot-password', { email }, {}, { silent: true })
+	// Replacement verifies the old hash and derives the new one before saving.
 	const resetPassword = (token: string, newPassword: string) =>
-		api.POST('/auth/reset-password', { token, newPassword }, {}, { silent: true })
+		api.POST('/auth/reset-password', { token, newPassword }, {}, { silent: true, timeout: 90_000 })
 	const enable2FA = async () => api.POST('/auth/2fa/enable')
 
 	const login = async (data: { email: string; password: string; totpToken?: string }) => {
-		return await api.POST<any>('/auth/login', data, {}, { silent: true })
+		return await api.POST<AuthLoginResponse>('/auth/login', data, {}, { silent: true })
 	}
 
 	const verify2FA = async (data: { token: string; setupToken?: string }) => {
-		return await api.POST<{ message: string }>('/auth/2fa/verify', data, {}, { silent: true })
+		return await api.POST<Partial<PasswordChangeChallenge>>('/auth/2fa/verify', data, {}, { silent: true })
 	}
 
 	const disable2FA = async (token: string) => {

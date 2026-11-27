@@ -1,6 +1,7 @@
+import { fixtureAuthenticator } from './fixture-authenticator.mjs'
 import assert from 'node:assert/strict'
 import { readFile, readdir, mkdir } from 'node:fs/promises'
-import { randomUUID, pbkdf2Sync, randomBytes, createHmac, createHash } from 'node:crypto'
+import { randomUUID, pbkdf2Sync, randomBytes, createHash } from 'node:crypto'
 import { build } from 'esbuild'
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare'
 import { seedSql } from './seed.mjs'
@@ -751,42 +752,10 @@ try {
 		.prepare('SELECT encrypted_secret FROM auth_challenges WHERE user_id=? ORDER BY expires_at DESC LIMIT 1')
 		.bind(users.ADMIN.id)
 		.first()
-	const [, iv, ciphertext] = challenge.encrypted_secret.split('.')
-	const key = await crypto.subtle.importKey(
-		'raw',
-		await crypto.subtle.digest(
-			'SHA-256',
-			new TextEncoder().encode('test-only-secret-with-at-least-48-characters-never-deploy'),
-		),
-		'AES-GCM',
-		false,
-		['decrypt'],
+	const code = await fixtureAuthenticator(
+		challenge.encrypted_secret,
+		'test-only-secret-with-at-least-48-characters-never-deploy',
 	)
-	const secret = new TextDecoder().decode(
-		await crypto.subtle.decrypt(
-			{ name: 'AES-GCM', iv: Buffer.from(iv, 'base64url') },
-			key,
-			Buffer.from(ciphertext, 'base64url'),
-		),
-	)
-	function code(step) {
-		let bits = 0,
-			value = 0
-		const bytes = []
-		for (const ch of secret) {
-			value = (value << 5) | 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'.indexOf(ch)
-			bits += 5
-			if (bits >= 8) {
-				bits -= 8
-				bytes.push((value >>> bits) & 255)
-			}
-		}
-		const counter = Buffer.alloc(8)
-		counter.writeBigUInt64BE(BigInt(step))
-		const hmac = createHmac('sha1', Buffer.from(bytes)).update(counter).digest(),
-			offset = hmac[19] & 15
-		return String((hmac.readUInt32BE(offset) & 0x7fffffff) % 1000000).padStart(6, '0')
-	}
 	const step = Math.floor(Date.now() / 30000),
 		setupToken = setup.body.setupData.setupToken
 	status(await api('/auth/2fa/verify', { method: 'POST', data: { setupToken, token: code(step) } }), 200)

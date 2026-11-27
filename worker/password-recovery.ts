@@ -13,13 +13,26 @@ export async function passwordChallenge(
 	userId: string,
 	passwordHash: string,
 	purpose: 'email' | 'temporary',
+	enrollmentSecret?: string,
 ) {
 	const token = randomToken(),
 		tokenHash = await sha256(token),
 		expiresAt = new Date(Date.now() + 15 * 60000).toISOString()
+	const enrollmentGuard = enrollmentSecret
+		? ' WHERE EXISTS(SELECT 1 FROM "user" WHERE id=? AND two_factor_secret=?)'
+		: ''
 	const statement = env.DB.prepare(
-		'INSERT INTO password_reset_challenges(token_hash,user_id,credential_fingerprint,purpose,created_at,expires_at) VALUES(?,?,?,?,?,?)',
-	).bind(tokenHash, userId, await sha256(passwordHash), purpose, now(), expiresAt)
+		'INSERT INTO password_reset_challenges(token_hash,user_id,credential_fingerprint,purpose,created_at,expires_at) SELECT ?,?,?,?,?,?' +
+			enrollmentGuard,
+	).bind(
+		tokenHash,
+		userId,
+		await sha256(passwordHash),
+		purpose,
+		now(),
+		expiresAt,
+		...(enrollmentSecret ? [userId, enrollmentSecret] : []),
+	)
 	return { token, statement, expiresAt }
 }
 

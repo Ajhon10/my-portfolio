@@ -280,7 +280,7 @@ authRoutes.post('/2fa/verify', async (c) => {
 	await rateLimit(c.env, '2fa', c.req.header('CF-Connecting-IP') || 'local', 30)
 	const challengeHash = await sha256(input.setupToken)
 	const challenge = await c.env.DB.prepare(
-		'SELECT x.*,a.password,u.two_factor_enabled,u.deleted AS user_deleted,a.deleted AS auth_deleted FROM auth_challenges x JOIN "user" u ON u.id=x.user_id JOIN auth a ON a.id=u.auth_id WHERE x.token_hash=?',
+		'SELECT x.*,a.password,a.password_reset_required,u.two_factor_enabled,u.deleted AS user_deleted,a.deleted AS auth_deleted FROM auth_challenges x JOIN "user" u ON u.id=x.user_id JOIN auth a ON a.id=u.auth_id WHERE x.token_hash=?',
 	)
 		.bind(challengeHash)
 		.first<Row>()
@@ -309,13 +309,22 @@ authRoutes.post('/2fa/verify', async (c) => {
 		.bind(now(), challengeHash, now(), challenge.password)
 		.first()
 	if (!claimed) throw new ApiError(403, 'Setup token has already been used.')
+	const reset = challenge.password_reset_required
+		? await passwordChallenge(c.env, challenge.user_id, challenge.password, 'temporary', challenge.encrypted_secret)
+		: undefined
 	const [saved] = await c.env.DB.batch([
 		c.env.DB.prepare(
-			'UPDATE "user" SET two_factor_secret=?,two_factor_enabled=1,last_totp_step=? WHERE id=? AND EXISTS(SELECT 1 FROM auth a WHERE a.id="user".auth_id AND a.password=?)',
+			'UPDATE "user" SET two_factor_secret=?,last_totp_step=? WHERE id=? AND two_factor_enabled=1 AND two_factor_secret IS NULL AND EXISTS(SELECT 1 FROM auth a WHERE a.id="user".auth_id AND a.password=?)',
 		).bind(challenge.encrypted_secret, step, challenge.user_id, challenge.password),
-		c.env.DB.prepare('DELETE FROM sessions WHERE user_id=?').bind(challenge.user_id),
+		c.env.DB.prepare(
+			'DELETE FROM sessions WHERE user_id=? AND EXISTS(SELECT 1 FROM "user" WHERE id=? AND two_factor_secret=?)',
+		).bind(challenge.user_id, challenge.user_id, challenge.encrypted_secret),
+		...(reset ? [reset.statement] : []),
 	])
 	if (!saved.meta.changes) throw new ApiError(403, 'Credentials changed. Sign in and restart authenticator setup.')
+	if (reset) {
+		return ok(c, { requiresPasswordChange: true, changeToken: reset.token }, 'Choose a new password to continue.')
+	}
 	return ok(c, undefined, 'Two-factor authentication enabled successfully.')
 })
 authRoutes.get('/2fa/status', (c) => ok(c, { enabled: requireUser(c).twoFactorEnabled }))

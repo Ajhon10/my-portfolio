@@ -40,10 +40,15 @@ export interface User {
 	email?: string
 }
 
-export interface AuthLoginResponse {
-	accessToken: string
-	user: User
+export interface PasswordChangeChallenge {
+	requiresPasswordChange: true
+	changeToken: string
 }
+
+export type AuthLoginResponse =
+	| { accessToken: string; user: User }
+	| { requiresInitialTwoFactorSetup: true; setupData: { qrCode: string; setupToken: string } }
+	| PasswordChangeChallenge
 
 export interface TechStack {
 	id: string

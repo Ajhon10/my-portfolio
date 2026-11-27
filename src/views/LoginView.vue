@@ -15,107 +15,89 @@ const form = reactive({ email: '', password: '' })
 const submitting = ref(false)
 const showPassword = ref(false)
 const errorMsg = ref('')
-const changeToken = ref('')
+type Screen =
+	| { step: 'credentials' | 'verify' }
+	| { step: 'setup'; setupData: { qrCode: string; setupToken: string } }
+	| { step: 'password'; token: string }
+const screen = ref<Screen>({ step: 'credentials' })
 const passwordChanged = ref(false)
-function finishPasswordChange() {
-	changeToken.value = ''
-	passwordChanged.value = true
-	form.password = ''
-	show2FAVerify.value = false
-}
-
-// 2FA state
-const show2FASetup = ref(false)
-const show2FAVerify = ref(false)
-const setupData = ref<{ qrCode: string; setupToken: string } | null>(null)
-const verifyLoading = ref(false)
-const verifyError = ref('')
 const verifyCode = ref('')
 const verifyInput = ref<HTMLInputElement>()
 
+function backToCredentials() {
+	screen.value = { step: 'credentials' }
+	verifyCode.value = ''
+	errorMsg.value = ''
+}
+
+function choosePassword(token: string) {
+	form.password = ''
+	verifyCode.value = ''
+	screen.value = { step: 'password', token }
+	nextTick(() => document.getElementById('reset-password')?.focus())
+}
+
+function finishPasswordChange() {
+	backToCredentials()
+	passwordChanged.value = true
+	nextTick(() => document.getElementById('login-password')?.focus())
+}
+
 const submit = async () => {
+	if (submitting.value) return
+	const verifying = screen.value.step === 'verify'
+	if (verifying && !/^\d{6}$/.test(verifyCode.value)) {
+		errorMsg.value = 'Enter the 6-digit code from your authenticator app.'
+		return
+	}
 	if (!form.email || !form.password) {
 		errorMsg.value = 'Please enter your email and password.'
 		return
 	}
 	submitting.value = true
 	errorMsg.value = ''
-
-	const res = await userStore.login(form.email, form.password)
+	passwordChanged.value = false
+	const result = await userStore.login(form.email, form.password, verifying ? verifyCode.value : undefined)
 	submitting.value = false
-	if (res.requiresPasswordChange && res.changeToken) {
-		changeToken.value = res.changeToken
-		return
-	}
-
-	if (res.requiresInitialTwoFactorSetup && res.setupData) {
-		setupData.value = res.setupData
-		show2FASetup.value = true
-		return
-	}
-
-	if (res.requires2FA) {
-		show2FAVerify.value = true
-		verifyCode.value = ''
-		verifyError.value = ''
-		await nextTick()
-		verifyInput.value?.focus()
-		return
-	}
-
-	if (res.success) {
-		toast.success('Welcome back!')
-		const defaultPath = userStore.user?.role === Role.CLIENT ? '/client/portal' : '/admin/dashboard'
-		const redirect = (route.query.redirect as string) || defaultPath
-		router.push(redirect)
-	} else {
-		errorMsg.value = res.message || 'Login failed'
+	switch (result.step) {
+		case 'password':
+			choosePassword(result.token)
+			break
+		case 'setup':
+			screen.value = result
+			break
+		case 'verify':
+			screen.value = result
+			verifyCode.value = ''
+			await nextTick()
+			verifyInput.value?.focus()
+			break
+		case 'authenticated': {
+			toast.success('Welcome back!')
+			const defaultPath = userStore.user?.role === Role.CLIENT ? '/client/portal' : '/admin/dashboard'
+			router.push((route.query.redirect as string) || defaultPath)
+			break
+		}
+		case 'error':
+			errorMsg.value = result.message
+			if (verifying) {
+				verifyCode.value = ''
+				await nextTick()
+				verifyInput.value?.focus()
+			}
 	}
 }
 
-const on2FASetupSuccess = () => {
-	show2FASetup.value = false
-	toast.success('Two-factor authentication enabled! Please sign in.')
-	// Force fresh login with 2FA now active
-}
-
-const on2FAVerify = async () => {
-	if (!/^\d{6}$/.test(verifyCode.value)) {
-		verifyError.value = 'Enter the 6-digit code from your authenticator app.'
-		return
-	}
-	verifyLoading.value = true
-	verifyError.value = ''
-	const res = await userStore.login(form.email, form.password, verifyCode.value)
-	verifyLoading.value = false
-	if (res.requiresPasswordChange && res.changeToken) {
-		changeToken.value = res.changeToken
-		show2FAVerify.value = false
-		return
-	}
-
-	if (res.success) {
-		show2FAVerify.value = false
-		toast.success('Welcome back!')
-		const defaultPath = userStore.user?.role === Role.CLIENT ? '/client/portal' : '/admin/dashboard'
-		const redirect = (route.query.redirect as string) || defaultPath
-		router.push(redirect)
-	} else {
-		verifyError.value = res.message || 'Invalid code.'
-		verifyCode.value = ''
-		await nextTick()
-		verifyInput.value?.focus()
+function on2FASetupSuccess(token?: string) {
+	if (token) choosePassword(token)
+	else {
+		backToCredentials()
+		toast.success('Two-factor authentication enabled. Sign in with a fresh authenticator code.')
 	}
 }
 
 const normalizeVerifyCode = () => {
 	verifyCode.value = verifyCode.value.replace(/\D/g, '').slice(0, 6)
-}
-
-const backToCredentials = async () => {
-	show2FAVerify.value = false
-	verifyCode.value = ''
-	verifyError.value = ''
 }
 </script>
 
@@ -128,7 +110,7 @@ const backToCredentials = async () => {
 
 		<div class="relative w-full max-w-md card p-8 backdrop-blur-md">
 			<router-link
-				v-if="!show2FAVerify"
+				v-if="screen.step !== 'verify'"
 				to="/"
 				class="inline-flex items-center gap-1.5 text-sm text-brand-gray-400 hover:text-brand-blueLight mb-6"
 			>
@@ -139,15 +121,15 @@ const backToCredentials = async () => {
 				Back to site
 			</router-link>
 
-			<div v-if="changeToken">
+			<div v-if="screen.step === 'password'">
 				<h1 class="font-display text-3xl font-bold mb-3">Choose your password</h1>
 				<p class="text-sm text-brand-gray-400 mb-6">
 					Your temporary password must be replaced before you can access your account.
 				</p>
-				<PasswordResetForm :token="changeToken" @done="finishPasswordChange" />
-				<button type="button" class="btn btn-ghost mt-3" @click="changeToken = ''">Back to sign in</button>
+				<PasswordResetForm :token="screen.token" @done="finishPasswordChange" />
+				<button type="button" class="btn btn-ghost mt-3" @click="backToCredentials">Back to sign in</button>
 			</div>
-			<div v-else-if="!show2FAVerify">
+			<div v-else-if="screen.step !== 'verify'">
 				<h1 class="font-display text-3xl font-bold mb-1">Welcome back</h1>
 				<p class="text-sm text-brand-gray-400 mb-8">Sign in to your portfolio admin.</p>
 				<p v-if="passwordChanged" role="status" class="text-sm text-brand-blueLight mb-4">
@@ -209,6 +191,7 @@ const backToCredentials = async () => {
 				<button
 					type="button"
 					class="inline-flex items-center gap-1.5 text-sm text-brand-gray-400 hover:text-brand-blueLight mb-6"
+					:disabled="submitting"
 					@click="backToCredentials"
 				>
 					<svg
@@ -242,22 +225,22 @@ const backToCredentials = async () => {
 						</svg>
 					</div>
 					<div>
-						<div class="font-mono text-[10px] uppercase tracking-widest text-brand-blueLight">Step 2 of 2</div>
+						<div class="font-mono text-[10px] uppercase tracking-widest text-brand-blueLight">Sign-in verification</div>
 						<h1 class="font-display text-2xl font-bold">Two-factor authentication</h1>
 					</div>
 				</div>
 				<p class="text-sm text-brand-gray-400 mb-6">Enter the 6-digit code from your authenticator app to continue.</p>
 
 				<div
-					v-if="verifyError"
+					v-if="errorMsg"
 					id="two-factor-error"
 					class="mb-4 rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-2 text-sm text-red-400"
 					role="alert"
 				>
-					{{ verifyError }}
+					{{ errorMsg }}
 				</div>
 
-				<form class="space-y-4" @submit.prevent="on2FAVerify">
+				<form class="space-y-4" @submit.prevent="submit">
 					<div>
 						<label for="two-factor-code" class="label">Authentication code</label>
 						<input
@@ -271,14 +254,14 @@ const backToCredentials = async () => {
 							placeholder="000000"
 							class="input text-center text-2xl tracking-[0.5em] font-mono"
 							autocomplete="one-time-code"
-							:aria-invalid="!!verifyError"
-							:aria-describedby="verifyError ? 'two-factor-error' : undefined"
-							:disabled="verifyLoading"
+							:aria-invalid="!!errorMsg"
+							:aria-describedby="errorMsg ? 'two-factor-error' : undefined"
+							:disabled="submitting"
 							@input="normalizeVerifyCode"
 						/>
 					</div>
-					<button type="submit" class="btn btn-primary w-full" :disabled="verifyLoading || verifyCode.length !== 6">
-						<span v-if="verifyLoading">Verifying&hellip;</span>
+					<button type="submit" class="btn btn-primary w-full" :disabled="submitting || verifyCode.length !== 6">
+						<span v-if="submitting">Verifying&hellip;</span>
 						<span v-else>Verify and continue</span>
 					</button>
 				</form>
@@ -288,11 +271,11 @@ const backToCredentials = async () => {
 
 	<!-- 2FA Setup Modal (first-time setup) -->
 	<TwoFactorSetupModal
-		v-if="setupData"
-		:open="show2FASetup"
-		:qr-code="setupData.qrCode"
-		:setup-token="setupData.setupToken"
+		v-if="screen.step === 'setup'"
+		open
+		:qr-code="screen.setupData.qrCode"
+		:setup-token="screen.setupData.setupToken"
 		@success="on2FASetupSuccess"
-		@close="show2FASetup = false"
+		@close="backToCredentials"
 	/>
 </template>

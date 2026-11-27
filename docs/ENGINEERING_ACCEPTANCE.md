@@ -1027,3 +1027,29 @@ No database migration, account reset, credential change or external email is
 part of this update. Release verification belongs in the local
 `.test-artifacts/admin-figurine-release.json` receipt after push/deployment;
 structural/browser checks do not establish premium likeness or workload capacity.
+
+## Chibi figurine and temporary-password handoff
+
+The bundled 2.88 MiB GLB and editable Blender scene use a rounded head, swept
+hair, textured brown eyes and the portrait's white-and-red polo. The 48-joint
+rig retains Idle and all five gestures. Wave, Salute and Celebrate were posed
+around the wider head. Studio views and gesture renders are in
+`.test-artifacts/figurine/`.
+
+First-time authenticator enrollment can now issue a credential-bound password
+replacement challenge in the same D1 batch that saves enrollment. A returning
+user with a temporary password reaches the same two password fields after
+providing a fresh code. The login screen focuses the new-password field, and
+a session requires a subsequent sign-in with the replacement password.
+
+Local verification includes 65 Node tests, 220 Worker integration checks,
+TypeScript checks, the production build and the Wrangler deployment dry run.
+Chrome verified the two password fields after enrollment and after an enrolled
+sign-in, then completed password replacement and signed in again. The fixture
+runs against a disposable D1 database with a separate Wrangler configuration
+and authenticator key. The full Chrome run recorded zero browser errors and
+zero API failures in
+`.test-artifacts/browser-82895c31-baa7-467f-bcdb-761e4b095746/report.json`.
+The production client also completed a password save with a 32-second fixture
+response, exercising the increased 90-second timeout for that operation.
+The change still awaits production release.
