@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { ApiError, admin, body, idSchema, isAdmin, ok, text, urlSchema } from './http'
-import { decode, insert, list, need, placeholders, softDelete, update } from './db'
+import { ApiError, admin, body, idSchema, isAdmin, now, ok, text, urlSchema } from './http'
+import { decode, insert, list, need, placeholders, update } from './db'
+import { commitContentChange, contentSaved, type ContentModel } from './content-undo'
 import { projectMediaType } from '../shared/project-media'
 import type { AppEnv, Row } from './types'
 
@@ -36,6 +37,8 @@ const productSchema = z
 const categorySchema = z.object({ name: text(1, 100), sortOrder: order })
 const subcategorySchema = categorySchema.extend({ categoryId: idSchema })
 export const shopRoutes = new Hono<AppEnv>()
+const commit = (c: import('hono').Context<AppEnv>, model: ContentModel, id: string, writes: D1PreparedStatement[]) =>
+	commitContentChange(c.env.DB, admin(c).id, [{ model, keys: [id] }], writes)
 
 async function enrich(db: D1Database, products: Row[]) {
 	if (!products.length) return []
@@ -83,53 +86,63 @@ shopRoutes.get('/subcategories', async (c) => {
 shopRoutes.post('/subcategories', async (c) => {
 	admin(c)
 	const item = insert(c.env.DB, 'ShopSubcategory', await body(c, subcategorySchema))
-	await item.statement.run()
-	return ok(c, item.row, 'Subcategory added', 201)
+	const { undoId } = await commit(c, 'ShopSubcategory', item.row.id, [item.statement])
+	return contentSaved(c, undoId, item.row, 'Subcategory added', 201)
 })
 shopRoutes.put('/subcategories/:id', async (c) => {
 	admin(c)
 	const id = idSchema.parse(c.req.param('id'))
 	await need(c.env.DB, 'ShopSubcategory', id)
-	await update(c.env.DB, 'ShopSubcategory', id, await body(c, categorySchema.strict())).run()
-	return ok(c, undefined, 'Subcategory updated')
+	const { undoId } = await commit(c, 'ShopSubcategory', id, [
+		update(c.env.DB, 'ShopSubcategory', id, await body(c, categorySchema.strict())),
+	])
+	return contentSaved(c, undoId, undefined, 'Subcategory updated')
 })
 shopRoutes.delete('/subcategories/:id', async (c) => {
 	admin(c)
 	const id = idSchema.parse(c.req.param('id'))
 	await need(c.env.DB, 'ShopSubcategory', id)
-	const result = await c.env.DB.prepare(
-		"UPDATE shop_subcategory SET deleted=1,deleted_at=datetime('now'),updated_at=datetime('now') WHERE id=? AND NOT EXISTS(SELECT 1 FROM shop_product_subcategory ps JOIN shop_product p ON p.id=ps.product_id WHERE ps.subcategory_id=? AND p.deleted=0)",
-	)
-		.bind(id, id)
-		.run()
+	const {
+		undoId,
+		results: [result],
+	} = await commit(c, 'ShopSubcategory', id, [
+		c.env.DB.prepare(
+			"UPDATE shop_subcategory SET deleted=1,deleted_at=datetime('now'),updated_at=datetime('now') WHERE id=? AND NOT EXISTS(SELECT 1 FROM shop_product_subcategory ps JOIN shop_product p ON p.id=ps.product_id WHERE ps.subcategory_id=? AND p.deleted=0)",
+		).bind(id, id),
+	])
 	if (!result.meta.changes) throw new ApiError(409, 'Remove this subcategory from its products first.')
-	return ok(c, undefined, 'Subcategory removed')
+	return contentSaved(c, undoId, undefined, 'Subcategory removed')
 })
 shopRoutes.post('/categories', async (c) => {
 	admin(c)
 	const item = insert(c.env.DB, 'ShopCategory', await body(c, categorySchema))
-	await item.statement.run()
-	return ok(c, item.row, 'Category added', 201)
+	const { undoId } = await commit(c, 'ShopCategory', item.row.id, [item.statement])
+	return contentSaved(c, undoId, item.row, 'Category added', 201)
 })
 shopRoutes.put('/categories/:id', async (c) => {
 	admin(c)
 	const id = idSchema.parse(c.req.param('id'))
 	await need(c.env.DB, 'ShopCategory', id)
-	await update(c.env.DB, 'ShopCategory', id, await body(c, categorySchema)).run()
-	return ok(c, undefined, 'Category updated')
+	const { undoId } = await commit(c, 'ShopCategory', id, [
+		update(c.env.DB, 'ShopCategory', id, await body(c, categorySchema)),
+	])
+	return contentSaved(c, undoId, undefined, 'Category updated')
 })
 shopRoutes.delete('/categories/:id', async (c) => {
 	admin(c)
 	const id = idSchema.parse(c.req.param('id'))
 	await need(c.env.DB, 'ShopCategory', id)
-	const result = await c.env.DB.prepare(
-		"UPDATE shop_category SET deleted=1,deleted_at=datetime('now'),updated_at=datetime('now') WHERE id=? AND NOT EXISTS(SELECT 1 FROM shop_product_category pc JOIN shop_product p ON p.id=pc.product_id WHERE pc.category_id=? AND p.deleted=0) AND NOT EXISTS(SELECT 1 FROM shop_subcategory WHERE category_id=? AND deleted=0)",
-	)
-		.bind(id, id, id)
-		.run()
+	const {
+		undoId,
+		results: [result],
+	} = await commit(c, 'ShopCategory', id, [
+		c.env.DB.prepare(
+			"UPDATE shop_category SET deleted=1,deleted_at=datetime('now'),updated_at=datetime('now') WHERE id=? AND NOT EXISTS(SELECT 1 FROM shop_product_category pc JOIN shop_product p ON p.id=pc.product_id WHERE pc.category_id=? AND p.deleted=0) AND NOT EXISTS(SELECT 1 FROM shop_subcategory WHERE category_id=? AND deleted=0)",
+		).bind(id, id, id),
+	])
 	if (!result.meta.changes)
 		throw new ApiError(409, 'Remove this category from its products and delete its subcategories first.')
-	return ok(c, undefined, 'Category removed')
+	return contentSaved(c, undoId, undefined, 'Category removed')
 })
 async function productPage(c: import('hono').Context<AppEnv>, privileged = false) {
 	if (privileged) admin(c)
@@ -144,21 +157,35 @@ async function productPage(c: import('hono').Context<AppEnv>, privileged = false
 		.toLowerCase()
 	const category = c.req.query('category') ? idSchema.parse(c.req.query('category')) : ''
 	const subcategory = c.req.query('subcategory') ? idSchema.parse(c.req.query('subcategory')) : ''
+	const requestedSize = privileged ? c.req.query('pageSize') : undefined
+	const pageSize = requestedSize === undefined ? 80 : z.coerce.number().int().min(1).max(80).parse(requestedSize)
 	const result = await c.env.DB.prepare(
 		`SELECT p.* FROM shop_product p WHERE p.deleted=0 ${privileged ? '' : 'AND p.published=1'}
 		AND (?='' OR instr(lower(p.name || ' ' || p.description),?)>0 OR EXISTS(SELECT 1 FROM shop_product_category pc JOIN shop_category c ON c.id=pc.category_id WHERE pc.product_id=p.id AND c.deleted=0 AND instr(lower(c.name),?)>0) OR EXISTS(SELECT 1 FROM shop_product_subcategory ps JOIN shop_subcategory s ON s.id=ps.subcategory_id WHERE ps.product_id=p.id AND s.deleted=0 AND instr(lower(s.name),?)>0))
 		AND (?='' OR EXISTS(SELECT 1 FROM shop_product_category pc WHERE pc.product_id=p.id AND pc.category_id=?))
 		AND (?='' OR EXISTS(SELECT 1 FROM shop_product_subcategory ps WHERE ps.product_id=p.id AND ps.subcategory_id=?))
-		ORDER BY p.sort_order,p.id LIMIT 80 OFFSET ?`,
+		ORDER BY p.sort_order,p.id LIMIT ? OFFSET ?`,
 	)
-		.bind(search, search, search, search, category, category, subcategory, subcategory, (page - 1) * 80)
+		.bind(
+			search,
+			search,
+			search,
+			search,
+			category,
+			category,
+			subcategory,
+			subcategory,
+			pageSize + (requestedSize === undefined ? 0 : 1),
+			(page - 1) * pageSize,
+		)
 		.all<Row>()
+	const products = await enrich(
+		c.env.DB,
+		result.results.slice(0, pageSize).map((row) => decode('ShopProduct', row)!),
+	)
 	return ok(
 		c,
-		await enrich(
-			c.env.DB,
-			result.results.map((row) => decode('ShopProduct', row)!),
-		),
+		requestedSize === undefined ? products : { products, hasNext: page < 10000 && result.results.length > pageSize },
 	)
 }
 shopRoutes.get('/products/admin', (c) => productPage(c, true))
@@ -174,7 +201,7 @@ async function save(c: import('hono').Context<AppEnv>, id?: string) {
 	const { categoryIds, subcategoryIds, ...input } = await body(c, productSchema)
 	const created = id ? undefined : insert(c.env.DB, 'ShopProduct', input)
 	const productId = id || created!.row.id
-	await c.env.DB.batch([
+	const { undoId } = await commit(c, 'ShopProduct', productId, [
 		id ? update(c.env.DB, 'ShopProduct', id, input) : created!.statement,
 		c.env.DB.prepare('DELETE FROM shop_product_subcategory WHERE product_id=?').bind(productId),
 		c.env.DB.prepare('DELETE FROM shop_product_category WHERE product_id=?').bind(productId),
@@ -191,8 +218,9 @@ async function save(c: import('hono').Context<AppEnv>, id?: string) {
 			),
 		),
 	])
-	return ok(
+	return contentSaved(
 		c,
+		undoId,
 		(await enrich(c.env.DB, [await need(c.env.DB, 'ShopProduct', productId)]))[0],
 		'Product saved',
 		id ? 200 : 201,
@@ -202,25 +230,30 @@ shopRoutes.post('/products', (c) => save(c))
 shopRoutes.put('/products/:id', (c) => save(c, idSchema.parse(c.req.param('id'))))
 shopRoutes.delete('/products/:id', async (c) => {
 	admin(c)
-	await softDelete(c.env.DB, 'ShopProduct', idSchema.parse(c.req.param('id')))
-	return ok(c, undefined, 'Product removed')
+	const id = idSchema.parse(c.req.param('id'))
+	await need(c.env.DB, 'ShopProduct', id)
+	const { undoId } = await commit(c, 'ShopProduct', id, [
+		update(c.env.DB, 'ShopProduct', id, { deleted: true, deletedAt: now() }),
+	])
+	return contentSaved(c, undoId, undefined, 'Product removed')
 })
 shopRoutes.put('/media/:id', async (c) => {
 	admin(c)
 	const id = idSchema.parse(c.req.param('id'))
 	await need(c.env.DB, 'ShopMedia', id)
-	await update(
-		c.env.DB,
-		'ShopMedia',
-		id,
-		await body(c, z.object({ altText: z.string().trim().max(500).optional(), sortOrder: order.optional() })),
-	).run()
-	return ok(c, undefined, 'Media updated')
+	const { undoId } = await commit(c, 'ShopMedia', id, [
+		update(
+			c.env.DB,
+			'ShopMedia',
+			id,
+			await body(c, z.object({ altText: z.string().trim().max(500).optional(), sortOrder: order.optional() })),
+		),
+	])
+	return contentSaved(c, undoId, undefined, 'Media updated')
 })
 shopRoutes.delete('/media/:id', async (c) => {
 	admin(c)
-	await c.env.DB.prepare('DELETE FROM shop_media WHERE id=?')
-		.bind(idSchema.parse(c.req.param('id')))
-		.run()
-	return ok(c, undefined, 'Gallery item removed')
+	const id = idSchema.parse(c.req.param('id'))
+	const { undoId } = await commit(c, 'ShopMedia', id, [c.env.DB.prepare('DELETE FROM shop_media WHERE id=?').bind(id)])
+	return contentSaved(c, undoId, undefined, 'Gallery item removed')
 })

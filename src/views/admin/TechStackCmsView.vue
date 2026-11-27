@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onContentUndo } from '@/composables/useContentUndo'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DataTable, { type DataTableColumn } from '@/components/DataTable.vue'
 import FormField from '@/components/FormField.vue'
@@ -66,6 +67,7 @@ const load = async () => {
 }
 
 onMounted(load)
+onContentUndo(['TechStack'], load)
 
 const columns: DataTableColumn<TechStack>[] = [
 	{ key: 'iconUrl', label: 'Icon', render: (r) => r.iconUrl ? '🖼' : '—' },
@@ -150,6 +152,7 @@ const takenSortOrders = computed(() =>
 		</div>
 
 		<DataTable
+			label="Tech stack"
 			:columns="columns"
 			:rows="items"
 			:loading="loading"

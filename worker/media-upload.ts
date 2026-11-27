@@ -1,6 +1,7 @@
 import { sha256 } from '@noble/hashes/sha2.js'
 import { ApiError, idSchema, now } from './http'
 import { insert, need } from './db'
+import { commitContentChange } from './content-undo'
 import type { Env, Row } from './types'
 import { MAX_PROJECT_IMAGE_BYTES, MAX_PROJECT_VIDEO_BYTES, MAX_PROJECT_MEDIA } from '../shared/project-media'
 
@@ -171,12 +172,19 @@ export async function storeUpload(request: Request, env: Env): Promise<Response>
 			media = { ...item.row, mediaType: video ? 'video' : 'image' }
 		}
 		// Metadata, all chunks and the gallery reference commit or roll back together.
-		await env.DB.batch(statements)
+		let undoId: string | undefined
+		if (media) {
+			const model = projectId ? 'ProjectImage' : 'ShopMedia'
+			;({ undoId } = await commitContentChange(env.DB, userId, [{ model, keys: [media.id] }], statements))
+		} else {
+			await env.DB.batch(statements)
+		}
 		return Response.json(
 			{
 				success: true,
 				message: projectId || productId ? 'Gallery media added' : 'File uploaded',
 				data: media || { url: fileUrl },
+				...(undoId ? { undoId } : {}),
 			},
 			{ status: 201 },
 		)

@@ -34,7 +34,7 @@ onMounted(() => {
 </script>
 
 <template>
-	<div class="min-h-screen bg-brand-gray-950 text-white flex">
+	<div class="min-h-screen bg-brand-gray-950 text-white flex [--admin-header-height:5rem]">
 		<AdminSidebar :open="sidebarOpen" @close="sidebarOpen = false" />
 		<div class="flex-1 flex flex-col min-w-0">
 			<AdminTopbar @toggle-sidebar="sidebarOpen = !sidebarOpen" />

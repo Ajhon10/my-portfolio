@@ -132,6 +132,7 @@ const resetUser2FA = async (u: User) => {
 		</div>
 
 		<DataTable
+			label="Users"
 			:columns="columns"
 			:rows="items"
 			:loading="loading"

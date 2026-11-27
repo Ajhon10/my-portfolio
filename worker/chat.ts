@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
+import { commitContentChange, contentSaved } from './content-undo'
 import { z } from 'zod'
 import { admin, ApiError, body, idSchema, limit, now, ok, sessionSchema, text } from './http'
-import { decode, insert, list, need, placeholders, softDelete, update } from './db'
+import { decode, insert, list, need, placeholders, update } from './db'
 import { enrichProjects } from './resources'
 import { rateLimit } from './auth'
 import { hub, publish } from './hub-client'
@@ -203,22 +204,39 @@ const kbSchema = z.object({
 	enabled: z.boolean().optional(),
 })
 chatRoutes.post('/knowledge/create', async (c) => {
-	admin(c)
+	const user = admin(c)
 	const record = insert(c.env.DB, 'ChatbotKnowledge', await body(c, kbSchema))
-	await record.statement.run()
-	return ok(c, record.row, 'Knowledge added', 201)
+	const { undoId } = await commitContentChange(
+		c.env.DB,
+		user.id,
+		[{ model: 'ChatbotKnowledge', keys: [record.row.id] }],
+		[record.statement],
+	)
+	return contentSaved(c, undoId, record.row, 'Knowledge added', 201)
 })
 chatRoutes.put('/knowledge/:id', async (c) => {
-	admin(c)
+	const user = admin(c)
 	const id = idSchema.parse(c.req.param('id'))
 	await need(c.env.DB, 'ChatbotKnowledge', id)
-	await update(c.env.DB, 'ChatbotKnowledge', id, await body(c, kbSchema.partial())).run()
-	return ok(c, undefined, 'Knowledge updated')
+	const { undoId } = await commitContentChange(
+		c.env.DB,
+		user.id,
+		[{ model: 'ChatbotKnowledge', keys: [id] }],
+		[update(c.env.DB, 'ChatbotKnowledge', id, await body(c, kbSchema.partial()))],
+	)
+	return contentSaved(c, undoId, undefined, 'Knowledge updated')
 })
 chatRoutes.delete('/knowledge/:id', async (c) => {
-	admin(c)
-	await softDelete(c.env.DB, 'ChatbotKnowledge', idSchema.parse(c.req.param('id')))
-	return ok(c, undefined, 'Knowledge removed')
+	const user = admin(c)
+	const id = idSchema.parse(c.req.param('id'))
+	await need(c.env.DB, 'ChatbotKnowledge', id)
+	const { undoId } = await commitContentChange(
+		c.env.DB,
+		user.id,
+		[{ model: 'ChatbotKnowledge', keys: [id] }],
+		[update(c.env.DB, 'ChatbotKnowledge', id, { deleted: true, deletedAt: now() })],
+	)
+	return contentSaved(c, undoId, undefined, 'Knowledge removed')
 })
 chatRoutes.get('/conversations', async (c) => {
 	admin(c)

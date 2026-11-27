@@ -53,6 +53,7 @@ onMounted(() => loadBranding())
 .nav-tools {
 	display: flex;
 	align-items: center;
+	flex-shrink: 0;
 	gap: 14px;
 }
 .nav-contact {
@@ -91,7 +92,7 @@ onMounted(() => loadBranding())
 	}
 	.folio-nav nav.open {
 		position: absolute;
-		top: 78px;
+		top: 100%;
 		left: 16px;
 		right: 16px;
 		z-index: 60;

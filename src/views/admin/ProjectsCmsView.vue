@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onContentUndo } from '@/composables/useContentUndo'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DataTable, { type DataTableColumn } from '@/components/DataTable.vue'
 import FormField from '@/components/FormField.vue'
@@ -108,6 +109,22 @@ const load = async () => {
 }
 
 onMounted(load)
+onContentUndo(['Project', 'ProjectImage'], async (changes) => {
+	await load()
+	const id = editingId.value
+	if (!showModal.value || !id) return
+	const changedProject = changes.find(({ model, key }) => model === 'Project' && key === id)
+	if (changedProject && !changedProject.existed) {
+		showModal.value = false
+		return
+	}
+	if (changedProject) {
+		const project = items.value.find((item) => item.id === id)
+		form.thumbnailUrl = project?.thumbnailUrl || ''
+		thumbnailPreview.value = form.thumbnailUrl ? getImageSrc(form.thumbnailUrl) : ''
+	}
+	await loadGallery(id)
+})
 
 const columns: DataTableColumn<Project>[] = [
 	{ key: 'thumbnailUrl', label: 'Image', render: (r) => (r.thumbnailUrl ? '🖼' : '—') },
@@ -152,13 +169,10 @@ const onGalleryFilesChange = async (event: Event) => {
 				toast.error(res.message || 'Upload failed')
 			}
 		}
-		if (uploaded) {
-			toast.success(`${uploaded} gallery item${uploaded === 1 ? '' : 's'} uploaded`)
-			await load()
-		}
+		if (uploaded) await load()
 	} finally {
 		galleryUploading.value = false
-		galleryProgress.value = ''
+		galleryProgress.value = uploaded ? `${uploaded} gallery item${uploaded === 1 ? '' : 's'} uploaded` : ''
 		input.value = ''
 	}
 }
@@ -186,6 +200,7 @@ const resetForm = () => {
 	editingId.value = null
 	activeTab.value = 'details'
 	galleryImages.value = []
+	galleryProgress.value = ''
 	Object.assign(form, {
 		title: '',
 		slug: '',
@@ -298,6 +313,8 @@ const toggleTech = (id: string) => {
 		</div>
 
 		<DataTable
+			:key="search"
+			label="Projects"
 			:columns="columns"
 			:rows="filtered"
 			:loading="loading"
@@ -366,7 +383,7 @@ const toggleTech = (id: string) => {
 						/>
 					</label>
 				</div>
-				<p v-if="galleryUploading" role="status" class="text-sm text-brand-blueLight">{{ galleryProgress }}</p>
+				<p v-if="galleryProgress" role="status" class="text-sm text-brand-blueLight">{{ galleryProgress }}</p>
 
 				<div
 					v-if="galleryImages.length === 0"

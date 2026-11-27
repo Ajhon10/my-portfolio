@@ -1053,3 +1053,75 @@ zero API failures in
 The production client also completed a password save with a 32-second fixture
 response, exercising the increased 90-second timeout for that operation.
 The change still awaits production release.
+
+## Admin tables, editors, and dashboard — November 27, 2026
+
+The notifications panel uses the active theme palette. The avatar dropdown
+contains Profile and Sign out, and the administration sidebar scrolls within
+the available height. Shop, Gears, and Photography use the shared modal for
+creation and editing. A new product stays open after saving so its media can
+be added immediately.
+
+All admin data tables share ten-row pagination. Shop uses the owner/admin
+`GET /api/shop/products/admin?page=1&pageSize=10` response with
+`data.products` and `data.hasNext`. The server checks for another row before
+enriching the requested page. Existing callers that omit `pageSize` continue
+to receive the original product array.
+
+The owner/admin `GET /api/admin/dashboard` endpoint uses a single five-statement
+D1 batch. Totals and breakdowns exclude soft-deleted items. The endpoint
+returns counts without request or conversation details. The dashboard groups
+activity by Philippine calendar days and offers 7-, 30-, and 90-day views.
+The tech chart shows up to seven individual categories and groups any remaining
+items into Other categories. This uses the existing database schema.
+
+Local verification passed 65 Node tests, 227 Worker integration checks, the
+TypeScript checks, both Vite builds, and the Wrangler deployment dry run.
+Chrome verified both notification themes, the avatar dropdown and sign-out,
+modal focus and media workflows, Projects and Shop pagination, and the dashboard
+controls at desktop and mobile widths. The full browser suite recorded zero page
+errors and zero API failures in
+`.test-artifacts/browser-f65baabb-0e02-4aa5-ba12-7f0ff08170c4/report.json`.
+Deployment status for this update is local.
+
+## Content Undo and dialog height — November 27, 2026
+
+Successful website-content changes offer Undo for 12 seconds. Hover and
+keyboard focus pause dismissal. The toast sits at the bottom-right of the
+viewport or the open admin dialog. Undo refreshes the affected admin view.
+Site Content Save all and portrait image/adjustment changes save and undo as a single batch.
+Gallery uploads offer Undo per attachment. Undo removes the gallery reference,
+and the underlying upload remains available to other content.
+
+Migration `0013_content_undo.sql` adds short-lived records for Site Content,
+Projects, Shop, Gears, Photography, Tech Stack, Experience, Certifications,
+Chatbot Knowledge, and their supported gallery changes. D1 records the old
+and saved states in the same batch as each edit. The admin-only Undo endpoint
+requires the account that made the change and aborts if the saved state or a
+required dependency changed. Receipts expire after five minutes and the
+existing scheduled Worker clears expired entries.
+
+The shared modal uses 20, 32, or 44 rem of height according to its size,
+clamped to the available viewport. The header stays in place while the body
+scrolls independently. The Undo overlay uses its own positioning and does
+not change the modal's dimensions. The taller public and admin headers display
+larger logo images, and the mobile navigation opens below its header.
+
+Local verification passed 65 Node tests, 242 Worker integration checks, the
+typechecks, both production builds, and the Wrangler dry run. Chrome verified
+keyboard Undo, persistence after reload, and a fixed header with independently
+scrolling modal content at a 390 × 500 viewport. The browser suite report is at
+`.test-artifacts/browser-0b4fe361-e38d-46ad-94a7-cf8e95ed477a/report.json`.
+
+Chrome checked the bottom-right offsets in the Shop dialog and on a mobile
+viewport. A visible test logo fit without page overflow at 1,440px, 921px,
+and 320px. Production rollout requires migration 0013 on the intended D1 database.
+
+## CI fixture rate-limit isolation — November 27, 2026
+
+The Worker suite uses separate fixture IPs for general, Shop, and account
+checks. The old suite reproduced the CI chat failure (HTTP 429) when all writes
+used one rate-limit window. With that same window, the updated suite passed
+243 Worker checks, including the existing recovery throttling assertion. The
+full build passed 65 Node tests, typechecks, and both bundles. The Wrangler
+deployment dry run passed.

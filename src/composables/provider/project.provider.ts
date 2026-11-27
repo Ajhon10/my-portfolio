@@ -56,7 +56,9 @@ export const useProjectProvider = () => {
 	const listProjectMedia = (projectId: string) =>
 		api.GET<ProjectMedia[]>(`/upload/project-media/${projectId}`, {}, { silent: true })
 	const uploadProjectMedia = (projectId: string, file: File) =>
-		api.UPLOAD<ProjectMedia>(`/upload/project-media/${projectId}`, file, 'file', { silent: true, timeout: 180000 })
+		api.UPLOAD<ProjectMedia>(`/upload/project-media/${projectId}`, file, 'file', {
+			silent: true, showUndo: true, successMessage: `${file.name} added to gallery`, timeout: 180000,
+		})
 
 	const uploadProjectImage = async (
 		projectId: string,

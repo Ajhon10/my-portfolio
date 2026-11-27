@@ -37,6 +37,15 @@ body {
 .auth-error {
 	color: var(--folio-error);
 }
+.admin-popover {
+	background-color: var(--folio-bg);
+	border-color: var(--folio-line);
+	color: var(--folio-ink);
+}
+.admin-popover-action:hover,
+.admin-popover-action:focus-visible {
+	background-color: var(--folio-surface);
+}
 .folio-nav nav {
 	gap: 20px;
 }

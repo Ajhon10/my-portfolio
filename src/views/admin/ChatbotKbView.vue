@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onContentUndo } from '@/composables/useContentUndo'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DataTable, { type DataTableColumn } from '@/components/DataTable.vue'
 import FormField from '@/components/FormField.vue'
@@ -89,6 +90,10 @@ const loadConversations = async () => {
 	}
 	loading.value = false
 }
+
+onContentUndo(['ChatbotKnowledge'], () => {
+	if (tab.value === 'kb') void load()
+})
 
 onMounted(async () => {
 	await load()
@@ -440,6 +445,7 @@ const fmt = (d: string) => new Date(d).toLocaleString()
 
 		<DataTable
 			v-if="tab === 'kb'"
+			label="Chatbot knowledge"
 			:columns="columns"
 			:rows="items"
 			:loading="loading"

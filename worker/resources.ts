@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { commitContentChange, contentSaved, type ContentModel } from './content-undo'
 import { z } from 'zod'
 import {
 	ApiError,
@@ -159,7 +160,13 @@ async function slug(db: D1Database, title: string, exclude?: string) {
 		.first()
 	return existing ? base + '-' + crypto.randomUUID().slice(0, 8) : base
 }
-const definitions: { path: string; name: string; schema: z.ZodObject<any>; create?: string; adminList?: string }[] = [
+const definitions: {
+	path: string
+	name: ContentModel
+	schema: z.ZodObject<any>
+	create?: string
+	adminList?: string
+}[] = [
 	{ path: '/projects', name: 'Project', schema: projectSchema, create: '/create' },
 	{ path: '/tech-stack', name: 'TechStack', schema: techSchema, create: '/create' },
 	{ path: '/experiences', name: 'Experience', schema: experienceSchema, create: '/create' },
@@ -209,7 +216,7 @@ for (const definition of definitions) {
 		return ok(c, name === 'Project' ? (await enrichProjects(c.env.DB, [row]))[0] : row)
 	})
 	router.post(definition.create || '/', async (c) => {
-		admin(c)
+		const user = admin(c)
 		const input: Row = await body(c, schema)
 		const techIds = [...new Set<string>(input.techIds || [])]
 		delete input.techIds
@@ -218,11 +225,22 @@ for (const definition of definitions) {
 		const statements = [created.statement]
 		for (const techId of techIds)
 			statements.push(insert(c.env.DB, 'ProjectTech', { projectId: created.row.id, techId }).statement)
-		await c.env.DB.batch(statements)
-		return ok(c, name === 'Project' ? (await enrichProjects(c.env.DB, [created.row]))[0] : created.row, 'Created', 201)
+		const { undoId } = await commitContentChange(
+			c.env.DB,
+			user.id,
+			[{ model: name, keys: [created.row.id] }],
+			statements,
+		)
+		return contentSaved(
+			c,
+			undoId,
+			name === 'Project' ? (await enrichProjects(c.env.DB, [created.row]))[0] : created.row,
+			'Created',
+			201,
+		)
 	})
 	router.put('/:id', async (c) => {
-		admin(c)
+		const user = admin(c)
 		const id = idSchema.parse(c.req.param('id'))
 		await need(c.env.DB, name, id)
 		const input: Row = await body(c, schema.partial())
@@ -237,13 +255,20 @@ for (const definition of definitions) {
 				statements.push(insert(c.env.DB, 'ProjectTech', { projectId: id, techId }).statement)
 		}
 		if (!statements.length) throw new ApiError(422, 'No changes supplied.')
-		await c.env.DB.batch(statements)
-		return ok(c, undefined, 'Updated')
+		const { undoId } = await commitContentChange(c.env.DB, user.id, [{ model: name, keys: [id] }], statements)
+		return contentSaved(c, undoId)
 	})
 	router.delete('/:id', async (c) => {
-		admin(c)
-		await softDelete(c.env.DB, name, idSchema.parse(c.req.param('id')))
-		return ok(c, undefined, 'Deleted')
+		const user = admin(c)
+		const id = idSchema.parse(c.req.param('id'))
+		await need(c.env.DB, name, id)
+		const { undoId } = await commitContentChange(
+			c.env.DB,
+			user.id,
+			[{ model: name, keys: [id] }],
+			[update(c.env.DB, name, id, { deleted: true, deletedAt: now() })],
+		)
+		return contentSaved(c, undoId, undefined, 'Deleted')
 	})
 	resourceRoutes.route(path, router)
 }
@@ -257,13 +282,12 @@ resourceRoutes.get('/site-content/:key', async (c) => {
 	if (!raw) throw new ApiError(404, 'Content not found.')
 	return ok(c, decode('SiteContent', raw))
 })
-resourceRoutes.post('/site-content/upsert', async (c) => {
-	admin(c)
-	const input = await body(
-		c,
-		z.object({ key: text(1, 120).regex(/^[a-zA-Z0-9_.-]+$/), label: text(1, 200), value: z.string().max(60000) }),
-	)
-	const row = makeRow('SiteContent', input)
+const siteContentSchema = z.object({
+	key: text(1, 120).regex(/^[a-zA-Z0-9_.-]+$/),
+	label: text(1, 200),
+	value: z.string().max(60000),
+})
+function prepareSiteContent(db: D1Database, input: z.infer<typeof siteContentSchema>) {
 	if (input.key === 'hero_visual_mode') z.enum(['particles', 'portrait', 'model']).parse(input.value)
 	if (input.key === 'hero_model_alt') z.string().max(500).parse(input.value)
 	if (input.key === 'hero_model_url') {
@@ -282,19 +306,66 @@ resourceRoutes.post('/site-content/upsert', async (c) => {
 			}, 'Use the bundled sample or a public HTTPS .glb URL.')
 			.parse(input.value)
 	}
-	const saved = await c.env.DB.prepare(
-		'INSERT INTO site_content(id,created_at,updated_at,deleted,key,label,value) VALUES(?,?,?,0,?,?,?) ON CONFLICT(key) DO UPDATE SET label=excluded.label,value=excluded.value,deleted=0,deleted_at=NULL,updated_at=excluded.updated_at RETURNING *',
-	)
+	const row = makeRow('SiteContent', input)
+	return db
+		.prepare(
+			'INSERT INTO site_content(id,created_at,updated_at,deleted,key,label,value) VALUES(?,?,?,0,?,?,?) ON CONFLICT(key) DO UPDATE SET label=excluded.label,value=excluded.value,deleted=0,deleted_at=NULL,updated_at=excluded.updated_at RETURNING *',
+		)
 		.bind(row.id, row.createdAt, row.updatedAt, input.key, input.label, input.value)
-		.first<Row>()
-	return ok(c, decode('SiteContent', saved), 'Content saved')
+}
+resourceRoutes.post('/site-content/upsert', async (c) => {
+	const user = admin(c)
+	const input = await body(c, siteContentSchema)
+	const { undoId, results } = await commitContentChange(
+		c.env.DB,
+		user.id,
+		[{ model: 'SiteContent', keys: [input.key] }],
+		[prepareSiteContent(c.env.DB, input)],
+	)
+	return contentSaved(c, undoId, decode('SiteContent', results[0].results[0] as Row), 'Content saved')
+})
+resourceRoutes.post('/site-content/upsert-many', async (c) => {
+	const user = admin(c)
+	const entries = await body(
+		c,
+		z
+			.array(siteContentSchema)
+			.min(1)
+			.max(30)
+			.refine(
+				(items) => new Set(items.map(({ key }) => key)).size === items.length,
+				'Each content key can be saved once per request.',
+			),
+	)
+	const { undoId, results } = await commitContentChange(
+		c.env.DB,
+		user.id,
+		[{ model: 'SiteContent', keys: entries.map(({ key }) => key) }],
+		entries.map((entry) => prepareSiteContent(c.env.DB, entry)),
+	)
+	return contentSaved(
+		c,
+		undoId,
+		results.map((result) => decode('SiteContent', result.results[0] as Row)),
+		'Content saved',
+	)
 })
 resourceRoutes.delete('/site-content/:key', async (c) => {
-	admin(c)
-	await c.env.DB.prepare('UPDATE site_content SET deleted=1,deleted_at=?,updated_at=? WHERE key=?')
-		.bind(now(), now(), text(1, 120).parse(c.req.param('key')))
-		.run()
-	return ok(c, undefined, 'Content deleted')
+	const user = admin(c)
+	const key = text(1, 120).parse(c.req.param('key'))
+	const { undoId } = await commitContentChange(
+		c.env.DB,
+		user.id,
+		[{ model: 'SiteContent', keys: [key] }],
+		[
+			c.env.DB.prepare('UPDATE site_content SET deleted=1,deleted_at=?,updated_at=? WHERE key=? AND deleted=0').bind(
+				now(),
+				now(),
+				key,
+			),
+		],
+	)
+	return contentSaved(c, undoId, undefined, 'Content deleted')
 })
 resourceRoutes.get('/game-scores', async (c) =>
 	ok(

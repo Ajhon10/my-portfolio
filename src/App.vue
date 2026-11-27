@@ -5,6 +5,8 @@ import { computed } from 'vue'
 import PublicLayout from '@/layout/PublicLayout.vue'
 import AdminLayout from '@/layout/AdminLayout.vue'
 import ConnectionStatusBar from '@/components/ConnectionStatusBar.vue'
+import ContentUndoToasts from '@/components/ContentUndoToasts.vue'
+import { onContentUndo } from '@/composables/useContentUndo'
 import { useUserStore } from '@/stores/user'
 import { useTheme } from '@/composables/useTheme'
 import { useSiteBranding, BRANDING_EVENT_KEY } from '@/composables/useSiteBranding'
@@ -12,7 +14,8 @@ import { useSiteBranding, BRANDING_EVENT_KEY } from '@/composables/useSiteBrandi
 const route = useRoute()
 const userStore = useUserStore()
 const { init: initTheme } = useTheme()
-const { loadBranding } = useSiteBranding()
+const { loadBranding, refreshBranding } = useSiteBranding()
+onContentUndo(['SiteContent'], () => void refreshBranding())
 const onBrandingChange = (event: StorageEvent) => {
 	if (event.key === BRANDING_EVENT_KEY) void loadBranding(true)
 }
@@ -44,6 +47,7 @@ onMounted(async () => {
 
 <template>
 	<ConnectionStatusBar />
+	<ContentUndoToasts />
 	<RouterView v-slot="{ Component }">
 		<template v-if="Component">
 			<Suspense>
