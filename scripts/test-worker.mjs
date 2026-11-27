@@ -58,6 +58,9 @@ try {
 		)
 		users[role] = { id, email, authId }
 	}
+	// Independent scenarios represent separate clients. Their write counts must
+	// fit in one rate-limit window even when the runner completes them quickly.
+	let fixtureAddress = '192.0.2.10'
 	async function api(path, { token, method = 'GET', data, raw, headers = {} } = {}) {
 		if (raw instanceof FormData) {
 			const encoded = new Request('http://localhost', { method: 'POST', body: raw })
@@ -67,6 +70,7 @@ try {
 		const response = await mf.dispatchFetch(`http://localhost/api${path}`, {
 			method,
 			headers: {
+				'CF-Connecting-IP': fixtureAddress,
 				...(token ? { Authorization: `Bearer ${token}` } : {}),
 				...(data ? { 'Content-Type': 'application/json' } : {}),
 				...headers,
@@ -437,6 +441,7 @@ try {
 	assert.equal((await visitorSocket.event('chat:message')).content, 'Hello, this is Jhon.')
 	checks++
 	// Shop privacy, category integrity, bounded media and atomic rollback.
+	fixtureAddress = '192.0.2.20'
 	status(await api('/shop/products', { method: 'POST', data: {} }), 401)
 	status(await api('/shop/products/admin', { token: client }), 403)
 	status(await api('/shop/categories', { token: client, method: 'POST', data: { name: 'Forbidden' } }), 403)
@@ -809,6 +814,7 @@ try {
 	)
 	checks++
 	// Expensive password work must execute in the Durable Object, not the free Worker CPU budget.
+	fixtureAddress = '192.0.2.30'
 	status(
 		await api('/auth/change-password', {
 			token: client,
@@ -994,6 +1000,7 @@ try {
 		.bind(hash, users.OWNER.authId)
 		.run()
 	const refreshedOwner = await api('/auth/login', { method: 'POST', data: { email: users.OWNER.email, password } })
+	status(refreshedOwner, 200)
 	const recoveryOwner = refreshedOwner.body.data.accessToken
 	// D1 batch failure must leave no partial project or broken relationship.
 	const before = (await db.prepare('SELECT COUNT(*) n FROM project').first()).n
@@ -1006,9 +1013,8 @@ try {
 			techIds: [randomUUID()],
 		},
 	})
-	assert.ok(invalid.status >= 400)
+	status(invalid, 422)
 	assert.equal((await db.prepare('SELECT COUNT(*) n FROM project').first()).n, before)
-	checks++
 	const clientScope = await socket({ token: linkedToken })
 	clientScope.send('project-chat:join', { requestId })
 	// WebSocket join authorization and the next HTTP request are independent.

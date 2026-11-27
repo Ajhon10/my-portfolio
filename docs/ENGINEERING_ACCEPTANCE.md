@@ -1116,3 +1116,12 @@ scrolling modal content at a 390 × 500 viewport. The browser suite report is at
 Chrome checked the bottom-right offsets in the Shop dialog and on a mobile
 viewport. A visible test logo fit without page overflow at 1,440px, 921px,
 and 320px. Production rollout requires migration 0013 on the intended D1 database.
+
+## CI fixture rate-limit isolation — November 27, 2026
+
+The Worker suite uses separate fixture IPs for general, Shop, and account
+checks. The old suite reproduced the CI chat failure (HTTP 429) when all writes
+used one rate-limit window. With that same window, the updated suite passed
+243 Worker checks, including the existing recovery throttling assertion. The
+full build passed 65 Node tests, typechecks, and both bundles. The Wrangler
+deployment dry run passed.
