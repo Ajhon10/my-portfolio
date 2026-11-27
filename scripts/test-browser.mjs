@@ -1,7 +1,11 @@
+import { fixtureAuthenticator } from './fixture-authenticator.mjs'
 import assert from 'node:assert/strict'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { spawn, execFileSync } from 'node:child_process'
 import { randomUUID, randomBytes, createHash } from 'node:crypto'
+import { resolve } from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
+import { unstable_readConfig } from 'wrangler'
 import { chromium } from 'playwright'
 import { executeSql, queryD1, wrangler, literal } from './lib.mjs'
 import { seedSql } from './seed.mjs'
@@ -34,8 +38,27 @@ await child(process.execPath, ['scripts/create-owner.mjs'], {
 })
 assert.equal((await queryD1(['--command', 'SELECT COUNT(*) n FROM "user" WHERE role=\'OWNER\'']))[0].results[0].n, 1)
 await executeSql('UPDATE "user" SET two_factor_enabled=0;')
+// Wrangler discovers .dev.vars beside its configuration. Give this run its own
+// configuration and key, including on machines that have real developer secrets.
+const project = unstable_readConfig({ config: 'wrangler.jsonc' })
+const fixtureConfig = resolve(artifact, 'wrangler.json')
+const fixtureKey = randomBytes(32).toString('base64url')
+await writeFile(
+	fixtureConfig,
+	JSON.stringify({
+		name: project.name,
+		main: project.main,
+		compatibility_date: project.compatibility_date,
+		compatibility_flags: project.compatibility_flags,
+		assets: { ...project.assets, directory: resolve(project.assets.directory) },
+		d1_databases: project.d1_databases,
+		durable_objects: project.durable_objects,
+		migrations: project.migrations,
+	}),
+)
+await writeFile(artifact + '/.dev.vars', 'AUTH_SECRET=' + fixtureKey + '\nMAIL_TRANSPORT=disabled\n', { mode: 0o600 })
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5179'], {
-	env: { ...process.env, PORTFOLIO_BROWSER_TEST: '1' },
+	env: { ...process.env, PORTFOLIO_BROWSER_CONFIG: fixtureConfig },
 	windowsHide: true,
 	stdio: ['ignore', 'pipe', 'pipe'],
 })
@@ -917,6 +940,14 @@ try {
 	const recoveryContext = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' })
 	try {
 		const recovery = await recoveryContext.newPage()
+		async function saveNewPassword() {
+			const saved = recovery.waitForResponse(
+				(response) => response.url().endsWith('/api/auth/reset-password') && response.request().method() === 'POST',
+				{ timeout: 95_000 },
+			)
+			await recovery.getByRole('button', { name: 'Save new password', exact: true }).click()
+			assert.equal((await saved).status(), 200)
+		}
 		recovery.on('pageerror', (e) => errors.push(e.stack || e.message))
 		await recovery.goto('http://127.0.0.1:5179/login', { waitUntil: 'networkidle' })
 		await recovery.evaluate(() => localStorage.setItem('portfolio_token', 'expired-session-fixture'))
@@ -930,10 +961,48 @@ try {
 		assert.ok(await recovery.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
 		await recovery.screenshot({ path: artifact + '/forgot-password-mobile.png' })
 		await recovery.goto('http://127.0.0.1:5179/login', { waitUntil: 'networkidle' })
+		// A temporary-password account without an authenticator goes directly to replacement.
 		await recovery.locator('#login-email').fill(recoveryEmail)
 		await recovery.locator('#login-password').fill(temporaryPassword)
 		await recovery.getByRole('button', { name: 'Sign in', exact: true }).click()
 		await recovery.getByRole('heading', { name: 'Choose your password', exact: true }).waitFor()
+		assert.equal(await recovery.evaluate(() => localStorage.getItem('portfolio_token')), null)
+		await recovery.getByRole('button', { name: 'Back to sign in' }).click()
+
+		await executeSql(`UPDATE "user" SET two_factor_enabled=1 WHERE id=${literal(recoveryUser.id)}`)
+		await recovery.locator('#login-password').fill(temporaryPassword)
+		await recovery.getByRole('button', { name: 'Sign in', exact: true }).click()
+		await recovery.getByRole('button', { name: 'Continue', exact: true }).click()
+		const [challenges] = await queryD1([
+			'--command',
+			`SELECT encrypted_secret FROM auth_challenges WHERE user_id=${literal(recoveryUser.id)} AND used_at IS NULL`,
+		])
+		const code = await fixtureAuthenticator(challenges.results[0].encrypted_secret, fixtureKey)
+		let lastStep = 0
+		async function freshCode() {
+			const period = 30_000
+			const step = Math.max(lastStep + 1, Math.floor(Date.now() / period))
+			// The Worker accepts one adjacent period. Wait if the last code already used it.
+			const wait = (step - 1) * period - Date.now() + 250
+			if (wait > 0) await delay(wait)
+			lastStep = step
+			return code(step)
+		}
+		await recovery.getByPlaceholder('000000').fill(await freshCode())
+		await recovery.getByRole('button', { name: 'Activate 2FA' }).click()
+		await recovery.getByLabel('New password', { exact: true }).waitFor()
+		assert.equal(await recovery.getByPlaceholder('000000').count(), 0)
+		assert.equal(await recovery.evaluate(() => localStorage.getItem('portfolio_token')), null)
+
+		// An already-enrolled user returning before replacing the temporary password.
+		await recovery.getByRole('button', { name: 'Back to sign in' }).click()
+		await recovery.locator('#login-password').fill(temporaryPassword)
+		await recovery.getByRole('button', { name: 'Sign in', exact: true }).click()
+		await recovery.getByLabel('Authentication code').fill(await freshCode())
+		await recovery.getByRole('button', { name: 'Verify and continue' }).click()
+		await recovery.getByRole('heading', { name: 'Choose your password', exact: true }).waitFor()
+		assert.equal(await recovery.getByLabel('Authentication code').count(), 0)
+		await recovery.screenshot({ path: artifact + '/password-after-2fa.png' })
 		assert.equal(await recovery.evaluate(() => localStorage.getItem('portfolio_token')), null)
 		await recovery.locator('#reset-password').fill(rotatedPassword)
 		await recovery.getByRole('button', { name: 'Show new password', exact: true }).click()
@@ -946,10 +1015,12 @@ try {
 		await recovery.getByText('Passwords do not match.', { exact: true }).waitFor()
 		await recovery.screenshot({ path: artifact + '/temporary-password-mobile.png' })
 		await recovery.locator('#reset-confirm').fill(rotatedPassword)
-		await recovery.getByRole('button', { name: 'Save new password', exact: true }).click()
+		await saveNewPassword()
 		await recovery.getByText('Password updated. Sign in with your new password.', { exact: true }).waitFor()
 		await recovery.locator('#login-password').fill(rotatedPassword)
 		await recovery.getByRole('button', { name: 'Sign in', exact: true }).click()
+		await recovery.getByLabel('Authentication code').fill(await freshCode())
+		await recovery.getByRole('button', { name: 'Verify and continue' }).click()
 		await recovery.waitForURL('**/client/portal')
 		const resetToken = randomBytes(32).toString('base64url'),
 			tokenHash = createHash('sha256').update(resetToken).digest('hex')
@@ -971,7 +1042,7 @@ try {
 		await recovery.screenshot({ path: artifact + '/reset-password-desktop.png' })
 		await recovery.locator('#reset-password').fill(randomUUID() + '-email-reset')
 		await recovery.locator('#reset-confirm').fill(await recovery.locator('#reset-password').inputValue())
-		await recovery.getByRole('button', { name: 'Save new password', exact: true }).click()
+		await saveNewPassword()
 		await recovery.getByRole('heading', { name: 'Password updated', exact: true }).waitFor()
 		await recovery.setViewportSize({ width: 390, height: 844 })
 		assert.ok(await recovery.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
@@ -1002,6 +1073,7 @@ try {
 					'chat fallback',
 					'inquiry persisted',
 					'owner CLI bootstrap',
+					'authenticator enrollment, enrolled sign-in, temporary password replacement and authenticated return',
 					'login',
 					'all 12 admin pages',
 					'Light/Dark labels, Light default, theme persistence, animated changes and reduced motion',

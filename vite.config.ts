@@ -9,13 +9,13 @@ export default defineConfig(({ command }) => ({
 		cloudflare({
 			...(process.env.PORTFOLIO_LOCAL_STATE ? { persistState: { path: process.env.PORTFOLIO_LOCAL_STATE } } : {}),
 			// Browser fixtures must never inherit real email/AI secrets from .dev.vars.
-			...(command === 'serve' && process.env.PORTFOLIO_BROWSER_TEST === '1'
+			...(command === 'serve' && process.env.PORTFOLIO_BROWSER_CONFIG
 				? {
+						configPath: process.env.PORTFOLIO_BROWSER_CONFIG,
 						config: {
-							secrets: { required: [] },
+							secrets: { required: ['AUTH_SECRET'] },
 							vars: {
 								SESSION_HOURS: '8',
-								AUTH_SECRET: 'isolated-browser-only-secret-never-deploy-2026',
 								MAIL_TRANSPORT: 'disabled',
 							},
 						},

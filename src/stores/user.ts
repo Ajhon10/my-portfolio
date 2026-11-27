@@ -6,17 +6,12 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-export interface LoginResult {
-	success: boolean
-	message?: string
-	/** 2FA setup required for the first time */
-	requiresInitialTwoFactorSetup?: boolean
-	setupData?: { qrCode: string; setupToken: string }
-	/** 2FA code needed */
-	requires2FA?: boolean
-	requiresPasswordChange?: boolean
-	changeToken?: string
-}
+export type LoginResult =
+	| { step: 'authenticated' }
+	| { step: 'setup'; setupData: { qrCode: string; setupToken: string } }
+	| { step: 'verify' }
+	| { step: 'password'; token: string }
+	| { step: 'error'; message: string }
 
 export const useUserStore = defineStore('userStore', () => {
 	const router = useRouter()
@@ -49,41 +44,29 @@ export const useUserStore = defineStore('userStore', () => {
 		try {
 			const res = await authProvider.login({ email, password, totpToken })
 
-			// The raw server body is available in res.error for failed responses,
-			// or in res.data for successful ones. For 2FA flows the flags live at the
-			// root of the server body, so we normalise access here.
-			const raw: any = (res.success ? res.data : res.error || res.data) || {}
-			if (raw.requiresPasswordChange) {
+			// Challenge flags exist both in the Worker envelope and in older root-level responses.
+			const data = res.data ?? (!res.success ? res.error : undefined)
+			if (data?.requiresPasswordChange || data?.requiresInitialTwoFactorSetup || data?.requires2FA) {
 				clearToken()
 				_user.value = undefined
 				disconnectAdminSocket()
 				disconnectClientSocket()
-				return { success: false, requiresPasswordChange: true, changeToken: raw.changeToken }
 			}
-
-			// Server signals 2FA setup needed (success:true, no .data wrapper)
-			if (raw.requiresInitialTwoFactorSetup) {
-				return {
-					success: false,
-					requiresInitialTwoFactorSetup: true,
-					setupData: raw.setupData,
-				}
+			if (data?.requiresPasswordChange) {
+				return data.changeToken
+					? { step: 'password', token: data.changeToken }
+					: { step: 'error', message: 'Password setup expired. Sign in again.' }
 			}
-
-			// Server signals 2FA code needed (success:false, no .data wrapper)
-			if (raw.requires2FA) {
-				return { success: false, requires2FA: true }
-			}
-
-			if (res.success && res.data?.accessToken) {
+			if (data?.requiresInitialTwoFactorSetup && data.setupData) return { step: 'setup', setupData: data.setupData }
+			if (data?.requires2FA) return { step: 'verify' }
+			if (res.success && 'accessToken' in res.data && res.data.accessToken) {
 				setToken(res.data.accessToken)
 				_user.value = res.data.user
-				return { success: true }
+				return { step: 'authenticated' }
 			}
-
-			return { success: false, message: res.message || 'Login failed' }
+			return { step: 'error', message: res.success ? 'Sign in again to continue.' : res.message || 'Login failed' }
 		} catch (err: any) {
-			return { success: false, message: err?.message || 'Login failed' }
+			return { step: 'error', message: err?.message || 'Login failed' }
 		}
 	}
 

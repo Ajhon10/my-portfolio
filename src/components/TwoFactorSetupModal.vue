@@ -9,7 +9,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-	(e: 'success'): void
+	(e: 'success', changeToken?: string): void
 	(e: 'close'): void
 }>()
 
@@ -24,13 +24,14 @@ watch(() => props.open, (v) => {
 })
 
 const verify = async () => {
+	if (loading.value) return
 	if (code.value.length !== 6) { error.value = 'Enter the 6-digit code from your authenticator app.'; return }
 	loading.value = true
 	error.value = ''
 	const res = await authProvider.verify2FA({ token: code.value, setupToken: props.setupToken })
 	loading.value = false
 	if (res.success) {
-		emit('success')
+		emit('success', res.data?.requiresPasswordChange ? res.data.changeToken : undefined)
 	} else {
 		error.value = res.message || 'Invalid code. Try again.'
 		code.value = ''
@@ -45,7 +46,7 @@ const onKeydown = (e: KeyboardEvent) => { if (e.key === 'Enter') verify() }
 		<div
 			v-if="open"
 			class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-			@click.self="emit('close')"
+			@click.self="!loading && emit('close')"
 		>
 			<div class="w-full max-w-sm card p-6 space-y-5">
 				<!-- Icon -->
@@ -93,7 +94,7 @@ const onKeydown = (e: KeyboardEvent) => { if (e.key === 'Enter') verify() }
 					<button class="btn btn-primary w-full" :disabled="loading || code.length !== 6" @click="verify">
 						{{ loading ? 'Verifying…' : 'Activate 2FA' }}
 					</button>
-					<button class="btn btn-ghost w-full text-sm" @click="step = 'scan'">Back</button>
+					<button class="btn btn-ghost w-full text-sm" :disabled="loading" @click="step = 'scan'">Back</button>
 				</div>
 			</div>
 		</div>

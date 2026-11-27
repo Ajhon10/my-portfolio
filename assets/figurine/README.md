@@ -1,11 +1,10 @@
 # Editable personal figurine study
 
-This is an original Blender character **study with an approximate likeness**,
-referenced to the owner's bundled portrait in `public/seed/portrait/`.
-It is not a professionally sculpted or owner-approved premium likeness. The
-Mini Real target still needs artist-led facial, hair, clothing and hand polish.
-The portrait only supplies the upper body; charcoal trousers and neutral shoes
-are illustrative. No photograph was uploaded to a third-party modeling service.
+The character follows the supplied chibi references with a rounded head,
+oversized brown eyes, softly tinted cheeks, a small smile and swept dark hair.
+The white-and-red polo comes from the owner's bundled portrait. The charcoal
+trousers and sneakers are illustrative. Both the editable Blender scene and
+the web model include the face, iris and shirt artwork.
 
 ## Files and reproducibility
 
