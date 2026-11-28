@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { onContentUndo } from '@/composables/useContentUndo'
+import AdminCategorySelect from '@/components/AdminCategorySelect.vue'
+import FormInput from '@/components/FormInput.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DataTable, { type DataTableColumn } from '@/components/DataTable.vue'
 import FormField from '@/components/FormField.vue'
@@ -70,7 +72,7 @@ onMounted(load)
 onContentUndo(['TechStack'], load)
 
 const columns: DataTableColumn<TechStack>[] = [
-	{ key: 'iconUrl', label: 'Icon', render: (r) => r.iconUrl ? '🖼' : '—' },
+	{ key: 'iconUrl', label: 'Icon', render: (r) => (r.iconUrl ? '🖼' : '—') },
 	{ key: 'name', label: 'Name' },
 	{ key: 'category', label: 'Category', render: (r) => r.category || '—' },
 	{ key: 'proficiency', label: 'Proficiency', render: (r) => `${r.proficiency}%` },
@@ -113,7 +115,7 @@ const save = async () => {
 
 	const payload = {
 		name: form.name.trim(),
-		category: form.category?.trim() || undefined,
+		category: form.category?.trim() || '',
 		iconUrl: form.iconUrl?.trim() || undefined,
 		proficiency: form.proficiency,
 		sortOrder: form.sortOrder,
@@ -138,11 +140,7 @@ const doDelete = async () => {
 	if (res.success) await load()
 }
 
-const takenSortOrders = computed(() =>
-	items.value
-		.filter((t) => t.id !== editingId.value)
-		.map((t) => t.sortOrder),
-)
+const takenSortOrders = computed(() => items.value.filter((t) => t.id !== editingId.value).map((t) => t.sortOrder))
 </script>
 
 <template>
@@ -163,48 +161,56 @@ const takenSortOrders = computed(() =>
 
 		<Modal :open="showModal" :title="editingId ? 'Edit tech' : 'New tech'" size="md" @close="showModal = false">
 			<form class="space-y-4" @submit.prevent="save">
-				<FormField label="Name" :error="errors.name" required>
-					<input v-model="form.name" type="text" class="input" />
-				</FormField>
-				<FormField label="Category" hint="e.g. Frontend, Backend, Tools">
-					<input v-model="form.category" type="text" class="input" />
-				</FormField>
+				<FormInput v-model="form.name" label="Name" :error="errors.name" required />
+				<AdminCategorySelect v-model="form.category" kind="tech-stack" />
 
 				<!-- Icon upload -->
 				<FormField label="Icon">
 					<div class="space-y-2">
 						<div v-if="iconPreview" class="flex items-center gap-3">
-							<div class="w-12 h-12 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
+							<div
+								class="w-12 h-12 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden"
+							>
 								<img :src="iconPreview" alt="icon preview" class="w-8 h-8 object-contain" />
 							</div>
 							<button type="button" class="text-xs text-red-400 hover:text-red-300" @click="clearIcon">Remove</button>
 						</div>
-						<label class="flex items-center gap-2 cursor-pointer">
-							<span class="btn btn-ghost text-xs px-3 py-1.5" :class="iconUploading ? 'opacity-50 pointer-events-none' : ''">
+						<label for="tech-icon-file" class="flex items-center gap-2 cursor-pointer">
+							<span
+								class="btn btn-ghost text-xs px-3 py-1.5"
+								:class="iconUploading ? 'opacity-50 pointer-events-none' : ''"
+							>
 								{{ iconUploading ? 'Uploading…' : iconPreview ? 'Replace icon' : 'Upload icon' }}
 							</span>
-							<input
-								type="file"
-								accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
-								class="sr-only"
-								:disabled="iconUploading"
-								@change="onIconChange"
-							/>
 						</label>
-						<input
+						<FormInput
+							id="tech-icon-file"
+							aria-label="Upload icon"
+							type="file"
+							accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+							class="sr-only"
+							:disabled="iconUploading"
+							@change="onIconChange"
+						/>
+						<FormInput
 							v-model="form.iconUrl"
-							type="text"
-							class="input text-xs"
+							aria-label="Icon URL"
+							class="text-xs"
 							placeholder="Or paste an icon URL…"
 							@input="iconPreview = form.iconUrl ? getIconSrc(form.iconUrl as string) : ''"
 						/>
 					</div>
 				</FormField>
 
-				<FormField label="Proficiency">
-					<input v-model.number="form.proficiency" type="range" min="0" max="100" class="w-full" />
-					<div class="text-xs text-brand-gray-400 mt-1">{{ form.proficiency }}%</div>
-				</FormField>
+				<FormInput
+					v-model.number="form.proficiency"
+					type="range"
+					label="Proficiency"
+					min="0"
+					max="100"
+					class="w-full"
+					:hint="`${form.proficiency}%`"
+				/>
 				<FormField label="Sort order" hint="Position in listing (lower = first)">
 					<SortOrderSelect v-model="form.sortOrder" :taken-values="takenSortOrders" />
 				</FormField>

@@ -14,7 +14,7 @@ export interface KBInput {
 	topic: string
 	question: string
 	answer: string
-	tags?: string
+	tags?: string | null
 	enabled?: boolean
 }
 

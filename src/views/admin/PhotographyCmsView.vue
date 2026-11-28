@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import AdminCategorySelect from '@/components/AdminCategorySelect.vue'
+import FormInput from '@/components/FormInput.vue'
+import FormCheckbox from '@/components/FormCheckbox.vue'
+import FormTextarea from '@/components/FormTextarea.vue'
 import { onContentUndo } from '@/composables/useContentUndo'
 import Modal from '@/components/Modal.vue'
 import { onMounted, ref } from 'vue'
@@ -24,7 +28,7 @@ const empty = (): PhotographInput => ({
 	altText: '',
 	caption: '',
 	location: '',
-	category: 'Personal',
+	category: '',
 	imageUrl: '',
 	published: false,
 	sortOrder: 0,
@@ -140,8 +144,14 @@ onContentUndo(['Photograph'], load)
 			<form @submit.prevent="save">
 				<fieldset :disabled="busy || uploading" class="space-y-5">
 					<div>
-						<label class="label" for="photo-file">Photograph / JPEG, PNG or WebP / up to 8 MB</label
-						><input id="photo-file" type="file" accept="image/jpeg,image/png,image/webp" @change="upload" />
+						<FormInput
+							id="photo-file"
+							label="Photograph"
+							hint="JPEG, PNG or WebP up to 8 MB"
+							type="file"
+							accept="image/jpeg,image/png,image/webp"
+							@change="upload"
+						/>
 						<p v-if="uploading" role="status">Uploading...</p>
 						<img
 							v-if="form.imageUrl"
@@ -150,44 +160,24 @@ onContentUndo(['Photograph'], load)
 							class="mt-4 max-h-52 rounded"
 						/>
 					</div>
-					<div class="grid sm:grid-cols-2 gap-4">
-						<div>
-							<label for="photo-title" class="label">Title</label
-							><input id="photo-title" v-model.trim="form.title" required maxlength="200" class="input" />
-						</div>
-						<div>
-							<label for="photo-alt" class="label">Image description (accessibility)</label
-							><input id="photo-alt" v-model.trim="form.altText" required maxlength="500" class="input" />
-						</div>
-						<div>
-							<label for="photo-category" class="label">Category</label
-							><input
-								id="photo-category"
-								v-model.trim="form.category"
-								required
-								maxlength="100"
-								class="input"
-								placeholder="Street, travel, portraits..."
-							/>
-						</div>
-						<div>
-							<label for="photo-location" class="label">Location</label
-							><input id="photo-location" v-model.trim="form.location" maxlength="200" class="input" />
-						</div>
+					<div class="grid gap-4 sm:grid-cols-2">
+						<FormInput id="photo-title" v-model.trim="form.title" label="Title" required maxlength="200" />
+						<FormInput
+							id="photo-alt"
+							v-model.trim="form.altText"
+							label="Image description (accessibility)"
+							required
+							maxlength="500"
+						/>
+						<AdminCategorySelect id="photo-category" v-model="form.category" kind="photography" required />
+						<FormInput id="photo-location" v-model.trim="form.location" label="Location" maxlength="200" />
 					</div>
-					<div>
-						<label for="photo-caption" class="label">Caption</label
-						><textarea id="photo-caption" v-model="form.caption" maxlength="3000" class="input" rows="3" />
-					</div>
-					<div class="flex flex-wrap gap-6 items-center">
-						<label class="label"
-							>Display order<input
-								v-model.number="form.sortOrder"
-								type="number"
-								min="0"
-								required
-								class="input mt-2 w-28" /></label
-						><label class="flex gap-2 items-center"><input v-model="form.published" type="checkbox" /> Published</label>
+					<FormTextarea id="photo-caption" v-model="form.caption" label="Caption" maxlength="3000" rows="3" />
+					<div class="flex flex-wrap items-end gap-6">
+						<div class="w-28">
+							<FormInput v-model.number="form.sortOrder" label="Display order" type="number" min="0" required />
+						</div>
+						<FormCheckbox v-model="form.published" label="Published" />
 					</div>
 					<div class="flex gap-3">
 						<button class="btn btn-primary" type="submit">{{ busy ? 'Saving...' : 'Save photograph' }}</button>

@@ -21,7 +21,7 @@ const links = computed(() => [
 	{ to: '/admin/certifications', label: 'Certifications', icon: 'award' },
 	{ to: '/admin/client-requests', label: 'Client Requests', icon: 'inbox' },
 	{ to: '/admin/chatbot', label: 'Chatbot AI', icon: 'message' },
-	{ to: '/admin/site-content', label: 'Site Content', icon: 'edit' },
+	{ to: '/admin/dynamic-settings', label: 'Dynamic Settings', icon: 'edit' },
 	...(userStore.user?.role === Role.OWNER ? [{ to: '/admin/users', label: 'Users', icon: 'users' }] : []),
 ])
 

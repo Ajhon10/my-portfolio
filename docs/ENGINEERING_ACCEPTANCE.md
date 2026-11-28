@@ -1125,3 +1125,32 @@ used one rate-limit window. With that same window, the updated suite passed
 243 Worker checks, including the existing recovery throttling assertion. The
 full build passed 65 Node tests, typechecks, and both bundles. The Wrangler
 deployment dry run passed.
+
+## Dynamic Settings — November 28, 2026
+
+The admin sidebar opens a settings hub with grouped cards and focused modal
+editors, following the DEOS Dynamic Settings layout. The hub contains Branding,
+Home page, Social links, and Other site content. The former Site Content URL
+redirects to Branding. Shop category and subcategory management moved into the
+hub, with searchable tables, a parent filter, and existing Undo support.
+
+Shop product forms use shared dropdowns for multiple category and subcategory
+assignments. Selecting a subcategory adds its parent, and removing a parent
+clears that parent's selected subcategories. Projects, Gears, Photography, and
+Tech Stack use managed category choices. Chatbot Knowledge uses managed tags.
+The settings and affected editors share reusable text, textarea, select,
+multi-select, and checkbox fields.
+
+The option lists start with values from existing content or the Chatbot defaults.
+Renaming or removing an editor option changes the available choices while
+preserving saved item values. Admin-only writes check revisions and support
+Undo. Local verification passed 65 Node tests, 250 Worker integration checks,
+typechecks, both production builds, and the Wrangler deployment dry run.
+Chrome verified category assignments after reload, the old Site Content link,
+and Branding Undo. The full browser suite recorded zero API failures and zero
+page errors in `.test-artifacts/browser-7abcd8a2-e9f9-422e-b5c6-b41dc6b7b132/report.json`.
+A focused Chrome check verified both themes, the opaque shared modal at 390 px,
+keyboard focus restoration, and editor-option Undo. Screenshots are in
+`.test-artifacts/browser-df297ea7-e33c-4b93-bdba-c2749b2b2767/`.
+The update is local. Production rollout requires `0014_admin_option_lists.sql`
+on the target D1 database.

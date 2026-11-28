@@ -1,4 +1,5 @@
 import { useApiProvider } from './api.provider'
+import type { MarketplaceLinks } from '../../../shared/shop-marketplaces'
 export interface ShopCategory {
 	id: string
 	name: string
@@ -21,6 +22,7 @@ export interface ShopProduct {
 	description: string
 	priceLabel: string
 	purchaseUrl: string
+	marketplaceLinks: MarketplaceLinks
 	downloadUrl: string
 	soldCount: number
 	ratingAverage: number | null
@@ -34,7 +36,7 @@ export interface ShopProduct {
 export type ShopInput = Pick<
 	ShopProduct,
 	'name' | 'description' | 'priceLabel' | 'purchaseUrl' | 'downloadUrl' | 'published' | 'sortOrder' | 'soldCount' | 'ratingAverage' | 'ratingCount'
-> & { categoryIds: string[]; subcategoryIds: string[] }
+> & { marketplaceLinks: MarketplaceLinks; categoryIds: string[]; subcategoryIds: string[] }
 export const shopCategoryLabel = (product: ShopProduct) =>
 	product.categories
 		.map((category) => {

@@ -5,10 +5,15 @@ import { useShopProvider, shopCategoryLabel, type ShopProduct } from '@/composab
 import { useSiteBranding } from '@/composables/useSiteBranding'
 import SiteIcon from '@/components/SiteIcon.vue'
 import ShopStats from '@/components/ShopStats.vue'
+import { marketplaces } from '../../shared/shop-marketplaces'
 const route = useRoute()
 const provider = useShopProvider()
 const { resolveAssetUrl } = useSiteBranding()
 const product = ref<ShopProduct>()
+const stores = computed(() => marketplaces.flatMap(name => {
+	const url = product.value?.marketplaceLinks?.[name]
+	return url ? [{ name, url }] : []
+}))
 const selected = ref('')
 const loading = ref(true)
 const currentMedia = computed(
@@ -85,6 +90,13 @@ watch(() => route.params.id, load, { immediate: true })
 					<ShopStats :product="product" />
 					<h2 class="detail-description-title">About this item</h2>
 					<p class="shop-description">{{ product.description }}</p>
+					<nav v-if="stores.length" aria-label="Choose a shop" class="mb-6">
+						<h2 class="mb-3 font-semibold">Choose a shop</h2>
+						<div class="shop-actions">
+							<a v-for="store in stores" :key="store.name" :href="store.url" class="folio-button"
+								target="_blank" rel="noopener noreferrer">Buy on {{ store.name }}</a>
+						</div>
+					</nav>
 					<div class="shop-actions">
 						<a
 							v-if="product.downloadUrl"

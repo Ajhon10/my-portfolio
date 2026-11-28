@@ -90,7 +90,7 @@ onBeforeUnmount(() => {
 					:aria-labelledby="title ? titleId : undefined"
 					:aria-busy="busy || undefined"
 					tabindex="-1"
-					class="shared-modal card relative flex w-full min-w-0 flex-col overflow-hidden bg-brand-gray-950 border-white/10"
+					class="shared-modal relative flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-[var(--folio-line)] bg-[var(--folio-bg)]"
 					:class="{
 						'max-w-sm [--modal-height:20rem]': size === 'sm',
 						'max-w-md [--modal-height:32rem]': size === 'md',

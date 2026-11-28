@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import AdminCategorySelect from '@/components/AdminCategorySelect.vue'
+import FormInput from '@/components/FormInput.vue'
+import FormCheckbox from '@/components/FormCheckbox.vue'
+import FormTextarea from '@/components/FormTextarea.vue'
 import { onContentUndo } from '@/composables/useContentUndo'
 import DataTable, { type DataTableColumn } from '@/components/DataTable.vue'
 import Modal from '@/components/Modal.vue'
@@ -160,9 +164,8 @@ onContentUndo(['Gear'], load)
 		>
 			<form @submit.prevent="save">
 				<fieldset :disabled="busy || uploading" class="space-y-5">
-					<div class="grid lg:grid-cols-[240px_minmax(0,1fr)] gap-5">
+					<div class="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
 						<div>
-							<label for="gear-file" class="label">Gear image</label>
 							<div
 								class="aspect-[4/3] grid place-items-center overflow-hidden rounded-lg border border-white/10 bg-black/30 p-3"
 							>
@@ -170,115 +173,75 @@ onContentUndo(['Gear'], load)
 									v-if="form.imageUrl"
 									:src="resolveAssetUrl(form.imageUrl)"
 									:alt="form.altText || 'Gear image preview'"
-									class="w-full h-full object-contain"
+									class="h-full w-full object-contain"
 								/>
 								<span v-else class="text-sm text-brand-gray-500">No image selected</span>
 							</div>
-							<input
-								id="gear-file"
-								type="file"
-								accept="image/jpeg,image/png,image/webp"
-								class="mt-3 block w-full text-sm"
-								@change="upload"
-							/>
+							<div class="mt-3">
+								<FormInput
+									id="gear-file"
+									label="Gear image"
+									type="file"
+									accept="image/jpeg,image/png,image/webp"
+									@change="upload"
+								/>
+							</div>
 							<p v-if="uploading" class="mt-2 text-sm text-brand-blueLight" role="status">Uploading image...</p>
 						</div>
-
 						<div class="space-y-4">
-							<div>
-								<label for="gear-image-url" class="label">Image URL</label>
-								<input
-									id="gear-image-url"
-									v-model.trim="form.imageUrl"
-									class="input"
-									maxlength="1000"
-									placeholder="Upload an image or enter an HTTPS URL"
-								/>
-							</div>
-							<div>
-								<label for="gear-alt" class="label">Image description</label>
-								<input
-									id="gear-alt"
-									v-model.trim="form.altText"
-									required
-									maxlength="500"
-									class="input"
-									placeholder="Describe the gear image for visitors using a screen reader"
-								/>
-							</div>
-						</div>
-					</div>
-
-					<div class="grid sm:grid-cols-2 gap-4">
-						<div>
-							<label for="gear-name" class="label">Name</label>
-							<input id="gear-name" v-model.trim="form.name" required maxlength="160" class="input" />
-						</div>
-						<div>
-							<label for="gear-brand" class="label">Brand</label>
-							<input id="gear-brand" v-model.trim="form.brand" maxlength="120" class="input" />
-						</div>
-						<div>
-							<label for="gear-category" class="label">Category</label>
-							<input
-								id="gear-category"
-								v-model.trim="form.category"
-								required
-								maxlength="100"
-								class="input"
-								placeholder="Computer, display, audio, desk..."
-							/>
-						</div>
-						<div>
-							<label for="gear-product-url" class="label">Product URL</label>
-							<input
-								id="gear-product-url"
-								v-model.trim="form.productUrl"
-								type="url"
+							<FormInput
+								id="gear-image-url"
+								v-model.trim="form.imageUrl"
+								label="Image URL"
 								maxlength="1000"
-								class="input"
-								placeholder="https://..."
+								placeholder="Upload an image or enter an HTTPS URL"
+							/>
+							<FormInput
+								id="gear-alt"
+								v-model.trim="form.altText"
+								label="Image description"
+								required
+								maxlength="500"
+								placeholder="Describe the gear image for visitors using a screen reader"
 							/>
 						</div>
 					</div>
-
-					<div>
-						<label for="gear-description" class="label">How you use it</label>
-						<textarea
-							id="gear-description"
-							v-model.trim="form.description"
-							required
-							maxlength="3000"
-							rows="4"
-							class="input"
-						/>
-					</div>
-
-					<div>
-						<label for="gear-specifications" class="label">Key specifications</label>
-						<textarea
-							id="gear-specifications"
-							v-model.trim="form.specifications"
+					<div class="grid gap-4 sm:grid-cols-2">
+						<FormInput id="gear-name" v-model.trim="form.name" label="Name" required maxlength="160" />
+						<FormInput id="gear-brand" v-model.trim="form.brand" label="Brand" maxlength="120" />
+						<AdminCategorySelect id="gear-category" v-model="form.category" kind="gears" required />
+						<FormInput
+							id="gear-product-url"
+							v-model.trim="form.productUrl"
+							label="Product URL"
+							type="url"
 							maxlength="1000"
-							rows="3"
-							class="input"
-							placeholder="One detail per line, or a short summary"
+							placeholder="https://..."
 						/>
 					</div>
-
-					<div class="flex flex-wrap gap-6 items-center">
-						<label class="label !mb-0">
-							Display order
-							<input v-model.number="form.sortOrder" type="number" min="0" required class="input mt-2 w-28" />
-						</label>
-						<label class="flex gap-2 items-center min-h-11">
-							<input v-model="form.featured" type="checkbox" /> Daily driver
-						</label>
-						<label class="flex gap-2 items-center min-h-11">
-							<input v-model="form.published" type="checkbox" /> Published
-						</label>
+					<FormTextarea
+						id="gear-description"
+						v-model.trim="form.description"
+						label="How you use it"
+						required
+						maxlength="3000"
+						rows="4"
+					/>
+					<FormTextarea
+						id="gear-specifications"
+						v-model.trim="form.specifications"
+						label="Key specifications"
+						maxlength="1000"
+						rows="3"
+						placeholder="One detail per line, or a short summary"
+					/>
+					<div class="flex flex-wrap items-end gap-6">
+						<div class="w-28">
+							<FormInput v-model.number="form.sortOrder" label="Display order" type="number" min="0" required />
+						</div>
+						<FormCheckbox v-model="form.featured" label="Daily driver" />
+						<FormCheckbox v-model="form.published" label="Published" />
 					</div>
-
 					<div class="flex flex-wrap gap-3">
 						<button class="btn btn-primary" type="submit">
 							{{ busy ? 'Saving...' : editing ? 'Update gear' : 'Create gear' }}

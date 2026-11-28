@@ -6,6 +6,7 @@ import { resourceRoutes } from './resources'
 import { shopRoutes } from './shop'
 import { dashboardRoutes } from './dashboard'
 import { contentUndoRoutes } from './content-undo'
+import { adminOptionRoutes } from './admin-options'
 import { uploadRoutes, serveMedia } from './media'
 import { requestRoutes } from './requests'
 import { chatRoutes } from './chat'
@@ -45,6 +46,7 @@ app.route('/api/chatbot', chatRoutes)
 app.route('/api/shop', shopRoutes)
 app.route('/api/admin/dashboard', dashboardRoutes)
 app.route('/api/admin/content-undo', contentUndoRoutes)
+app.route('/api/admin/options', adminOptionRoutes)
 app.route('/api', resourceRoutes)
 app.all('/socket', (c) => {
 	if (c.req.header('Upgrade')?.toLowerCase() !== 'websocket')

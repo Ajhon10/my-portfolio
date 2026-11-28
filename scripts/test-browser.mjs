@@ -317,7 +317,7 @@ try {
 		'shop',
 		'client-requests',
 		'chatbot',
-		'site-content',
+		'dynamic-settings',
 		'users',
 		'profile',
 	]) {
@@ -453,6 +453,16 @@ try {
 			'base64',
 		),
 	}
+	await page.getByRole('link', { name: 'Dynamic Settings', exact: true }).click()
+	await page.getByRole('link', { name: 'Gear categories', exact: true }).waitFor()
+	await page.screenshot({ path: artifact + '/dynamic-settings-desktop.png' })
+	await page.getByRole('link', { name: 'Gear categories', exact: true }).click()
+	const gearSettings = page.getByRole('dialog', { name: 'Gear categories', exact: true })
+	await gearSettings.getByRole('button', { name: 'Add option', exact: true }).click()
+	await gearSettings.getByLabel('Option name').pressSequentially('Desktop Computer')
+	await gearSettings.getByRole('button', { name: 'Save option', exact: true }).click()
+	await gearSettings.getByRole('cell', { name: 'Desktop Computer', exact: true }).waitFor()
+	await gearSettings.getByRole('button', { name: 'Close', exact: true }).click()
 	await page.getByRole('link', { name: 'Gears', exact: true }).click()
 	await page.waitForURL('**/admin/gears')
 	await page
@@ -489,7 +499,7 @@ try {
 	assert.equal((await gearUpload).status(), 201)
 	await page.locator('#gear-name').fill('Browser fixture gear')
 	await page.locator('#gear-brand').fill('Fixture brand')
-	await page.locator('#gear-category').fill('Computer')
+	await page.locator('#gear-category').selectOption({ label: 'Desktop Computer' })
 	await page.locator('#gear-alt').fill('A small fixture image for the gear test')
 	await page.locator('#gear-description').fill('Fixture hardware used to verify admin image upload and saving.')
 	const gearCreated = page.waitForResponse((r) => r.url().endsWith('/api/gears') && r.request().method() === 'POST')
@@ -501,40 +511,54 @@ try {
 	await page.screenshot({ path: artifact + '/admin-gears.png', fullPage: true })
 	// Create a categorized shop item, upload multiple media, publish and inquire.
 	await page.goto('http://127.0.0.1:5179/admin/shop', { waitUntil: 'networkidle' })
-	const categorySection = page.getByRole('region', { name: 'Categories & subcategories' })
-	await page.getByLabel('Category name', { exact: true }).fill('Browser templates')
-	await page.getByRole('button', { name: 'Add category', exact: true }).click()
-	await categorySection
-		.locator('span')
-		.filter({ hasText: /^Browser templates$/ })
-		.waitFor()
-	await page.getByLabel('Category name', { exact: true }).fill('Digital collection')
-	await page.getByRole('button', { name: 'Add category', exact: true }).click()
-	await categorySection
-		.locator('span')
-		.filter({ hasText: /^Digital collection$/ })
-		.waitFor()
-	await page.getByLabel('Parent category (optional)', { exact: true }).selectOption({ label: 'Digital collection' })
-	await page.getByLabel('Category name', { exact: true }).fill('Children')
-	await page.getByRole('button', { name: 'Add subcategory', exact: true }).click()
-	await page.getByRole('button', { name: 'Rename Digital collection → Children', exact: true }).click()
-	await page.getByLabel('Category name', { exact: true }).fill('Kids')
-	await page.getByRole('button', { name: 'Save subcategory', exact: true }).click()
-	await page.getByRole('button', { name: 'Rename Digital collection → Kids', exact: true }).waitFor()
+	await page.getByRole('link', { name: 'Manage categories', exact: true }).click()
+	const categorySettings = page.getByRole('dialog', { name: 'Shop categories', exact: true })
+	for (const name of ['Browser templates', 'Digital collection']) {
+		await categorySettings.getByRole('button', { name: 'Add category', exact: true }).click()
+		await categorySettings.getByLabel('Category name', { exact: true }).fill(name)
+		await categorySettings.getByRole('button', { name: 'Save category', exact: true }).click()
+		await categorySettings.getByRole('cell', { name, exact: true }).waitFor()
+	}
+	await categorySettings.getByRole('button', { name: 'Close', exact: true }).click()
+	await page.getByRole('link', { name: 'Shop subcategories', exact: true }).click()
+	const subcategorySettings = page.getByRole('dialog', { name: 'Shop subcategories', exact: true })
+	await subcategorySettings.getByRole('button', { name: 'Add subcategory', exact: true }).click()
+	await subcategorySettings.getByLabel('Parent category', { exact: true }).selectOption({ label: 'Digital collection' })
+	await subcategorySettings.getByLabel('Subcategory name', { exact: true }).fill('Children')
+	await subcategorySettings.getByRole('button', { name: 'Save subcategory', exact: true }).click()
+	const childrenRow = subcategorySettings.getByRole('row').filter({ hasText: 'Children' })
+	await childrenRow.getByRole('button', { name: 'Edit', exact: true }).click()
+	assert.ok(await subcategorySettings.getByLabel('Parent category', { exact: true }).isDisabled())
+	await subcategorySettings.getByLabel('Subcategory name', { exact: true }).fill('Kids')
+	await subcategorySettings.getByRole('button', { name: 'Save subcategory', exact: true }).click()
+	await subcategorySettings.getByLabel('Filter by category').selectOption({ label: 'Digital collection' })
+	await subcategorySettings.getByRole('cell', { name: 'Kids', exact: true }).waitFor()
+	await subcategorySettings.getByRole('button', { name: 'Close', exact: true }).click()
+	await page
+		.getByRole('navigation', { name: 'Administration' })
+		.getByRole('link', { name: 'Shop', exact: true })
+		.click()
 	await page.getByRole('button', { name: 'Add product', exact: true }).click()
 	await page.getByRole('dialog', { name: 'Add product' }).waitFor()
 	await page.getByLabel('Product name', { exact: true }).fill('Browser shop template')
 	await page
 		.getByLabel('Description', { exact: true })
 		.fill('A browser fixture product with a gallery and multiple categories.')
-	await page.getByLabel('Browser templates', { exact: true }).check()
-	await page.getByLabel('Digital collection → Kids', { exact: true }).check()
-	assert.ok(await page.getByLabel('Digital collection', { exact: true }).isChecked())
-	await page.getByLabel('Digital collection', { exact: true }).uncheck()
-	assert.equal(await page.getByLabel('Digital collection → Kids', { exact: true }).isChecked(), false)
-	await page.getByLabel('Digital collection → Kids', { exact: true }).check()
+	await page.getByLabel('Categories', { exact: true }).selectOption({ label: 'Browser templates' })
+	await page.getByLabel('Subcategories', { exact: true }).selectOption({ label: 'Digital collection → Kids' })
+	const selectedParent = page.getByRole('button', { name: 'Remove Digital collection from categories', exact: true })
+	const selectedChild = page.getByRole('button', {
+		name: 'Remove Digital collection → Kids from subcategories',
+		exact: true,
+	})
+	await selectedParent.waitFor()
+	await selectedParent.click()
+	await selectedChild.waitFor({ state: 'detached' })
+	await page.getByLabel('Subcategories', { exact: true }).selectOption({ label: 'Digital collection → Kids' })
 	await page.getByLabel('Price label (optional)', { exact: true }).fill('₱500')
 	await page.getByLabel('External purchase link (optional)', { exact: true }).fill('https://example.com/product')
+	await page.getByLabel('Payhip', { exact: true }).fill('https://payhip.com/b/test-fixture')
+	await page.getByLabel('Etsy', { exact: true }).fill('https://www.etsy.com/listing/1000000/test-fixture')
 	await page.getByRole('button', { name: 'Create product', exact: true }).click()
 	const productRow = page
 		.getByRole('row')
@@ -558,7 +582,7 @@ try {
 		return (await response.json()).data.find((p) => p.name === 'Browser shop template').id
 	})
 	assert.equal((await context.request.get('http://127.0.0.1:5179/api/shop/products/' + browserShopId)).status(), 404)
-	assert.ok(await page.getByLabel('Digital collection → Kids', { exact: true }).isChecked())
+	await selectedChild.waitFor()
 	await page.evaluate(async () => {
 		const headers = {
 			Authorization: 'Bearer ' + localStorage.getItem('portfolio_token'),
@@ -638,16 +662,17 @@ try {
 	await page.getByRole('button', { name: 'Toggle menu', exact: true }).click()
 	await page.getByRole('button', { name: 'Close menu', exact: true }).click()
 	await page.waitForFunction(() => document.querySelector('aside').getBoundingClientRect().right <= 0)
-	await categorySection.getByText('Digital collection → Kids', { exact: true }).scrollIntoViewIfNeeded()
+	await page.getByRole('link', { name: 'Manage categories', exact: true }).click()
+	await categorySettings.getByRole('button', { name: 'Close', exact: true }).click()
+	await page.getByRole('link', { name: 'Shop subcategories', exact: true }).waitFor()
+	assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+	await page.screenshot({ path: artifact + '/dynamic-settings-mobile.png' })
+	await page.getByRole('link', { name: 'Shop subcategories', exact: true }).click()
+	await subcategorySettings.getByRole('button', { name: 'Add subcategory', exact: true }).click()
+	const parentSelect = subcategorySettings.getByLabel('Parent category', { exact: true })
+	assert.ok((await parentSelect.boundingBox()).width > 240)
+	await parentSelect.selectOption({ label: 'Clothing' })
 	await page.screenshot({ path: artifact + '/admin-shop-subcategories-mobile.png' })
-	await page.getByRole('heading', { name: 'Categories & subcategories', exact: true }).scrollIntoViewIfNeeded()
-	assert.ok((await page.getByLabel('Parent category (optional)', { exact: true }).boundingBox()).width > 240)
-	await page.getByLabel('Parent category (optional)', { exact: true }).selectOption({ label: 'Clothing' })
-	await page.getByRole('button', { name: 'Add subcategory', exact: true }).waitFor()
-	await page.getByLabel('Parent category (optional)', { exact: true }).selectOption('')
-	await page
-		.locator('section[aria-labelledby="categories-heading"]')
-		.screenshot({ path: artifact + '/admin-shop-categories-mobile.png' })
 	await page.setViewportSize({ width: 1440, height: 1000 })
 	await page.goto('http://127.0.0.1:5179/shop', { waitUntil: 'networkidle' })
 	const anonymousShop = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' })
@@ -714,6 +739,10 @@ try {
 	await compactCard.getByText('0 sold', { exact: true }).waitFor()
 	await compactCard.getByText('No ratings yet', { exact: true }).waitFor()
 	await compactCard.getByRole('link', { name: 'View Browser shop template', exact: true }).click()
+	const storeChoices = page.getByRole('navigation', { name: 'Choose a shop' })
+	await storeChoices.getByRole('link', { name: 'Buy on Payhip' }).waitFor()
+	assert.equal(await storeChoices.getByRole('link', { name: 'Buy on Etsy' }).getAttribute('href'), 'https://www.etsy.com/listing/1000000/test-fixture')
+	assert.equal(await storeChoices.getByRole('link').count(), 2)
 	await page.getByRole('heading', { name: 'Browser shop template', exact: true }).waitFor()
 
 	await page.getByRole('button', { name: 'Show video 3 for Browser shop template' }).click()
@@ -759,6 +788,7 @@ try {
 	assert.equal((await photoUpload).status(), 201)
 	await page.locator('#photo-title').fill('Browser fixture photograph')
 	await page.locator('#photo-alt').fill('A small fixture photograph')
+	await page.locator('#photo-category').selectOption({ label: 'Night' })
 	const photoCreated = page.waitForResponse(
 		(r) => r.url().endsWith('/api/photography') && r.request().method() === 'POST',
 	)
@@ -831,6 +861,8 @@ try {
 	await mobile.screenshot({ path: artifact + '/public-mobile.png', fullPage: false })
 	// Home visual is configured by the owner; visitor storage cannot override it.
 	await page.goto('http://127.0.0.1:5179/admin/site-content', { waitUntil: 'networkidle' })
+	assert.equal(new URL(page.url()).pathname, '/admin/dynamic-settings')
+	await page.getByRole('dialog', { name: 'Branding', exact: true }).waitFor()
 	const logoTextRow = page.locator('[data-content-key="site_logo_text"]')
 	const previousLogo = await logoTextRow.locator('input').inputValue()
 	await logoTextRow.locator('input').fill('Browser brand')
@@ -839,7 +871,7 @@ try {
 	const undoBranding = page.getByRole('button', { name: 'Undo', exact: true }).last()
 	await page.setViewportSize({ width: 390, height: 844 })
 	await undoBranding.waitFor()
-	assert.deepEqual(await bottomRightOffsets(undoBranding), { right: 12, bottom: 12 })
+	assert.deepEqual(await bottomRightOffsets(undoBranding), { right: 13, bottom: 13 })
 	await undoBranding.focus()
 	await page.screenshot({ path: artifact + '/content-undo-toast.png' })
 	await page.keyboard.press('Enter')
@@ -860,7 +892,7 @@ try {
 	await page.reload({ waitUntil: 'networkidle' })
 	await sidebarLogo.waitFor()
 	assert.equal((await sidebarLogo.boundingBox()).height, 56)
-	assert.equal((await page.locator('header').boundingBox()).height, 80)
+	assert.equal((await page.getByRole('banner').boundingBox()).height, 80)
 	await mobile.reload({ waitUntil: 'networkidle' })
 	const publicHeader = mobile.locator('.folio-nav')
 	const publicLogo = publicHeader.locator('.folio-logo img')
@@ -888,8 +920,10 @@ try {
 		.locator('aside')
 		.getByRole('link', { name: `${previousLogo} Admin — view site`, exact: true })
 		.waitFor()
+	await page.goto('http://127.0.0.1:5179/admin/dynamic-settings?section=home', { waitUntil: 'networkidle' })
 	const visualRow = page.locator('[data-content-key="hero_visual_mode"]')
 	await visualRow.getByLabel('Home visual', { exact: true }).selectOption('model')
+	await visualRow.locator('model-viewer').scrollIntoViewIfNeeded()
 	await page.waitForFunction(() => document.querySelector('model-viewer')?.loaded === true, null, { timeout: 60000 })
 	await page.screenshot({ path: artifact + '/admin-model-preview.png' })
 	const visualSaved = page.waitForResponse(
@@ -993,12 +1027,12 @@ try {
 		await touchContext.close()
 	}
 	await page.setViewportSize({ width: 1440, height: 1000 })
-	await page.goto('http://127.0.0.1:5179/admin/site-content', { waitUntil: 'networkidle' })
+	await page.goto('http://127.0.0.1:5179/admin/dynamic-settings?section=home', { waitUntil: 'networkidle' })
 	await visualRow.getByLabel('Home visual', { exact: true }).selectOption('portrait')
 	await visualRow.getByRole('button', { name: 'Save', exact: true }).click()
 	await page.goto('http://127.0.0.1:5179/', { waitUntil: 'networkidle' })
 	assert.equal(await page.locator('.hero-art .interactive-portrait').count(), 1)
-	await page.goto('http://127.0.0.1:5179/admin/site-content', { waitUntil: 'networkidle' })
+	await page.goto('http://127.0.0.1:5179/admin/dynamic-settings?section=home', { waitUntil: 'networkidle' })
 	await visualRow.getByLabel('Home visual', { exact: true }).selectOption('particles')
 	await visualRow.getByRole('button', { name: 'Save', exact: true }).click()
 	await page.goto('http://127.0.0.1:5179/shop', { waitUntil: 'networkidle' })

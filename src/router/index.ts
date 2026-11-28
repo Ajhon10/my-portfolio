@@ -7,6 +7,7 @@ const router = createRouter({
 	scrollBehavior(to, from, savedPosition) {
 		if (savedPosition) return savedPosition
 		if (to.query.project && from.path === '/') return false
+		if (to.name === 'admin-dynamic-settings' && from.name === to.name) return false
 		const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
 		if (to.hash) {
 			return { el: to.hash, behavior }
@@ -125,8 +126,12 @@ const router = createRouter({
 		},
 		{
 			path: '/admin/site-content',
-			name: 'admin-site-content',
-			component: () => import('@/views/admin/SiteContentView.vue'),
+			redirect: { name: 'admin-dynamic-settings', query: { section: 'branding' } },
+		},
+		{
+			path: '/admin/dynamic-settings',
+			name: 'admin-dynamic-settings',
+			component: () => import('@/views/admin/DynamicSettingsView.vue'),
 			meta: { requiresAuth: true },
 		},
 		{

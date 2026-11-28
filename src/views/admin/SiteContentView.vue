@@ -3,6 +3,10 @@ import ParticlePortrait from '@/components/ParticlePortrait.vue'
 import InteractivePortrait from '@/components/InteractivePortrait.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import Modal from '@/components/Modal.vue'
+import FormInput from '@/components/FormInput.vue'
+import FormTextarea from '@/components/FormTextarea.vue'
+import FormSelect from '@/components/FormSelect.vue'
+import FormCheckbox from '@/components/FormCheckbox.vue'
 import { useProjectProvider } from '@/composables/provider/project.provider'
 import { useSiteContentProvider } from '@/composables/provider/site-content.provider'
 import { useSiteBranding } from '@/composables/useSiteBranding'
@@ -12,6 +16,7 @@ import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 
 import { toast } from 'vue3-toastify'
 
 const provider = useSiteContentProvider()
+const props = defineProps<{ section: 'branding' | 'home' | 'social' | 'copy' }>()
 const ModelPortrait = defineAsyncComponent(() => import('@/components/ModelPortrait.vue'))
 const uploadProvider = useProjectProvider()
 const { refreshBranding, resolveAssetUrl } = useSiteBranding()
@@ -175,15 +180,16 @@ const SINGLE_LINE_KEYS = new Set([
 	'hero_email',
 	'cta_hire_me',
 ])
+const isSingleLine = (key: string) => SINGLE_LINE_KEYS.has(key)
 
-const SOCIAL_META: Record<string, { label: string; placeholder: string; color: string }> = {
-	social_github: { label: 'GitHub', placeholder: 'https://github.com/username', color: '#ffffff' },
-	social_linkedin: { label: 'LinkedIn', placeholder: 'https://linkedin.com/in/username', color: '#0a66c2' },
-	social_facebook: { label: 'Facebook', placeholder: 'https://facebook.com/username', color: '#1877f2' },
-	social_instagram: { label: 'Instagram', placeholder: 'https://instagram.com/username', color: '#e1306c' },
-	social_twitter: { label: 'Twitter/X', placeholder: 'https://twitter.com/username', color: '#1da1f2' },
-	social_youtube: { label: 'YouTube', placeholder: 'https://youtube.com/@username', color: '#ff0000' },
-	social_tiktok: { label: 'TikTok', placeholder: 'https://tiktok.com/@username', color: '#69c9d0' },
+const SOCIAL_META: Record<string, { label: string; placeholder: string }> = {
+	social_github: { label: 'GitHub', placeholder: 'https://github.com/username' },
+	social_linkedin: { label: 'LinkedIn', placeholder: 'https://linkedin.com/in/username' },
+	social_facebook: { label: 'Facebook', placeholder: 'https://facebook.com/username' },
+	social_instagram: { label: 'Instagram', placeholder: 'https://instagram.com/username' },
+	social_twitter: { label: 'Twitter/X', placeholder: 'https://twitter.com/username' },
+	social_youtube: { label: 'YouTube', placeholder: 'https://youtube.com/@username' },
+	social_tiktok: { label: 'TikTok', placeholder: 'https://tiktok.com/@username' },
 }
 
 const hints: Record<string, string> = {
@@ -273,26 +279,28 @@ const otherItems = computed(() =>
 	),
 )
 
-const contentGroups = computed(() => [
-	{
-		id: 'brand',
-		title: 'Branding',
-		description: 'Logo, favicon, browser title, and search description.',
-		items: brandItems.value,
-	},
-	{
-		id: 'hero',
-		title: 'Hero Section',
-		description: 'Only the content used by the home page hero section.',
-		items: heroItems.value,
-	},
-	{
-		id: 'other',
-		title: 'Other Site Content',
-		description: 'General copy that is not part of the hero section.',
-		items: otherItems.value,
-	},
-])
+const contentGroups = computed(() =>
+	[
+		{
+			id: 'brand',
+			title: 'Branding',
+			description: 'Logo, favicon, browser title, and search description.',
+			items: brandItems.value,
+		},
+		{
+			id: 'hero',
+			title: 'Hero Section',
+			description: 'Only the content used by the home page hero section.',
+			items: heroItems.value,
+		},
+		{
+			id: 'other',
+			title: 'Other Site Content',
+			description: 'General copy that is not part of the hero section.',
+			items: otherItems.value,
+		},
+	].filter(({ id }) => id === { branding: 'brand', home: 'hero', copy: 'other', social: '' }[props.section]),
+)
 
 const load = async (preserveDrafts = false) => {
 	if (!preserveDrafts) loading.value = true
@@ -468,10 +476,6 @@ const clearAsset = async (item: SiteContent) => {
 	drafts.value[item.key] = ''
 	await saveItems([item], `${item.label} cleared`)
 }
-
-const toggleBoolean = (item: SiteContent) => {
-	drafts.value[item.key] = drafts.value[item.key] === 'true' ? 'false' : 'true'
-}
 </script>
 
 <template>
@@ -480,11 +484,10 @@ const toggleBoolean = (item: SiteContent) => {
 		Unable to load site content. <button class="text-brand-blueLight" @click="load()">Try again</button>
 	</div>
 	<div v-else class="space-y-8">
-		<section v-for="group in contentGroups" :key="group.id" class="card p-6">
+		<section v-for="group in contentGroups" :key="group.id">
 			<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-2">
 				<div>
-					<h3 class="font-display font-semibold text-lg">{{ group.title }}</h3>
-					<p class="text-xs text-brand-gray-500 mt-0.5">{{ group.description }}</p>
+					<p class="text-sm text-brand-gray-400">{{ group.description }}</p>
 				</div>
 				<button
 					v-if="group.id !== 'other'"
@@ -546,16 +549,20 @@ const toggleBoolean = (item: SiteContent) => {
 							<div class="p-2 border-t border-white/5">
 								<div class="text-[10px] font-mono text-blue-200 truncate mb-2">{{ angle.label }}</div>
 								<div class="flex items-center gap-1.5">
-									<label class="btn btn-ghost !px-2 !py-1 text-[10px] cursor-pointer flex-1 text-center">
+									<label
+										:for="`portrait-upload-${angle.direction}`"
+										class="btn btn-ghost !px-2 !py-1 text-[10px] cursor-pointer flex-1 text-center"
+									>
 										{{ drafts[angle.key] ? 'Replace' : 'Upload' }}
-										<input
-											type="file"
-											accept="image/jpeg,image/png,image/webp"
-											class="sr-only"
-											:aria-label="`Upload ${angle.label} portrait`"
-											@change="beginPortraitUpload(angle.direction, $event)"
-										/>
 									</label>
+									<FormInput
+										:id="`portrait-upload-${angle.direction}`"
+										type="file"
+										accept="image/jpeg,image/png,image/webp"
+										class="sr-only"
+										:aria-label="`Upload ${angle.label} portrait`"
+										@change="beginPortraitUpload(angle.direction, $event)"
+									/>
 									<button
 										v-if="drafts[angle.key]"
 										type="button"
@@ -582,7 +589,6 @@ const toggleBoolean = (item: SiteContent) => {
 			>
 				<div class="flex items-start justify-between gap-3 mb-3">
 					<div>
-						<div class="text-xs font-mono text-brand-gray-500">{{ item.key }}</div>
 						<h4 class="font-display font-semibold">{{ item.label }}</h4>
 						<p v-if="hints[item.key]" class="text-xs text-brand-gray-500 mt-1">{{ hints[item.key] }}</p>
 					</div>
@@ -598,12 +604,11 @@ const toggleBoolean = (item: SiteContent) => {
 				</div>
 
 				<div v-if="item.key === 'hero_visual_mode'">
-					<label :for="item.key" class="label">Home visual</label>
-					<select :id="item.key" v-model="drafts[item.key]" class="input">
+					<FormSelect :id="item.key" v-model="drafts[item.key]" aria-label="Home visual">
 						<option value="particles">Particles</option>
 						<option value="portrait">Portrait</option>
 						<option value="model">3D model</option>
-					</select>
+					</FormSelect>
 					<div v-if="drafts[item.key] === 'model'" class="mt-4 max-w-sm">
 						<ModelPortrait
 							:src="drafts.hero_model_url"
@@ -617,32 +622,23 @@ const toggleBoolean = (item: SiteContent) => {
 					</div>
 				</div>
 				<div v-else-if="item.key.startsWith('hero_particle_')">
-					<label :for="item.key" class="label">{{ item.label }}</label
-					><input
+					<FormInput
 						:id="item.key"
 						v-model="drafts[item.key]"
 						type="range"
+						:aria-label="item.label"
 						:min="item.key === 'hero_particle_density' ? 4 : 1"
 						max="10"
 						step="1"
-					/><span class="ml-3">{{ drafts[item.key] }}</span>
+					/>
+					<output :for="item.key">{{ drafts[item.key] }}</output>
 				</div>
-				<div v-else-if="BOOLEAN_KEYS.has(item.key)" class="flex items-center gap-4">
-					<button
-						type="button"
-						class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-						:class="drafts[item.key] === 'true' ? 'bg-brand-blue' : 'bg-white/10'"
-						@click="toggleBoolean(item)"
-					>
-						<span
-							class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform"
-							:class="drafts[item.key] === 'true' ? 'translate-x-6' : 'translate-x-1'"
-						/>
-					</button>
-					<span class="text-sm" :class="drafts[item.key] === 'true' ? 'text-brand-blueLight' : 'text-brand-gray-400'">
-						{{ drafts[item.key] === 'true' ? 'Accepting freelance projects' : 'Not available for freelance' }}
-					</span>
-				</div>
+				<FormCheckbox
+					v-else-if="BOOLEAN_KEYS.has(item.key)"
+					:model-value="drafts[item.key] === 'true'"
+					label="Accepting freelance projects"
+					@update:model-value="drafts[item.key] = $event ? 'true' : 'false'"
+				/>
 
 				<div v-else-if="IMAGE_KEYS.has(item.key)" class="space-y-3">
 					<div
@@ -688,29 +684,31 @@ const toggleBoolean = (item: SiteContent) => {
 						No file set
 					</div>
 
-					<label class="inline-flex items-center gap-2 cursor-pointer">
+					<label :for="`asset-upload-${item.key}`" class="inline-flex items-center gap-2 cursor-pointer">
 						<span
 							class="btn btn-ghost text-xs px-3 py-1.5"
 							:class="uploading[item.key] ? 'opacity-50 pointer-events-none' : ''"
 						>
 							{{ uploadText(item) }}
 						</span>
-						<input
-							type="file"
-							:accept="fileAccept(item)"
-							:aria-label="`Upload ${item.label}`"
-							class="sr-only"
-							:disabled="uploading[item.key]"
-							@change="onAssetUpload(item, $event)"
-						/>
 					</label>
+					<FormInput
+						:id="`asset-upload-${item.key}`"
+						type="file"
+						:accept="fileAccept(item)"
+						:aria-label="`Upload ${item.label}`"
+						class="sr-only"
+						:disabled="uploading[item.key]"
+						@change="onAssetUpload(item, $event)"
+					/>
 
 					<div class="flex flex-col sm:flex-row gap-2 sm:items-center">
-						<input
+						<FormInput
 							v-model="drafts[item.key]"
 							type="text"
-							class="input text-xs max-w-md"
-							placeholder="/uploads/file.png or https://..."
+							class="text-xs"
+							:aria-label="`${item.label} URL`"
+							placeholder="Paste an asset URL"
 						/>
 						<button
 							class="btn btn-primary text-sm !py-1.5 !px-3 shrink-0"
@@ -723,17 +721,21 @@ const toggleBoolean = (item: SiteContent) => {
 					</div>
 				</div>
 
-				<input v-else-if="SINGLE_LINE_KEYS.has(item.key)" v-model="drafts[item.key]" type="text" class="input" />
-
-				<textarea v-else v-model="drafts[item.key]" rows="3" class="input resize-y" />
+				<template v-else>
+					<template v-if="isSingleLine(item.key)">
+						<FormInput v-model="drafts[item.key]" :aria-label="item.label" />
+					</template>
+					<template v-else>
+						<FormTextarea v-model="drafts[item.key]" :aria-label="item.label" rows="3" />
+					</template>
+				</template>
 			</div>
 		</section>
 
-		<section v-if="socialItems.length" class="card p-6">
+		<section v-if="props.section === 'social' && socialItems.length">
 			<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
 				<div>
-					<h3 class="font-display font-semibold text-lg">Social Media Links</h3>
-					<p class="text-xs text-brand-gray-500 mt-0.5">Leave blank to hide the link from your site.</p>
+					<p class="text-sm text-brand-gray-400">Leave blank to hide the link from your site.</p>
 				</div>
 				<button
 					class="btn btn-primary text-sm !py-1.5 !px-4"
@@ -744,21 +746,13 @@ const toggleBoolean = (item: SiteContent) => {
 				</button>
 			</div>
 			<div class="grid sm:grid-cols-2 gap-4">
-				<div v-for="item in socialItems" :key="item.key" class="space-y-1.5">
-					<label class="flex items-center gap-2 text-sm font-medium">
-						<span
-							class="w-2.5 h-2.5 rounded-full shrink-0"
-							:style="{ backgroundColor: SOCIAL_META[item.key]?.color ?? '#ffffff' }"
-						/>
-						{{ SOCIAL_META[item.key]?.label ?? item.label }}
-						<span v-if="drafts[item.key]" class="ml-auto text-xs text-emerald-400 font-normal">linked</span>
-						<span v-else class="ml-auto text-xs text-brand-gray-600 font-normal">not set</span>
-					</label>
-					<input
+				<div v-for="item in socialItems" :key="item.key">
+					<FormInput
 						v-model="drafts[item.key]"
+						:label="SOCIAL_META[item.key]?.label ?? item.label"
 						type="url"
-						class="input text-sm"
-						:placeholder="SOCIAL_META[item.key]?.placeholder ?? 'https://...'"
+						class="text-sm"
+						:placeholder="SOCIAL_META[item.key]?.placeholder ?? 'Paste your profile URL'"
 					/>
 				</div>
 			</div>
@@ -785,31 +779,38 @@ const toggleBoolean = (item: SiteContent) => {
 							The original file is preserved. At 100% the complete portrait remains visible without cropping.
 						</p>
 					</div>
-					<label class="block">
-						<span class="label flex justify-between"
-							><span>Portrait size</span><span>{{ Math.round(portraitEditorAdjustment.scale * 100) }}%</span></span
-						>
-						<input
+					<div class="space-y-2">
+						<FormInput
 							v-model.number="portraitEditorAdjustment.scale"
+							label="Portrait size"
+							:hint="`${Math.round(portraitEditorAdjustment.scale * 100)}%`"
 							type="range"
 							min="0.7"
 							max="1"
 							step="0.01"
 							class="w-full"
 						/>
-					</label>
-					<label class="block">
-						<span class="label flex justify-between"
-							><span>Horizontal position</span><span>{{ portraitEditorAdjustment.x }}%</span></span
-						>
-						<input v-model.number="portraitEditorAdjustment.x" type="range" min="0" max="100" step="1" class="w-full" />
-					</label>
-					<label class="block">
-						<span class="label flex justify-between"
-							><span>Vertical position</span><span>{{ portraitEditorAdjustment.y }}%</span></span
-						>
-						<input v-model.number="portraitEditorAdjustment.y" type="range" min="0" max="100" step="1" class="w-full" />
-					</label>
+						<FormInput
+							v-model.number="portraitEditorAdjustment.x"
+							label="Horizontal position"
+							:hint="`${portraitEditorAdjustment.x}%`"
+							type="range"
+							min="0"
+							max="100"
+							step="1"
+							class="w-full"
+						/>
+						<FormInput
+							v-model.number="portraitEditorAdjustment.y"
+							label="Vertical position"
+							:hint="`${portraitEditorAdjustment.y}%`"
+							type="range"
+							min="0"
+							max="100"
+							step="1"
+							class="w-full"
+						/>
+					</div>
 					<button
 						type="button"
 						class="text-xs text-brand-gray-400 hover:text-white"

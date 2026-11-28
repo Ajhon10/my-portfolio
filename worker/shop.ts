@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { marketplaces } from '../shared/shop-marketplaces'
 import { z } from 'zod'
 import { ApiError, admin, body, idSchema, isAdmin, now, ok, text, urlSchema } from './http'
 import { decode, insert, list, need, placeholders, update } from './db'
@@ -13,6 +14,9 @@ const productSchema = z
 		description: text(1, 10000),
 		priceLabel: z.string().trim().max(100).default(''),
 		purchaseUrl: urlSchema.default(''),
+		marketplaceLinks: z.partialRecord(z.enum(marketplaces), z.union([
+			z.literal(''), z.url({ protocol: /^https$/ }).max(1500),
+		])).optional(),
 		downloadUrl: urlSchema.or(z.literal('/downloads/ats-friendly-resume-template.zip')).default(''),
 		published: z.boolean().default(false),
 		sortOrder: order,

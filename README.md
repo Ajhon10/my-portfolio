@@ -84,9 +84,9 @@ captured read-only from the production public API at
 | `gears.csv` | 0 |
 | `shop-categories.csv` | 2 |
 | `shop-subcategories.csv` | 5 |
-| `shop-products.csv` | 1 |
-| `shop-product-categories.csv` | 1 |
-| `shop-product-media.csv` | 1 |
+| `shop-products.csv` | 4 |
+| `shop-product-categories.csv` | 4 |
+| `shop-product-media.csv` | 4 |
 
 The empty CSVs retain their column headers because production exposes no records
 for those sections. The production snapshot had no shop API. The shop CSVs now
@@ -115,8 +115,13 @@ records without changing proficiency ratings. Project media now includes the
 original MemeCam studio screenshot and MuniAlert's desktop/mobile demo captures.
 FableSplice uses an authored SVG prototype cover illustrating its actual pipeline,
 not an application screenshot. These assets live under `public/seed/projects/`.
-No live URLs were invented. The seed now contains 141 CSV rows overall; a shop
+The seed contains 150 CSV rows overall. A shop
 category-link row creates both its parent and optional child association.
+
+Three draft printables are filed under Digital products → Kids. Their print files are in
+`assets/digital-products/`. Admin → Shop → Edit product → Marketplace listings accepts
+buyer-facing links for Raket.PH, Etsy, Teachers Pay Teachers, Payhip and Gumroad.
+Each filled field adds a named purchase link to the product detail page after publication.
 
 The shop includes one published **ATS-friendly Resume Template**, priced Free.
 Its direct download contains an original editable DOCX, matching TXT and usage
@@ -165,7 +170,7 @@ Gallery relationships resolve
 projects by slug so existing local IDs remain valid. Updating the CSVs does not
 modify production data or publish the site.
 
-Admin → Site Content → Hero Section → Home visual now selects particles,
+Admin → Dynamic Settings → Home page → Home visual selects particles,
 portrait or the bundled sample 3D figurine. Save applies that choice for all
 visitors. Model URL and description can be changed there, with a live preview.
 The original sample references the existing portrait's hair, facial features
@@ -176,6 +181,8 @@ Shop cards show title, image, price, sold count and ratings, linking to the full
 description/gallery at `/shop/:id`. Admin → Shop accepts verified sales/rating
 totals; zero sold and No ratings yet are the defaults. These totals are manually
 maintained because the shop uses inquiries and optional external purchases.
+Manage Shop categories and subcategories in Admin → Dynamic Settings. The
+product editor uses dropdowns to assign multiple categories and subcategories.
 
 ## Automatic checks and deployment
 

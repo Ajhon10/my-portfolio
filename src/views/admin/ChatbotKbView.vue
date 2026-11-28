@@ -2,37 +2,33 @@
 import { onContentUndo } from '@/composables/useContentUndo'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DataTable, { type DataTableColumn } from '@/components/DataTable.vue'
-import FormField from '@/components/FormField.vue'
+import FormInput from '@/components/FormInput.vue'
+import FormTextarea from '@/components/FormTextarea.vue'
+import FormCheckbox from '@/components/FormCheckbox.vue'
+import FormMultiSelect from '@/components/FormMultiSelect.vue'
+import { useAdminOptionsProvider } from '@/composables/provider/admin-options.provider'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import Modal from '@/components/Modal.vue'
 import { useChatbotProvider, type KBInput } from '@/composables/provider/chatbot.provider'
 import { getAdminSocket } from '@/composables/useSocket'
 import { useUserStore } from '@/stores/user'
-import { ChatbotMessageRole, type ChatbotConversation, type ChatbotKB, type ChatbotMessage, type ChatbotTag } from '@/types'
+import { ChatbotMessageRole, type ChatbotConversation, type ChatbotKB, type ChatbotMessage } from '@/types'
 import type { Socket } from '@/composables/worker-socket'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { toast } from 'vue3-toastify'
 
 const provider = useChatbotProvider()
+const optionProvider = useAdminOptionsProvider()
 const userStore = useUserStore()
-
-const fallbackTags: ChatbotTag[] = [
-	{ id: 'skills', name: 'skills', label: 'Skills', sortOrder: 1 },
-	{ id: 'services', name: 'services', label: 'Services', sortOrder: 2 },
-	{ id: 'experience', name: 'experience', label: 'Experience', sortOrder: 3 },
-	{ id: 'projects', name: 'projects', label: 'Projects', sortOrder: 4 },
-	{ id: 'tech', name: 'tech', label: 'Tech Stack', sortOrder: 5 },
-	{ id: 'availability', name: 'availability', label: 'Availability', sortOrder: 6 },
-	{ id: 'pricing', name: 'pricing', label: 'Pricing', sortOrder: 7 },
-	{ id: 'contact', name: 'contact', label: 'Contact', sortOrder: 8 },
-	{ id: 'background', name: 'background', label: 'Background', sortOrder: 9 },
-	{ id: 'portfolio', name: 'portfolio', label: 'Portfolio', sortOrder: 10 },
-]
 
 const tab = ref<'kb' | 'conversations'>('kb')
 const items = ref<ChatbotKB[]>([])
-const tagOptions = ref<ChatbotTag[]>(fallbackTags)
+const tagLabels = ref<string[]>([])
+const tagsFailed = ref(false)
 const selectedTags = ref<string[]>([])
+const tagOptions = computed(() =>
+	[...new Set([...tagLabels.value, ...selectedTags.value])].map((label) => ({ value: label, label })),
+)
 const conversations = ref<ChatbotConversation[]>([])
 const activeSessionMap = ref<Map<string, { takenOver: boolean; isLive: boolean }>>(new Map())
 const loading = ref(true)
@@ -64,13 +60,16 @@ const selectedIsLive = computed(() => {
 	return activeSessionMap.value.get(selectedConversation.value.sessionId)?.isLive || false
 })
 
+async function loadTags() {
+	const response = await optionProvider.get('chatbot-tags')
+	tagsFailed.value = !response.success
+	if (response.success) tagLabels.value = response.data.labels
+}
+
 const load = async () => {
 	loading.value = true
 	try {
-		const tagsRes = await provider.listTags()
-		if (tagsRes.success && tagsRes.data?.length) tagOptions.value = tagsRes.data
-
-		const res = await provider.listKnowledge()
+		const [res] = await Promise.all([provider.listKnowledge(), loadTags()])
 		if (res.success && res.data) items.value = res.data
 	} finally {
 		loading.value = false
@@ -93,6 +92,9 @@ const loadConversations = async () => {
 
 onContentUndo(['ChatbotKnowledge'], () => {
 	if (tab.value === 'kb') void load()
+})
+onContentUndo(['AdminOptionList'], (changes) => {
+	if (changes.some(({ key }) => key === 'chatbot-tags')) void loadTags()
 })
 
 onMounted(async () => {
@@ -225,14 +227,11 @@ const setupSocket = () => {
 		removeActiveSession(sessionId)
 	})
 
-	socket.on(
-		'visitor:list',
-		(list: { sessionId: string; takenOver: boolean }[]) => {
-			const m = new Map<string, { takenOver: boolean; isLive: boolean }>()
-			for (const a of list) m.set(a.sessionId, { takenOver: a.takenOver, isLive: true })
-			activeSessionMap.value = m
-		},
-	)
+	socket.on('visitor:list', (list: { sessionId: string; takenOver: boolean }[]) => {
+		const m = new Map<string, { takenOver: boolean; isLive: boolean }>()
+		for (const a of list) m.set(a.sessionId, { takenOver: a.takenOver, isLive: true })
+		activeSessionMap.value = m
+	})
 
 	// Ask for the current list of online visitors (the gateway also pushes this
 	// automatically on connect, but we may have connected before this view mounted).
@@ -346,7 +345,11 @@ const fmtTime = (iso?: string | null) => {
 
 const columns: DataTableColumn<ChatbotKB>[] = [
 	{ key: 'topic', label: 'Topic' },
-	{ key: 'question', label: 'Question', render: (r) => (r.question.length > 80 ? r.question.slice(0, 77) + '…' : r.question) },
+	{
+		key: 'question',
+		label: 'Question',
+		render: (r) => (r.question.length > 80 ? r.question.slice(0, 77) + '…' : r.question),
+	},
 	{ key: 'enabled', label: 'Active', render: (r) => (r.enabled ? 'Yes' : 'No') },
 ]
 
@@ -371,10 +374,11 @@ const openEdit = (kb: ChatbotKB) => {
 		tags: kb.tags || '',
 		enabled: kb.enabled,
 	})
-	selectedTags.value = (kb.tags || '')
+	const tags = (kb.tags || '')
 		.split(',')
 		.map((tag) => tag.trim())
 		.filter(Boolean)
+	selectedTags.value = [...new Set(tags)]
 	errors.value = {}
 	showModal.value = true
 }
@@ -384,6 +388,8 @@ const save = async () => {
 	if (!form.topic.trim()) errors.value.topic = 'Topic is required'
 	if (!form.question.trim()) errors.value.question = 'Question is required'
 	if (!form.answer.trim()) errors.value.answer = 'Answer is required'
+	const tags = selectedTags.value.join(',')
+	if (tags.length > 1000) errors.value.tags = 'Use fewer tags.'
 	if (Object.keys(errors.value).length) {
 		toast.error('Please fix the highlighted fields.')
 		return
@@ -393,7 +399,7 @@ const save = async () => {
 		topic: form.topic.trim(),
 		question: form.question.trim(),
 		answer: form.answer,
-		tags: selectedTags.value.join(',') || undefined,
+		tags: tags || null,
 		enabled: form.enabled,
 	}
 	const res = editingId.value
@@ -460,16 +466,11 @@ const fmt = (d: string) => new Date(d).toLocaleString()
 			<div class="lg:col-span-4 card overflow-hidden flex flex-col">
 				<div class="px-4 py-3 border-b border-white/5 flex items-center justify-between">
 					<h3 class="font-semibold text-sm">Conversations</h3>
-					<button class="text-xs text-brand-blueLight hover:text-brand-blue" @click="loadConversations">
-						Refresh
-					</button>
+					<button class="text-xs text-brand-blueLight hover:text-brand-blue" @click="loadConversations">Refresh</button>
 				</div>
 				<div class="flex-1 overflow-y-auto">
 					<LoadingSpinner v-if="loading && !conversations.length" />
-					<div
-						v-else-if="!conversations.length"
-						class="p-8 text-center text-sm text-brand-gray-500"
-					>
+					<div v-else-if="!conversations.length" class="p-8 text-center text-sm text-brand-gray-500">
 						No visitor conversations yet.
 					</div>
 					<button
@@ -497,7 +498,7 @@ const fmt = (d: string) => new Date(d).toLocaleString()
 							</span>
 						</div>
 						<p class="text-xs text-brand-gray-400 truncate">
-							{{ (c.messages?.[c.messages.length - 1]?.content) || 'No messages yet' }}
+							{{ c.messages?.[c.messages.length - 1]?.content || 'No messages yet' }}
 						</p>
 						<p class="text-[11px] text-brand-gray-500 mt-1">
 							{{ c.messages?.length || 0 }} message{{ (c.messages?.length || 0) === 1 ? '' : 's' }} ·
@@ -562,8 +563,8 @@ const fmt = (d: string) => new Date(d).toLocaleString()
 									m.role === 'USER'
 										? 'bg-white/5 text-brand-gray-200 border border-white/5 rounded-bl-sm'
 										: m.role === 'ADMIN'
-										? 'bg-green-500/15 text-green-50 border border-green-500/30 rounded-br-sm'
-										: 'bg-brand-blue text-white rounded-br-sm'
+											? 'bg-green-500/15 text-green-50 border border-green-500/30 rounded-br-sm'
+											: 'bg-brand-blue text-white rounded-br-sm'
 								"
 							>
 								{{ m.content }}
@@ -572,31 +573,32 @@ const fmt = (d: string) => new Date(d).toLocaleString()
 						<div v-if="visitorTyping" class="flex items-start">
 							<div class="px-3.5 py-2.5 rounded-2xl bg-white/5 border border-white/5 flex items-center gap-1">
 								<span class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft" />
-								<span class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft" style="animation-delay: 0.15s" />
+								<span
+									class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft"
+									style="animation-delay: 0.15s"
+								/>
 								<span class="w-2 h-2 rounded-full bg-brand-gray-400 animate-pulse-soft" style="animation-delay: 0.3s" />
 							</div>
 						</div>
 					</div>
 
 					<!-- Reply input (only when visitor is live) -->
-					<form
-						v-if="selectedIsLive"
-						class="p-3 border-t border-white/5"
-						@submit.prevent="sendReply"
-					>
+					<form v-if="selectedIsLive" class="p-3 border-t border-white/5" @submit.prevent="sendReply">
 						<div v-if="!selectedTakenOver" class="mb-2 text-xs text-brand-gray-500 text-center">
-							Click <strong class="text-white">Take over conversation</strong> to reply directly.
-							The bot keeps replying until you take over.
+							Click <strong class="text-white">Take over conversation</strong> to reply directly. The bot keeps replying
+							until you take over.
 						</div>
 						<div class="flex gap-2">
-							<input
-								v-model="replyText"
-								type="text"
-								class="input !py-2 !px-3 text-sm flex-1"
-								placeholder="Type your reply..."
-								:disabled="!selectedTakenOver || sending"
-								@input="onReplyInput"
-							/>
+							<div class="min-w-0 flex-1">
+								<FormInput
+									v-model="replyText"
+									aria-label="Reply"
+									class="!py-2 !px-3 text-sm"
+									placeholder="Type your reply..."
+									:disabled="!selectedTakenOver || sending"
+									@input="onReplyInput"
+								/>
+							</div>
 							<button
 								type="submit"
 								class="btn btn-primary !py-2 !px-4"
@@ -610,33 +612,51 @@ const fmt = (d: string) => new Date(d).toLocaleString()
 			</div>
 		</div>
 
-		<Modal :open="showModal" :title="editingId ? 'Edit knowledge' : 'Add verified knowledge'" size="lg" @close="showModal = false">
+		<Modal
+			:open="showModal"
+			:title="editingId ? 'Edit knowledge' : 'Add verified knowledge'"
+			size="lg"
+			@close="showModal = false"
+		>
 			<form class="space-y-4" @submit.prevent="save">
-				<FormField label="Topic" :error="errors.topic" required hint="e.g. Pricing, Services, Availability">
-					<input v-model="form.topic" type="text" class="input" />
-				</FormField>
-				<FormField label="Question" :error="errors.question" required>
-					<input v-model="form.question" type="text" class="input" placeholder="What do clients usually ask?" />
-				</FormField>
-				<FormField label="Answer" :error="errors.answer" required>
-					<textarea v-model="form.answer" rows="6" class="input resize-none" placeholder="The answer the bot should give..." />
-				</FormField>
-				<FormField label="Tags" hint="Choose one or more keywords for retrieval">
-					<div v-if="tagOptions.length" class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-						<label
-							v-for="tag in tagOptions"
-							:key="tag.id"
-							class="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-brand-gray-300 hover:border-brand-blue/40 hover:text-white transition"
-						>
-							<input v-model="selectedTags" type="checkbox" :value="tag.name" />
-							<span>{{ tag.label }}</span>
-						</label>
-					</div>
-					<div v-else class="text-sm text-brand-gray-500">No tags available yet.</div>
-				</FormField>
-				<label class="flex items-center gap-2 text-sm">
-					<input v-model="form.enabled" type="checkbox" /> Enabled
-				</label>
+				<FormInput
+					v-model="form.topic"
+					label="Topic"
+					:error="errors.topic"
+					required
+					hint="e.g. Pricing, Services, Availability"
+				/>
+				<FormInput
+					v-model="form.question"
+					label="Question"
+					:error="errors.question"
+					required
+					placeholder="What do clients usually ask?"
+				/>
+				<FormTextarea
+					v-model="form.answer"
+					label="Answer"
+					:error="errors.answer"
+					required
+					rows="6"
+					placeholder="The answer the bot should give..."
+				/>
+				<FormMultiSelect
+					v-model="selectedTags"
+					label="Tags"
+					:options="tagOptions"
+					placeholder="Choose a tag"
+					:error="errors.tags"
+				/>
+				<p v-if="tagsFailed" role="alert" class="text-sm text-brand-gray-400">
+					Tags are unavailable. <button type="button" class="text-brand-blueLight" @click="loadTags">Retry</button>
+				</p>
+				<RouterLink
+					:to="{ name: 'admin-dynamic-settings', query: { section: 'chatbot-tags' } }"
+					class="block text-xs text-brand-blueLight"
+					>Manage tag options</RouterLink
+				>
+				<FormCheckbox v-model="form.enabled" label="Enabled" />
 				<div class="flex justify-end gap-3 pt-2">
 					<button type="button" class="btn btn-ghost" @click="showModal = false">Cancel</button>
 					<button type="submit" class="btn btn-primary">Save</button>

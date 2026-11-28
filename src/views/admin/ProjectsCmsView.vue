@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { onContentUndo } from '@/composables/useContentUndo'
+import AdminCategorySelect from '@/components/AdminCategorySelect.vue'
+import FormInput from '@/components/FormInput.vue'
+import FormTextarea from '@/components/FormTextarea.vue'
+import FormCheckbox from '@/components/FormCheckbox.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DataTable, { type DataTableColumn } from '@/components/DataTable.vue'
 import FormField from '@/components/FormField.vue'
@@ -271,7 +275,7 @@ const save = async () => {
 		thumbnailUrl: form.thumbnailUrl?.trim() || undefined,
 		liveUrl: form.liveUrl?.trim() || undefined,
 		repoUrl: form.repoUrl?.trim() || undefined,
-		category: form.category?.trim() || undefined,
+		category: form.category?.trim() || '',
 		company: form.company?.trim() || '',
 		featured: form.featured,
 		published: form.published,
@@ -308,7 +312,9 @@ const toggleTech = (id: string) => {
 <template>
 	<div class="space-y-6">
 		<div class="flex items-center justify-between gap-4">
-			<input v-model="search" type="text" class="input max-w-sm" placeholder="Search projects..." />
+			<div class="min-w-0 max-w-sm flex-1">
+				<FormInput v-model="search" type="search" aria-label="Search projects" placeholder="Search projects..." />
+			</div>
 			<button class="btn btn-primary" @click="openCreate">+ New project</button>
 		</div>
 
@@ -364,24 +370,25 @@ const toggleTech = (id: string) => {
 						Select multiple images or videos. Images: up to 8 MiB each. MP4/WebM: up to 32 MiB each. Maximum 50 items
 						per project.
 					</p>
-					<label class="cursor-pointer">
+					<label for="project-gallery-files" class="cursor-pointer">
 						<span
 							class="btn btn-primary text-sm !py-1.5 !px-4"
 							:class="galleryUploading ? 'opacity-50 pointer-events-none' : ''"
 						>
 							{{ galleryUploading ? 'Uploading…' : '+ Add images or videos' }}
 						</span>
-						<input
-							type="file"
-							accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
-							aria-label="Add project images or videos"
-							aria-describedby="project-gallery-help"
-							multiple
-							class="sr-only"
-							:disabled="galleryUploading"
-							@change="onGalleryFilesChange"
-						/>
 					</label>
+					<FormInput
+						id="project-gallery-files"
+						type="file"
+						accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
+						aria-label="Add project images or videos"
+						aria-describedby="project-gallery-help"
+						multiple
+						class="sr-only"
+						:disabled="galleryUploading"
+						@change="onGalleryFilesChange"
+					/>
 				</div>
 				<p v-if="galleryProgress" role="status" class="text-sm text-brand-blueLight">{{ galleryProgress }}</p>
 
@@ -442,19 +449,11 @@ const toggleTech = (id: string) => {
 
 			<form v-if="activeTab === 'details'" class="space-y-4" @submit.prevent="save">
 				<div class="grid sm:grid-cols-2 gap-4">
-					<FormField label="Title" :error="errors.title" required>
-						<input v-model="form.title" type="text" class="input" />
-					</FormField>
-					<FormField label="Slug" hint="Auto-generated if empty">
-						<input v-model="form.slug" type="text" class="input" placeholder="auto" />
-					</FormField>
+					<FormInput v-model="form.title" label="Title" :error="errors.title" required />
+					<FormInput v-model="form.slug" label="Slug" hint="Auto-generated if empty" placeholder="auto" />
 				</div>
-				<FormField label="Short summary">
-					<input v-model="form.shortSummary" type="text" class="input" />
-				</FormField>
-				<FormField label="Description" :error="errors.description" required>
-					<textarea v-model="form.description" rows="5" class="input resize-none" />
-				</FormField>
+				<FormInput v-model="form.shortSummary" label="Short summary" />
+				<FormTextarea v-model="form.description" label="Description" :error="errors.description" required rows="5" />
 				<div class="grid sm:grid-cols-2 gap-4">
 					<!-- Thumbnail upload -->
 					<FormField label="Thumbnail image">
@@ -473,54 +472,47 @@ const toggleTech = (id: string) => {
 									✕
 								</button>
 							</div>
-							<label class="flex items-center gap-2 cursor-pointer">
+							<label for="project-thumbnail-file" class="flex items-center gap-2 cursor-pointer">
 								<span
 									class="btn btn-ghost text-xs px-3 py-1.5"
 									:class="imageUploading ? 'opacity-50 pointer-events-none' : ''"
 								>
 									{{ imageUploading ? 'Uploading…' : thumbnailPreview ? 'Replace image' : 'Upload image' }}
 								</span>
-								<input
-									type="file"
-									accept="image/jpeg,image/png,image/webp,image/gif"
-									class="sr-only"
-									:disabled="imageUploading"
-									@change="onFileChange"
-								/>
 							</label>
-							<input
+							<FormInput
+								id="project-thumbnail-file"
+								aria-label="Upload thumbnail image"
+								type="file"
+								accept="image/jpeg,image/png,image/webp,image/gif"
+								class="sr-only"
+								:disabled="imageUploading"
+								@change="onFileChange"
+							/>
+							<FormInput
 								v-model="form.thumbnailUrl"
-								type="text"
-								class="input text-xs"
+								aria-label="Thumbnail image URL"
+								class="text-xs"
 								placeholder="Or paste an image URL…"
 								@input="thumbnailPreview = form.thumbnailUrl ? getImageSrc(form.thumbnailUrl) : ''"
 							/>
 						</div>
 					</FormField>
-					<FormField label="Category">
-						<input v-model="form.category" type="text" class="input" placeholder="Web App, Mobile..." />
-					</FormField>
-					<FormField label="Live URL">
-						<input v-model="form.liveUrl" type="url" class="input" placeholder="https://..." />
-					</FormField>
-					<FormField label="Company / employer (optional)" hint="For work completed during employment; leave empty for personal projects.">
-						<input v-model="form.company" maxlength="200" class="input" placeholder="WWC Yellow Bumblebee Corp." />
-					</FormField>
-					<FormField label="Repo URL">
-						<input v-model="form.repoUrl" type="url" class="input" placeholder="https://github.com/..." />
-					</FormField>
+					<AdminCategorySelect v-model="form.category" kind="projects" />
+					<FormInput v-model="form.liveUrl" type="url" label="Live URL" />
+					<FormInput
+						v-model="form.company"
+						maxlength="200"
+						label="Company / employer (optional)"
+						hint="Leave empty for personal projects."
+					/>
+					<FormInput v-model="form.repoUrl" type="url" label="Repo URL" />
 					<FormField label="Sort order" hint="Position in listing (lower = first)">
 						<SortOrderSelect v-model="form.sortOrder" :taken-values="takenSortOrders" />
 					</FormField>
 					<div class="flex items-center gap-6 pt-7">
-						<label class="flex items-center gap-2 text-sm">
-							<input v-model="form.featured" type="checkbox" class="rounded" />
-							Featured
-						</label>
-						<label class="flex items-center gap-2 text-sm">
-							<input v-model="form.published" type="checkbox" class="rounded" />
-							Published
-						</label>
+						<FormCheckbox v-model="form.featured" label="Featured" class="rounded" />
+						<FormCheckbox v-model="form.published" label="Published" class="rounded" />
 					</div>
 				</div>
 

@@ -55,7 +55,7 @@ const title = computed(() => {
 		'admin-certifications': 'Certifications',
 		'admin-client-requests': 'Client Requests',
 		'admin-chatbot': 'Chatbot AI',
-		'admin-site-content': 'Site Content',
+		'admin-dynamic-settings': 'Dynamic Settings',
 		'admin-users': 'Users',
 		'admin-profile': 'Profile',
 	}

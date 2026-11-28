@@ -17,6 +17,7 @@ const supported = [
 	'ShopMedia',
 	'ProjectImage',
 	'ChatbotKnowledge',
+	'AdminOptionList',
 ] as const
 export type ContentModel = (typeof supported)[number]
 type Target = { model: ContentModel; keys: string[] }

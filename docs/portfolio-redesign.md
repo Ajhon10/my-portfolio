@@ -92,7 +92,7 @@ be deleted. Empty, loading, error and filtered-empty states are included.
 
 ## Admin home visual, project curation and shop cards — November 25, 2026
 
-Admin → Site Content → Hero Section → Home visual selects Particles, Portrait,
+Admin → Dynamic Settings → Home page → Home visual selects Particles, Portrait,
 or 3D model for every visitor. Save publishes the choice; visitor storage no
 longer overrides it. The model URL and accessible description are independently
 editable. The preview uses the current drafts. The original particle settings
@@ -160,7 +160,7 @@ Reference: https://www.gazijarin.com/ / character portrait interaction and perso
 In portfolio-server run `npx prisma generate`, `npx prisma migrate deploy`, then `npm run build`. The migration adds photography and the three WWC projects without deleting other projects or replacing uploaded project images. Existing records with a matching canonical slug receive the requested contribution descriptions. All remain editable through Projects. Fresh seeds include the projects too.
 
 ## Content management
-- Site Content / Hero Section: upload a transparent PNG/WebP up to 8 MB. It is converted to blue text particles in the browser, with a live hover preview and spacing/strength controls. Background removal is not applied. External image URLs need CORS permission; uploaded assets use the API origin.
+- Dynamic Settings → Home page accepts a transparent PNG/WebP up to 8 MB for the blue text particle artwork. The browser provides a live hover preview and spacing and strength controls. Use images that already have a transparent background. External image URLs need CORS permission. Uploaded assets use the API origin.
 - Photography: upload JPEG/PNG/WebP; set title, accessible image description, caption, location, category, order, and published status. New photos default to draft. Public endpoints expose only published, non-deleted photos. Admin list and mutations require OWNER/ADMIN. Delete removes the gallery record from view and retains the uploaded file.
 - A generic bust appears until a personal portrait is uploaded. No stock photography is presented as the owner's work.
 - Reduced motion renders a static portrait; animation sleeps when settled or offscreen, and touch scrolling is preserved.
@@ -178,7 +178,7 @@ Both application production builds passed. Backend Jest: 2 suites, 13 tests pass
 
 The public route is now `/`, with `#hero`, `#projects`, `#about`, `#tech`, `#experience`, `#certifications`, `#photography`, and `#contact` sections. Project cards expand details on the page using `/?project=<slug>#projects`. Legacy `/projects`, `/projects/:slug`, and `/photography` URLs redirect to the matching section. Admin and client authentication routes remain separate.
 
-Site Content > Branding > Website Favicon accepts ICO (including the image/vnd.microsoft.icon MIME type), PNG, SVG, and WebP up to 8 MB. The icon URL is versioned with the saved timestamp. Saves refresh the active tab, notify other tabs through a storage event, and reload when a tab regains focus.
+Dynamic Settings → Branding → Website Favicon accepts ICO (including the image/vnd.microsoft.icon MIME type), PNG, SVG, and WebP up to 8 MB. The icon URL is versioned with the saved timestamp. Saves refresh the active tab, notify other tabs through a storage event, and reload when a tab regains focus.
 
 The assistant uses current published project descriptions (including full contribution boundaries), technologies, experience, certifications, and enabled Q&A. A single shared keyword no longer selects a canned answer. It retains the latest 12 turns, includes the new question once, resolves project follow-ups, asks about ambiguous scope, and does not invent prices or commitments. The new migration adds ten editable Q&A entries and replaces only the original unsupported experience-years seed answer. Knowledge edits are available in Admin > Chatbot AI > Add Q&A.
 

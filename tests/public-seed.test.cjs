@@ -128,7 +128,7 @@ test('subcategory migration preserves existing catalog rows and seeds scoped chi
 		db.exec(seedSql())
 		assert.equal(db.prepare('SELECT COUNT(*) n FROM shop_category').get().n, 2)
 		assert.equal(db.prepare('SELECT COUNT(*) n FROM shop_subcategory').get().n, 5)
-		assert.equal(db.prepare('SELECT COUNT(*) n FROM shop_product').get().n, 2)
+		assert.equal(db.prepare('SELECT COUNT(*) n FROM shop_product').get().n, 5)
 		const free = db.prepare("SELECT * FROM shop_product WHERE name='ATS-friendly Resume Template'").get()
 		assert.equal(free.price_label, 'Free')
 		assert.equal(free.download_url, '/downloads/ats-friendly-resume-template.zip')
@@ -147,6 +147,11 @@ test('subcategory migration preserves existing catalog rows and seeds scoped chi
 			.prepare("SELECT id,category_id FROM shop_subcategory WHERE category_id=? AND name='Kids'")
 			.get(parentId)
 		assert.ok(kids)
+		const drafts = db.prepare(`
+			SELECT COUNT(*) n FROM shop_product_subcategory s JOIN shop_product p ON p.id=s.product_id
+			WHERE s.subcategory_id=? AND p.published=0 AND p.download_url=''
+		`).get(kids.id)
+		assert.equal(drafts.n, 3)
 		assert.equal(db.prepare('SELECT name FROM shop_product WHERE id=?').get(productId).name, 'Keep this item')
 		db.prepare('INSERT INTO shop_product_subcategory(product_id,subcategory_id) VALUES(?,?)').run(productId, kids.id)
 		assert.throws(

@@ -19,7 +19,7 @@ interface Model {
 	uniques: string[][]
 }
 export const models = { ...metadata.models } as Record<string, Model>
-// New shop records use the same mapper without changing the legacy import map.
+// New Worker records use the same mapper without changing the legacy import map.
 for (const [name, table, fields, soft] of [
 	['ShopCategory', 'shop_category', { name: 'String', sortOrder: 'Int' }, true],
 	['ShopSubcategory', 'shop_subcategory', { categoryId: 'String', name: 'String', sortOrder: 'Int' }, true],
@@ -31,6 +31,7 @@ for (const [name, table, fields, soft] of [
 			description: 'String',
 			priceLabel: 'String',
 			purchaseUrl: 'String',
+			marketplaceLinks: 'Json',
 			downloadUrl: 'String',
 			soldCount: 'Int',
 			ratingCount: 'Int',
@@ -40,6 +41,7 @@ for (const [name, table, fields, soft] of [
 		true,
 	],
 	['ShopMedia', 'shop_media', { productId: 'String', url: 'String', altText: 'String', sortOrder: 'Int' }, false],
+	['AdminOptionList', 'admin_option_list', { optionsJson: 'String', revision: 'String' }, false],
 ] as const) {
 	const mapped: Record<string, Field> = {}
 	const all = {
